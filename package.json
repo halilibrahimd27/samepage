@@ -22,7 +22,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
+    "@xmldom/xmldom": "^0.9.12",
     "comlink": "^4.4.2",
+    "docx-preview": "^0.4.1",
+    "jszip": "^3.10.2",
     "mupdf": "^1.28.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -37,6 +40,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "docx": "^9.14.0",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
