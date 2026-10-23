@@ -1,0 +1,73 @@
+/**
+ * Intermediate representation shared by the PDF and DOCX pipelines (ARCHITECTURE.md §3).
+ * Geometry is in PDF points, origin top-left, y down. Ids are stable: `p{page}-b{block}`.
+ */
+export type Rect = { x0: number; y0: number; x1: number; y1: number };
+
+export type Role =
+  | 'heading'
+  | 'body'
+  | 'caption'
+  | 'footnote'
+  | 'header'
+  | 'footer'
+  | 'page-number'
+  | 'table-cell'
+  | 'label'
+  | 'formula'
+  | 'code'
+  | 'reference'
+  | 'unknown';
+
+export interface SpanIR {
+  text: string;
+  bbox: Rect;
+  font: {
+    name: string;
+    family: 'serif' | 'sans' | 'mono';
+    bold: boolean;
+    italic: boolean;
+    isMath: boolean;
+  };
+  size: number;
+  color: [number, number, number];
+  linkUri?: string;
+}
+
+export interface LineIR {
+  bbox: Rect;
+  baseline: number;
+  spans: SpanIR[];
+}
+
+export interface BlockIR {
+  id: string;
+  bbox: Rect;
+  role: Role;
+  translatable: boolean;
+  lines: LineIR[];
+  align: 'left' | 'right' | 'center' | 'justify';
+  direction: [number, number];
+  columnIndex: number;
+  readingOrder: number;
+  chain?: { paragraphId: string; index: number; next?: string };
+  tableCell?: { tableId: string; row: number; col: number; cellRect: Rect };
+}
+
+export interface PageIR {
+  index: number;
+  width: number;
+  height: number;
+  rotation: 0 | 90 | 180 | 270;
+  blocks: BlockIR[];
+  images: { bbox: Rect }[];
+  vectors: { bbox: Rect; isRectangle: boolean; isStroked: boolean }[];
+  columns: Rect[];
+}
+
+export interface DocIR {
+  kind: 'pdf' | 'docx';
+  sourceLang: string;
+  pages: PageIR[];
+  meta: { title?: string; pageCount: number };
+}
