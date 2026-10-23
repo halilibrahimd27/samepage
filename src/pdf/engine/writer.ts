@@ -3,6 +3,8 @@ import type { LayoutLine } from '../typeset/layout';
 import { FACE_FILES } from '../typeset/types';
 import type { LoadedFaces } from './fonts';
 import { loadMupdf } from './mupdf';
+import { applyOutlineTitles } from './outline';
+import { sanitizePdf } from './sanitize';
 
 export interface PageWrite {
   index: number;
@@ -27,6 +29,8 @@ export interface WriteResult {
   linksAdded: number;
   /** Characters without a glyph in the chosen face (reported as MISSING_GLYPH). */
   missingGlyphs: string[];
+  /** Active content removed by sanitisation (P6.4). */
+  sanitized: string[];
 }
 
 const fmt = (n: number) => (Math.abs(n) < 1e-6 ? '0' : Number(n.toFixed(4)).toString());
@@ -40,7 +44,14 @@ export async function writePdf(
   source: Uint8Array,
   pages: PageWrite[],
   faces: LoadedFaces,
-  opts: { dual: boolean; appendix?: AppendedPage[] },
+  opts: {
+    dual: boolean;
+    appendix?: AppendedPage[];
+    sanitize?: boolean;
+    /** Translated bookmark titles (depth-first order) and document title (P6.3). */
+    outline?: string[];
+    title?: string;
+  },
 ): Promise<WriteResult> {
   const mupdf = await loadMupdf();
   const doc = mupdf.Document.openDocument(source, 'application/pdf').asPDF();
@@ -206,10 +217,13 @@ export async function writePdf(
       const pageObj = doc.addPage([0, 0, extra.width, extra.height], 0, resources, ops);
       doc.insertPage(doc.countPages(), pageObj);
     }
+    if (opts.outline?.length) applyOutlineTitles(mupdf, doc, opts.outline);
+    if (opts.title) doc.setMetaData('info:Title', opts.title);
+    const sanitized = opts.sanitize === false ? [] : sanitizePdf(doc);
     doc.subsetFonts();
     const mono = doc.saveToBuffer('compress,garbage=compact').asUint8Array().slice();
     const dual = opts.dual ? await sideBySide(source, mono) : null;
-    return { mono, dual, linksRemoved, linksAdded, missingGlyphs: [...missing].sort() };
+    return { mono, dual, linksRemoved, linksAdded, missingGlyphs: [...missing].sort(), sanitized };
   } finally {
     doc.destroy();
   }

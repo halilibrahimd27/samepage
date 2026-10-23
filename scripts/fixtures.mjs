@@ -37,6 +37,25 @@ const smoke = buildTextPdf([
 ]);
 save('smoke-2pages.pdf', smoke);
 
+// PDF with active content (document JavaScript + open action) for the sanitisation test.
+{
+  const js = mupdf.Document.openDocument(smoke, 'application/pdf').asPDF();
+  const root = js.getTrailer().get('Root');
+  const action = js.newDictionary();
+  action.put('S', js.newName('JavaScript'));
+  action.put('JS', js.newString("app.alert('samepage test');"));
+  root.put('OpenAction', js.addObject(action));
+  const names = js.newDictionary();
+  const jsTree = js.newDictionary();
+  const arr = js.newArray();
+  arr.push(js.newString('init'));
+  arr.push(js.addObject(action));
+  jsTree.put('Names', arr);
+  names.put('JavaScript', jsTree);
+  root.put('Names', names);
+  save('javascript.pdf', js.saveToBuffer('').asUint8Array().slice());
+}
+
 const doc = mupdf.Document.openDocument(smoke, 'application/pdf').asPDF();
 save(
   'encrypted.pdf',

@@ -31,6 +31,8 @@ export function PdfTranslator(props: {
   const [download, setDownload] = useState<number | null>(null);
   const [result, setResult] = useState<(PdfJobResult & { ok: true }) | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [from, setFrom] = useState(1);
+  const [to, setTo] = useState(props.pageCount);
   /** Review-step corrections (tagged source → tagged target), applied on rebuild. */
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [applied, setApplied] = useState<Record<string, string>>({});
@@ -66,6 +68,10 @@ export function PdfTranslator(props: {
         translateReferences: settings.translateReferences,
         saveHistory: settings.saveHistory,
         dual: true,
+        translateMetadata: settings.translateMetadata,
+        ...(from > 1 || to < props.pageCount
+          ? { pageRange: { from: Math.max(0, from - 1), to: Math.min(props.pageCount, to) - 1 } }
+          : {}),
         ...(Object.keys(edits).length ? { overrides: edits } : {}),
       };
       const res = await pipelineClient.call<PdfJobResult>(
@@ -100,6 +106,40 @@ export function PdfTranslator(props: {
         extracting={false}
         fileName={`glossary.${config.source}-${config.target}.csv`}
       />
+      {props.pageCount > 1 && (
+        <fieldset className="flex flex-wrap items-center gap-2 text-sm">
+          <legend className="mb-1 font-medium">{t('pdf.pageRange')}</legend>
+          <label className="flex items-center gap-1">
+            {t('pdf.pageFrom')}
+            <input
+              type="number"
+              min={1}
+              max={to}
+              value={from}
+              onChange={(e) => setFrom(Math.max(1, Math.min(to, Number(e.target.value) || 1)))}
+              className="w-20 rounded border border-slate-300 px-2 py-1"
+            />
+          </label>
+          <label className="flex items-center gap-1">
+            {t('pdf.pageTo')}
+            <input
+              type="number"
+              min={from}
+              max={props.pageCount}
+              value={to}
+              onChange={(e) =>
+                setTo(
+                  Math.max(
+                    from,
+                    Math.min(props.pageCount, Number(e.target.value) || props.pageCount),
+                  ),
+                )
+              }
+              className="w-20 rounded border border-slate-300 px-2 py-1"
+            />
+          </label>
+        </fieldset>
+      )}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <button

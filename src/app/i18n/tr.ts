@@ -235,4 +235,8 @@ export const tr: Record<MessageKey, string> = {
   'pdfReport.fallback.annotation': 'Orijinal etiket korundu; çeviri PDF notunda',
   'pdfReport.fallback.overflow-note': 'Metnin bir kısmı taşma notlarına taşındı',
   'pdfReport.fallback.keep-original': 'Orijinal metin korundu',
+  'pdf.pageRange': 'Çevrilecek sayfalar',
+  'pdf.pageFrom': 'Başlangıç sayfası',
+  'pdf.pageTo': 'bitiş sayfası',
+  'pdfReport.sanitized': 'Çıktıdan kaldırılan etkin içerik: {items}',
 };

@@ -68,6 +68,11 @@ export function PdfReportPanel({
       {missingGlyphs.length > 0 && (
         <p className="text-sm text-red-800">MISSING_GLYPH: {missingGlyphs.join(' ')}</p>
       )}
+      {report.sanitization.removed.length > 0 && (
+        <p className="text-sm">
+          {t('pdfReport.sanitized', { items: report.sanitization.removed.join('; ') })}
+        </p>
+      )}
       {overflowNotes > 0 && (
         <p className="text-sm">{t('pdfReport.overflowNotes', { count: overflowNotes })}</p>
       )}

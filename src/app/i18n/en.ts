@@ -234,6 +234,10 @@ export const en = {
   'pdfReport.fallback.annotation': 'Original label kept; translation in a PDF note',
   'pdfReport.fallback.overflow-note': 'Part of the text moved to the overflow notes',
   'pdfReport.fallback.keep-original': 'Original text kept',
+  'pdf.pageRange': 'Pages to translate',
+  'pdf.pageFrom': 'From page',
+  'pdf.pageTo': 'to page',
+  'pdfReport.sanitized': 'Active content removed from the output: {items}',
 } as const;
 
 export type MessageKey = keyof typeof en;

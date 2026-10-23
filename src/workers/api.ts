@@ -75,6 +75,10 @@ export interface DocxJob {
 export interface PdfJob extends Omit<DocxJob, 'translateComments' | 'translateMetadata'> {
   /** Also produce the side-by-side (original | translation) PDF. */
   dual: boolean;
+  /** Translate bookmarks and the document title. */
+  translateMetadata: boolean;
+  /** 0-based inclusive page range; omitted = all pages. */
+  pageRange?: { from: number; to: number };
 }
 
 export type PdfJobResult =

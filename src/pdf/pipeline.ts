@@ -6,6 +6,7 @@ import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { extractAndAnalyze } from './analyze';
 import {
+  readOutlineAndTitle,
   openPdfForExtraction,
   renderPagePixels,
   writePdf,
@@ -45,6 +46,10 @@ export interface PdfOptions {
   overrides?: Record<string, string>;
   /** Layout repair strategies (all by default). */
   strategies?: RepairInput['strategies'];
+  /** Translate bookmarks and the document title (P6.3). */
+  translateMetadata?: boolean;
+  /** Only units entirely inside this page range (0-based, inclusive) are translated (P6.1). */
+  pageRange?: { from: number; to: number };
 }
 
 export type PdfUnitStatus = 'translated' | 'warning' | 'untranslated' | 'kept-original';
@@ -87,6 +92,8 @@ export interface PdfReport {
     repairs: Partial<Record<RepairCode, number>>;
     overflowNotes: number;
   };
+  /** Active content removed from the output (document JavaScript, launch actions…). */
+  sanitization: { removed: string[] };
   pages: PageScore[];
   units: PdfUnitReport[];
   issues: Issue[];
@@ -157,7 +164,12 @@ export async function translatePdf(
     for (const b of pages.flatMap((p) => p.blocks))
       if (b.role === 'reference') b.translatable = true;
   }
-  const units = buildPdfUnits(pages);
+  const inRange = (p: number) =>
+    !opts.pageRange || (p >= opts.pageRange.from && p <= opts.pageRange.to);
+  const units = buildPdfUnits(pages).filter((u) => u.blocks.every((b) => inRange(pageOf(b))));
+  const meta = opts.translateMetadata
+    ? await readOutlineAndTitle(bytes)
+    : { outline: [], title: '' };
   const unique = new Map<string, SegmentRequest>();
   for (const u of units)
     if (!unique.has(u.encoded.source))
@@ -166,6 +178,11 @@ export async function translatePdf(
         text: u.encoded.source,
         role: u.role,
       });
+  // Bookmarks and the document title are translated as plain segments (no layout).
+  for (const t of [...meta.outline, meta.title]) {
+    if (t.trim() && /\p{L}/u.test(t) && !unique.has(t))
+      unique.set(t, { id: `s${unique.size + 1}`, text: t, role: 'heading' });
+  }
   const requests = [...unique.values()];
   const outcomes = await translateSegments({
     engine: opts.engine,
@@ -342,7 +359,16 @@ export async function translatePdf(
       }
     }
 
-    written = await writePdf(bytes, writes, opts.faces, { dual: opts.dual, appendix });
+    const translatedText = (t: string) => {
+      const o = bySource.get(t);
+      return o && !o.untranslated ? plainText(o.text) : t;
+    };
+    written = await writePdf(bytes, writes, opts.faces, {
+      dual: opts.dual,
+      appendix,
+      ...(meta.outline.length ? { outline: meta.outline.map(translatedText) } : {}),
+      ...(meta.title.trim() ? { title: translatedText(meta.title) } : {}),
+    });
 
     // Post-apply verification (§7): re-extract and compare with the intended text; masked render diff.
     postIssues = [];
@@ -514,6 +540,7 @@ export async function translatePdf(
       pages: scored.pages,
       units: all,
       issues,
+      sanitization: { removed: written!.sanitized },
     },
   };
 }
