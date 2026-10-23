@@ -75,3 +75,39 @@ export async function renderPagePixels(
     doc.destroy();
   }
 }
+
+export interface OpenedRenderer {
+  pixels(index: number, scale: number): PagePixels;
+  close(): void;
+}
+
+/** Keeps one document open for many page renders (post-apply verification of long documents). */
+export async function openRenderer(bytes: Uint8Array): Promise<OpenedRenderer> {
+  const mupdf = await loadMupdf();
+  const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
+  return {
+    pixels(index, scale) {
+      const page = doc.loadPage(index);
+      try {
+        const pixmap = page.toPixmap(
+          mupdf.Matrix.scale(scale, scale),
+          mupdf.ColorSpace.DeviceRGB,
+          false,
+          true,
+        );
+        try {
+          return {
+            data: pixmap.getPixels().slice(),
+            width: pixmap.getWidth(),
+            height: pixmap.getHeight(),
+          };
+        } finally {
+          pixmap.destroy();
+        }
+      } finally {
+        page.destroy();
+      }
+    },
+    close: () => doc.destroy(),
+  };
+}

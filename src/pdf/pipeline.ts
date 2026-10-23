@@ -8,7 +8,7 @@ import { extractAndAnalyze } from './analyze';
 import {
   readOutlineAndTitle,
   openPdfForExtraction,
-  renderPagePixels,
+  openRenderer,
   writePdf,
   type AppendedPage,
   type LoadedFaces,
@@ -372,11 +372,18 @@ export async function translatePdf(
 
     // Post-apply verification (§7): re-extract and compare with the intended text; masked render diff.
     postIssues = [];
+    // Pages are extracted on demand and dropped after use (long documents, memory).
     const pdf = await openPdfForExtraction(written.mono);
-    const rawOut = Array.from({ length: Math.min(pdf.pageCount, pages.length) }, (_, i) =>
-      pdf.extractPage(i),
-    );
-    pdf.close();
+    const rawCache = new Map<number, RawPage>();
+    const rawOut = (i: number) => {
+      let r = rawCache.get(i);
+      if (!r) {
+        if (rawCache.size > 4) rawCache.delete(rawCache.keys().next().value!);
+        r = pdf.extractPage(i);
+        rawCache.set(i, r);
+      }
+      return r;
+    };
     const failing: string[] = [];
     for (const r of placed) {
       if (r.fallback === 'keep-original' || r.fallback === 'annotation') continue;
@@ -389,7 +396,7 @@ export async function translatePdf(
         r.layouts
           .map((l) =>
             charsIn(
-              rawOut[pageOf(blockById.get(l.blockId)!)]!,
+              rawOut(pageOf(blockById.get(l.blockId)!)),
               r.params.boxes[l.blockId] ?? blockById.get(l.blockId)!.bbox,
             ),
           )
@@ -413,11 +420,15 @@ export async function translatePdf(
         failing.push(r.unitId);
       }
     }
+    pdf.close();
+    rawCache.clear();
+    const originalRenderer = await openRenderer(bytes);
+    const outputRenderer = await openRenderer(written.mono);
     const scale = policy.postApply.renderDpi / 72;
     for (const w of writes) {
       if (!w.lines.length && !w.redact.length) continue;
-      const before = await renderPagePixels(bytes, w.index, scale);
-      const after = await renderPagePixels(written.mono, w.index, scale);
+      const before = originalRenderer.pixels(w.index, scale);
+      const after = outputRenderer.pixels(w.index, scale);
       const d = policy.postApply.maskDilatePt;
       const masks = [
         ...pages[w.index]!.blocks.flatMap((b) => b.lines.map((l) => l.bbox)),
@@ -468,6 +479,8 @@ export async function translatePdf(
         });
       }
     }
+    originalRenderer.close();
+    outputRenderer.close();
     if (!failing.length || attempt === policy.postApply.maxRebuilds) break;
     // Targeted rebuild: failing units keep their original text.
     failing.forEach((id) => forcedOriginal.add(id));
