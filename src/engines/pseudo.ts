@@ -1,4 +1,4 @@
-import { tokenize } from '../core/segment/codec';
+import { plainText, tokenize } from '../core/segment/codec';
 import type { CondenseRequest, SegmentRequest, SegmentResult, TranslationEngine } from './types';
 
 export interface PseudoOptions {
@@ -29,7 +29,17 @@ const LOOKALIKE: Record<string, string> = {
   U: 'Ü',
 };
 /** Filler words appended to reach the expansion factor (breakable, glyph-diverse). */
-const FILLER = ['ŝåmрļé', 'ţéхţ', 'ğļурħ', 'çövеr', 'Ŵörđ', 'ļоņğ', 'ƒіļļ'];
+/** Filler groups (breakable): tildes in groups of at most 7, so lines can still break. */
+const GROUP = 7;
+function filler(chars: number): string {
+  let out = '';
+  while (chars > 1) {
+    const n = Math.min(GROUP, chars - 1);
+    out += ` ${'~'.repeat(n)}`;
+    chars -= n + 1;
+  }
+  return out;
+}
 
 function substitute(text: string): string {
   let out = '';
@@ -37,7 +47,10 @@ function substitute(text: string): string {
   return out;
 }
 
-/** Deterministic pseudo-translation preserving tags, placeholders and numbers exactly. */
+/**
+ * Deterministic pseudo-translation preserving tags, placeholders and numbers exactly:
+ * look-alike letters, brackets, and "~" filler up to the expansion factor (`[Ŕéşüļţş ~~~]`).
+ */
 export function pseudoTranslate(source: string, opts: PseudoOptions): string {
   const identity = opts.factor === 1 && !opts.substitute;
   if (identity || source.trim() === '') return source;
@@ -50,24 +63,15 @@ export function pseudoTranslate(source: string, opts: PseudoOptions): string {
   }
   const visible = source.length;
   const targetLen = Math.round(visible * opts.factor);
-  // At least one filler word, so short outputs such as "[5]" never look like citations.
-  let filler = ` ${FILLER[0]}`;
-  for (let i = 1; visible + 2 + filler.length < targetLen; i++) {
-    filler += ` ${FILLER[i % FILLER.length]}`;
-  }
-  return `[${body}${filler}]`;
+  // A letterless segment gets some filler, so "[5]" never looks like a citation.
+  const missing = Math.max(targetLen - (visible + 2), /\p{L}/u.test(plainText(source)) ? 0 : 4);
+  return `[${body}${filler(missing)}]`;
 }
 
-/** Shortens a pseudo translation by dropping filler words first (deterministic). */
+/** Shortens a pseudo translation by dropping filler first (deterministic). */
 export function pseudoCondense(current: string, maxChars: number): string {
-  if (current.length <= maxChars) return current;
-  const fillerTail = new RegExp(`(?: (?:${FILLER.join('|')}))+\\]$`, 'u');
-  const words = current.match(fillerTail)?.[0].slice(0, -1).trim().split(' ') ?? [];
   let result = current;
-  while (words.length > 0 && result.length > maxChars) {
-    words.pop();
-    result = current.replace(fillerTail, `${words.length ? ' ' + words.join(' ') : ''}]`);
-  }
+  while (result.length > maxChars && / ~+\]$/.test(result)) result = result.replace(/ ~+\]$/, ']');
   return result;
 }
 

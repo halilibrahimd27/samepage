@@ -1,5 +1,5 @@
 import type { DecodedRun } from '../../core/segment/codec';
-import type { BlockIR } from '../../core/ir/types';
+import type { BlockIR, Rect } from '../../core/ir/types';
 import type { MathPart, PdfStyle } from './segments';
 import { faceKey, type FaceKey, type Measurer } from './types';
 
@@ -13,6 +13,8 @@ export interface LayoutRun {
   width: number;
   /** Vertical offset from the baseline (superscripts), in points, positive = up. */
   rise: number;
+  /** Letter spacing in em. */
+  tracking?: number;
   linkUri?: string;
 }
 
@@ -33,8 +35,10 @@ export interface BlockLayout {
   blockId: string;
   unitId: string;
   lines: LayoutLine[];
-  /** Text that did not fit in this unit's boxes (only set on the last block of a unit). */
+  /** Text did not fit in this unit's boxes (only set on the last block of a unit). */
   overflow: boolean;
+  /** The text that did not fit (for overflow notes). */
+  remaining?: string;
   scale: number;
 }
 
@@ -43,6 +47,14 @@ export interface LayoutOptions {
   sizeFactor: (fontName: string) => number;
   /** Uniform scale applied by layout repair (1 = none). */
   scale?: number;
+  /** Boxes grown by layout repair (R2), by block id. */
+  boxes?: Record<string, Rect>;
+  /** Letter spacing in em (R1; negative tightens). */
+  trackingEm?: number;
+  /** Factor on the original line advance (R1; ≤ 1). */
+  leading?: number;
+  /** Factor on the natural space width (R1; ≥ 0.9 for justified text). */
+  spaceFactor?: number;
 }
 
 interface Piece {
@@ -152,7 +164,8 @@ const leading = (block: BlockIR, fallback: number) => {
 /**
  * Greedy line breaking of a unit's translation through its chain of boxes. Lines reuse the
  * original baselines (and indents); extra lines continue at the original leading while they
- * stay inside the box. Returns one layout per box; `overflow` marks text that did not fit.
+ * stay inside the box (which layout repair may have grown). Returns one layout per box;
+ * `overflow` and `remaining` describe text that did not fit.
  */
 export function layoutUnit(
   unitId: string,
@@ -163,34 +176,37 @@ export function layoutUnit(
   opts: LayoutOptions,
 ): BlockLayout[] {
   const pieces = toPieces(runs, baseStyle, opts);
-  const widthOf = (p: Piece) => measurer.width(p.text, p.face, p.size);
+  const tracking = opts.trackingEm ?? 0;
+  const spaceFactor = opts.spaceFactor ?? 1;
+  const widthOf = (p: Piece) => {
+    const w = measurer.width(p.text, p.face, p.size);
+    if (p.space) return w * spaceFactor;
+    return w + tracking * p.size * [...p.text].length;
+  };
   const out: BlockLayout[] = [];
   let i = 0;
-  // Skip leading spaces.
   while (i < pieces.length && pieces[i]!.space) i++;
 
   for (const block of blocks) {
+    const box = opts.boxes?.[block.id] ?? block.bbox;
     if (block.direction[1] !== 0) {
       // Rotated text (chart axis labels): one line along the block's long side, centred.
       const [dx, dy] = block.direction;
       const line: Piece[] = [];
       while (i < pieces.length) line.push(pieces[i++]!);
-      const length =
-        Math.abs(dy) > Math.abs(dx) ? block.bbox.y1 - block.bbox.y0 : block.bbox.x1 - block.bbox.x0;
+      const length = Math.abs(dy) > Math.abs(dx) ? box.y1 - box.y0 : box.x1 - box.x0;
       const width = line.reduce((w, p) => w + widthOf(p), 0);
       const size = line.find((p) => !p.space)?.size ?? baseStyle.size;
       const descent = size * 0.22;
       // Glyph "up" is perpendicular to the direction; the baseline sits on the opposite side.
       const origin =
-        dy < 0
-          ? { x: block.bbox.x1 - descent, y: block.bbox.y1 }
-          : { x: block.bbox.x0 + descent, y: block.bbox.y0 };
+        dy < 0 ? { x: box.x1 - descent, y: box.y1 } : { x: box.x0 + descent, y: box.y0 };
       let x = Math.max(0, (length - width) / 2);
-      const runs: LayoutRun[] = [];
+      const laid: LayoutRun[] = [];
       for (const p of line) {
         const w = widthOf(p);
         if (!p.space)
-          runs.push({
+          laid.push({
             text: p.text,
             face: p.face,
             size: p.size,
@@ -198,34 +214,57 @@ export function layoutUnit(
             x,
             width: w,
             rise: p.rise,
+            tracking,
           });
         x += w;
       }
+      const overflow = width > length + 0.5;
       out.push({
         blockId: block.id,
         unitId,
         lines: [
-          { dir: [dx, dy], origin, baseline: origin.y, x0: 0, x1: length, runs, wordSpacing: 0 },
+          {
+            dir: [dx, dy],
+            origin,
+            baseline: origin.y,
+            x0: 0,
+            x1: length,
+            runs: laid,
+            wordSpacing: 0,
+          },
         ],
-        overflow: width > length + 0.5,
+        overflow,
         scale: opts.scale ?? 1,
+        ...(overflow ? { remaining: line.map((p) => p.text).join('') } : {}),
       });
       continue;
     }
+
     const lines: LayoutLine[] = [];
-    const lead = leading(block, baseStyle.size * 1.2);
-    const boxSlots = slots(block);
-    const lastBaseline =
-      block.bbox.y1 -
-      (block.lines[block.lines.length - 1]!.bbox.y1 -
-        block.lines[block.lines.length - 1]!.baseline);
+    const scale = opts.scale ?? 1;
+    // Smaller type gets a proportionally smaller line advance, so scaling frees vertical space too.
+    const lineFactor = (opts.leading ?? 1) * scale;
+    const lead = leading(block, baseStyle.size * 1.2) * lineFactor;
+    // Original line slots keep indents; with a smaller line advance they are recomputed (the first
+    // baseline moves up with the smaller ascent so the block keeps its top edge).
+    const original = slots(block);
+    const first = original[0]!;
+    const firstBaseline = first.baseline - (1 - scale) * baseStyle.size * 0.7;
+    const boxSlots =
+      lineFactor < 0.999
+        ? original.map((s, k) => ({ x0: s.x0, baseline: firstBaseline + lead * k }))
+        : original;
+    const lastLine = block.lines[block.lines.length - 1]!;
+    const descent = (lastLine.bbox.y1 - lastLine.baseline) * scale;
+    const lastBaseline = box.y1 - descent;
     for (let slot = 0; i < pieces.length; slot++) {
       const s = boxSlots[slot] ?? {
         baseline: boxSlots[boxSlots.length - 1]!.baseline + lead * (slot - boxSlots.length + 1),
-        x0: block.bbox.x0,
+        x0: box.x0,
       };
       if (s.baseline > lastBaseline + 0.5) break;
-      const maxWidth = block.bbox.x1 - s.x0;
+      const x0 = Math.max(box.x0, Math.min(s.x0, box.x1 - 1));
+      const maxWidth = box.x1 - x0;
       const line: Piece[] = [];
       let width = 0;
       // Lines break only at spaces: a "word" is every non-space piece up to the next space, so
@@ -241,18 +280,23 @@ export function layoutUnit(
         let w = 0;
         while (end < pieces.length && !pieces[end]!.space) w += widthOf(pieces[end++]!);
         if (width + w > maxWidth + 0.01 && line.some((x) => !x.space)) break;
+        if (width + w > maxWidth + 0.01 && !line.length) {
+          // A single word wider than the line: it cannot be placed here.
+          break;
+        }
         for (; i < end; i++) line.push(pieces[i]!);
         width += w;
       }
       while (line.length && line[line.length - 1]!.space) width -= widthOf(line.pop()!);
+      if (!line.length) break;
       while (i < pieces.length && pieces[i]!.space) i++;
       const isLast = i >= pieces.length;
       const gaps = line.filter((p) => p.space).length;
       const justify = block.align === 'justify' && !isLast && gaps > 0;
       const wordSpacing = justify ? (maxWidth - width) / gaps : 0;
-      let x = s.x0;
-      if (block.align === 'center') x = s.x0 + (block.bbox.x1 - s.x0 - width) / 2;
-      else if (block.align === 'right') x = block.bbox.x1 - width;
+      let x = x0;
+      if (block.align === 'center') x = x0 + (box.x1 - x0 - width) / 2;
+      else if (block.align === 'right') x = box.x1 - width;
       const laid: LayoutRun[] = [];
       for (const p of line) {
         const w = widthOf(p) + (p.space ? wordSpacing : 0);
@@ -265,17 +309,26 @@ export function layoutUnit(
             x,
             width: w,
             rise: p.rise,
+            tracking,
           };
           if (p.linkUri) run.linkUri = p.linkUri;
           laid.push(run);
         }
         x += w;
       }
-      lines.push({ baseline: s.baseline, x0: s.x0, x1: block.bbox.x1, runs: laid, wordSpacing });
+      lines.push({ baseline: s.baseline, x0, x1: box.x1, runs: laid, wordSpacing });
     }
-    out.push({ blockId: block.id, unitId, lines, overflow: false, scale: opts.scale ?? 1 });
+    out.push({ blockId: block.id, unitId, lines, overflow: false, scale });
   }
-  if (i < pieces.length && out.length) out[out.length - 1]!.overflow = true;
+  if (i < pieces.length && out.length) {
+    const last = out[out.length - 1]!;
+    last.overflow = true;
+    last.remaining = pieces
+      .slice(i)
+      .map((p) => p.text)
+      .join('')
+      .trim();
+  }
   return out;
 }
 

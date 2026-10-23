@@ -97,25 +97,42 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
     cells.map((b) => (b.bbox.y0 + b.bbox.y1) / 2),
     3,
   );
-  const colXs = cluster(
-    cells.map((b) => b.bbox.x0),
-    8,
-  );
+  // Columns = merged horizontal extents of the cells (works for left-, right- and centre-aligned
+  // columns); vertical rules, when present, refine the boundaries.
+  const intervals: [number, number][] = [];
+  for (const [x0, x1] of cells
+    .map((b) => [b.bbox.x0, b.bbox.x1] as [number, number])
+    .sort((p, q) => p[0] - q[0])) {
+    const last = intervals[intervals.length - 1];
+    if (last && x0 <= last[1] + 2) last[1] = Math.max(last[1], x1);
+    else intervals.push([x0, x1]);
+  }
+  const colBounds = intervals.map(([x0, x1], i) => {
+    const left = i === 0 ? table.rect.x0 : (intervals[i - 1]![1] + x0) / 2;
+    const right = i === intervals.length - 1 ? table.rect.x1 : (x1 + intervals[i + 1]![0]) / 2;
+    const rulesInside = table.cols.filter((c) => c > x0 - 6 && c < x1 + 6);
+    return [
+      Math.max(left, ...table.cols.filter((c) => c <= x0)),
+      Math.min(right, ...table.cols.filter((c) => c >= x1)),
+      rulesInside.length,
+    ] as const;
+  });
   const nearest = (arr: number[], v: number) =>
     arr.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(arr[best]! - v) ? i : best), 0);
-  const bounds = (centers: number[], lo: number, hi: number) =>
-    centers.map(
-      (c, i) =>
-        [
-          i === 0 ? lo : (centers[i - 1]! + c) / 2,
-          i === centers.length - 1 ? hi : (c + centers[i + 1]!) / 2,
-        ] as const,
-    );
-  const colBounds = bounds(colXs, table.rect.x0, table.rect.x1);
-  const rowBounds = bounds(rowYs, table.rect.y0, table.rect.y1);
+  const rowBounds = rowYs.map(
+    (c, i) =>
+      [
+        i === 0 ? table.rect.y0 : (rowYs[i - 1]! + c) / 2,
+        i === rowYs.length - 1 ? table.rect.y1 : (c + rowYs[i + 1]!) / 2,
+      ] as const,
+  );
   for (const b of cells) {
     const row = nearest(rowYs, (b.bbox.y0 + b.bbox.y1) / 2);
-    const col = nearest(colXs, b.bbox.x0);
+    const cx = (b.bbox.x0 + b.bbox.x1) / 2;
+    const col = Math.max(
+      0,
+      intervals.findIndex(([x0, x1]) => cx >= x0 - 1 && cx <= x1 + 1),
+    );
     b.role = 'table-cell';
     b.tableCell = {
       tableId: table.id,
