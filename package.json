@@ -21,6 +21,7 @@
     "fixtures": "node scripts/fixtures.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
     "comlink": "^4.4.2",
     "mupdf": "^1.28.1",
     "react": "^19.3.1",

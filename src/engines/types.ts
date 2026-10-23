@@ -18,6 +18,8 @@ export interface SegmentResult {
   id: string;
   text: string;
   overBudget?: boolean;
+  /** Engine notes, e.g. 'tags-survived' / 'style-approximated' (Chrome built-in). */
+  notes?: string[];
 }
 
 export interface TranslateContext {
@@ -96,7 +98,15 @@ export interface TranslationEngine {
 /** Thrown by engines for failures the user must fix (bad key, unreachable server…). */
 export class EngineError extends Error {
   readonly code:
-    'auth' | 'network' | 'rate-limit' | 'server' | 'refusal' | 'bad-response' | 'unavailable';
+    | 'auth'
+    | 'network'
+    | 'rate-limit'
+    | 'server'
+    | 'bad-request'
+    | 'refusal'
+    | 'truncated'
+    | 'bad-response'
+    | 'unavailable';
   constructor(code: EngineError['code'], message: string) {
     super(message);
     this.name = 'EngineError';

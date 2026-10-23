@@ -11,7 +11,10 @@ export type ValidationCode =
   | 'WRONG_LANGUAGE'
   | 'UNTRANSLATED'
   | 'CHATTER'
-  | 'LENGTH_RATIO';
+  | 'LENGTH_RATIO'
+  | 'MEANING_DRIFT'
+  | 'STYLE_APPROXIMATED'
+  | 'REFUSED';
 
 export interface ValidationIssue {
   code: ValidationCode;
