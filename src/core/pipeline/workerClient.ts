@@ -81,7 +81,9 @@ export class WorkerClient<T> {
     let onError: (event: Event) => void = () => undefined;
     const crashed = new Promise<never>((_, reject) => {
       onError = (event: Event) => {
-        const detail = event instanceof ErrorEvent && event.message ? `: ${event.message}` : '';
+        // ErrorEvent is not a global in every runtime (e.g. Node 24), so read the field defensively.
+        const message = (event as Partial<ErrorEvent>).message;
+        const detail = message ? `: ${message}` : '';
         reject(new WorkerFailedError('crash', `Worker crashed${detail}`));
       };
     });
