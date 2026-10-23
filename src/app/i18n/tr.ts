@@ -210,4 +210,19 @@ export const tr: Record<MessageKey, string> = {
   'download.bilingual': 'İki dilli kontrol belgesini indir (DOCX)',
   'bilingual.title': 'İki dilli kontrol — {name}',
   'bilingual.notes': 'Notlar',
+  'download.pdf': 'Çevrilmiş PDF’i indir',
+  'download.dual': 'Yan yana PDF’i indir',
+  'pdfReport.summary':
+    '{translated} çevrildi · {warnings} uyarılı · {untranslated} çevrilemedi · {keptOriginal} orijinal dilde bırakıldı · {scaled} biraz küçültüldü',
+  'pdfReport.status.translated': 'Çevrildi',
+  'pdfReport.status.warning': 'Uyarı',
+  'pdfReport.status.untranslated': 'Çevrilemedi — orijinal korundu',
+  'pdfReport.status.kept-original': 'Sığmadı — orijinal korundu',
+  'pdfReport.scale': '%{percent} boyuta küçültüldü',
+  'pdfReport.pages': 'sayfa {pages}',
+  'pdf.note':
+    'PDF düzen onarımı geliştirilmeye devam ediyor: sığmayan paragraflar biraz küçültülür ya da orijinal dilde bırakılır; her biri aşağıda listelenir.',
+  'preview.pageOf': 'Sayfa {page} / {total}',
+  'preview.previous': 'Önceki sayfa',
+  'preview.next': 'Sonraki sayfa',
 };

@@ -4,6 +4,7 @@ import type { PdfInspection } from '../../pdf/engine';
 import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
 import { DocxTranslator } from '../components/DocxTranslator';
+import { PdfTranslator } from '../components/PdfTranslator';
 import { DropZone } from '../components/DropZone';
 import { EngineConfigPanel } from '../components/EngineConfigPanel';
 import type { EngineConfig } from '../engineConfig';
@@ -161,7 +162,15 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
 
       <EngineConfigPanel config={config} settings={settings} />
 
-      {doc?.status === 'ready' && doc.kind === 'docx' ? (
+      {doc?.status === 'ready' && doc.kind === 'pdf' ? (
+        <PdfTranslator
+          key={`${doc.file.name}-${doc.file.size}`}
+          file={doc.file}
+          pageCount={doc.pageCount ?? 1}
+          config={config}
+          settings={settings}
+        />
+      ) : doc?.status === 'ready' && doc.kind === 'docx' ? (
         <DocxTranslator
           key={`${doc.file.name}-${doc.file.size}`}
           file={doc.file}

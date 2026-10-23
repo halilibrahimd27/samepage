@@ -2,6 +2,7 @@ import type { SegmentOutcome, CostEstimate } from '../core/pipeline/translate';
 import type { HistoryMeta } from '../core/cache/idb';
 import type { BilingualRow } from '../docx/bilingual';
 import type { DocxReport } from '../docx/pipeline';
+import type { PdfReport } from '../pdf/pipeline';
 import type { InlineStyle } from '../core/segment/markup';
 import type { TagDef, PlaceholderDef } from '../core/segment/types';
 import type { GlossaryEntry } from '../core/validate/validate';
@@ -71,6 +72,17 @@ export interface DocxJob {
   overrides?: Record<string, string>;
 }
 
+export interface PdfJob extends Omit<
+  DocxJob,
+  'translateComments' | 'translateMetadata' | 'overrides'
+> {
+  /** Also produce the side-by-side (original | translation) PDF. */
+  dual: boolean;
+}
+
+export type PdfJobResult =
+  { ok: true; mono: Uint8Array; dual: Uint8Array | null; report: PdfReport } | JobError;
+
 export type DocxJobResult = { ok: true; bytes: Uint8Array; report: DocxReport } | JobError;
 
 export type TextJobResult =
@@ -113,6 +125,11 @@ export interface PipelineApi {
   getHistoryEntry(id: string): Promise<{ bytes: Uint8Array; report: unknown } | null>;
   /** Deletes one entry, or everything when id is null. */
   deleteHistory(id: string | null): Promise<void>;
+  translatePdf(
+    job: PdfJob,
+    onProgress?: (done: number, total: number) => void,
+    chrome?: ChromeTranslatorBridge,
+  ): Promise<PdfJobResult>;
   /** Glossary suggestions from a DOCX file's paragraphs. */
   extractDocxGlossary(job: DocxJob): Promise<{ ok: true; entries: GlossaryEntry[] } | JobError>;
 }

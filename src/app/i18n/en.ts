@@ -209,6 +209,21 @@ export const en = {
   'download.bilingual': 'Download bilingual review (DOCX)',
   'bilingual.title': 'Bilingual review — {name}',
   'bilingual.notes': 'Notes',
+  'download.pdf': 'Download translated PDF',
+  'download.dual': 'Download side-by-side PDF',
+  'pdfReport.summary':
+    '{translated} translated · {warnings} with warnings · {untranslated} untranslated · {keptOriginal} kept in the original language · {scaled} slightly reduced',
+  'pdfReport.status.translated': 'Translated',
+  'pdfReport.status.warning': 'Warning',
+  'pdfReport.status.untranslated': 'Untranslated — original kept',
+  'pdfReport.status.kept-original': 'Did not fit — original kept',
+  'pdfReport.scale': 'reduced to {percent}%',
+  'pdfReport.pages': 'page {pages}',
+  'pdf.note':
+    'PDF layout repair is still being improved: paragraphs that do not fit are reduced slightly or kept in the original language, and every such case is listed below.',
+  'preview.pageOf': 'Page {page} of {total}',
+  'preview.previous': 'Previous page',
+  'preview.next': 'Next page',
 } as const;
 
 export type MessageKey = keyof typeof en;

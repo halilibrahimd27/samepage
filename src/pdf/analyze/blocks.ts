@@ -47,6 +47,7 @@ function toLine(chars: RawChar[], page: RawPage): LineIR {
       font: fontInfo(first.font, page.fonts[first.font]),
       size: first.size,
       color: first.color,
+      baseline: cur.reduce((sum, c) => sum + c.y, 0) / cur.length,
     };
     const uri = linkAt(bbox, page.links);
     if (uri) span.linkUri = uri;
@@ -63,7 +64,13 @@ function toLine(chars: RawChar[], page: RawPage): LineIR {
     cur.push(ch);
   }
   flush();
-  const baseline = chars.length ? chars.reduce((s, c) => s + c.y, 0) / chars.length : 0;
+  // The line's baseline is that of its longest regular (non-math) span, so sub/superscripts and
+  // math do not pull it up or down.
+  const main = [...spans].sort(
+    (a, b) => Number(a.font.isMath) - Number(b.font.isMath) || b.text.length - a.text.length,
+  )[0];
+  const baseline =
+    main?.baseline ?? (chars.length ? chars.reduce((s, c) => s + c.y, 0) / chars.length : 0);
   return { bbox: unionAll(spans.map((s) => s.bbox)), baseline, spans };
 }
 

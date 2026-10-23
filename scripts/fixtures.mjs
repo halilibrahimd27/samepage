@@ -64,8 +64,13 @@ try {
   console.log('fixtures: tectonic not found — skipping LaTeX corpus (committed PDFs are used).');
 }
 if (tectonic) {
-  for (const tex of readdirSync(SRC).filter((f) => f.endsWith('.tex') && f !== 'common.tex').sort()) {
-    execFileSync('tectonic', ['-X', 'compile', '--outdir', PDF_DIR, tex], { cwd: SRC, stdio: 'ignore' });
+  for (const tex of readdirSync(SRC)
+    .filter((f) => f.endsWith('.tex') && f !== 'common.tex')
+    .sort()) {
+    execFileSync('tectonic', ['-X', 'compile', '--outdir', PDF_DIR, tex], {
+      cwd: SRC,
+      stdio: 'ignore',
+    });
     console.log(`fixtures: compiled tests/corpus/pdf/${tex.replace(/\.tex$/, '.pdf')}`);
   }
 }

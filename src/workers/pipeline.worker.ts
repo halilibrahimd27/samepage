@@ -19,17 +19,30 @@ import { docxParagraphs, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
-import { inspectPdf, renderPagePng } from '../pdf/engine';
+import { inspectPdf, loadFaces, renderPagePng, type LoadedFaces } from '../pdf/engine';
+import { translatePdf } from '../pdf/pipeline';
 import { extractAndAnalyze } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
 import { LIMITS } from '../security/limits';
-import type { DocxJob, JobError, PipelineApi, TextJob } from './api';
+import type { DocxJob, JobError, PdfJob, PipelineApi, TextJob } from './api';
 
 const THUMBNAIL_WIDTH = 240;
 const cache = new IdbCache();
 const controllers = new Map<string, AbortController>();
 
-function engineFor(job: TextJob | DocxJob, chrome?: ChromeTranslatorBridge): TranslationEngine {
+/** Bundled Noto faces, fetched from public/fonts on the first PDF job and kept for the session. */
+let faces: Promise<LoadedFaces> | null = null;
+const getFaces = () =>
+  (faces ??= loadFaces(async (file) => {
+    const res = await fetch(`${import.meta.env.BASE_URL}fonts/${file}`);
+    if (!res.ok) throw new Error(`Font ${file} could not be loaded (${res.status})`);
+    return new Uint8Array(await res.arrayBuffer());
+  }));
+
+function engineFor(
+  job: TextJob | DocxJob | PdfJob,
+  chrome?: ChromeTranslatorBridge,
+): TranslationEngine {
   if (job.engine.id === 'chrome-builtin' || job.engine.id === 'browser') {
     if (!chrome) throw new EngineError('unavailable', 'Main-thread translation bridge missing.');
     return job.engine.id === 'browser'
@@ -209,6 +222,62 @@ const api: PipelineApi = {
         ).catch(() => undefined); // history is best effort (storage may be full or disabled)
       }
       return transfer({ ok: true as const, bytes, report }, [bytes.buffer]);
+    } catch (error) {
+      return toJobError(error, controller.signal);
+    } finally {
+      controllers.delete(job.jobId);
+    }
+  },
+
+  async translatePdf(job, onProgress, chrome) {
+    const controller = new AbortController();
+    controllers.set(job.jobId, controller);
+    try {
+      const { mono, dual, report } = await translatePdf(
+        new Uint8Array(await job.file.arrayBuffer()),
+        {
+          engine: engineFor(job, chrome),
+          pair: job.pair,
+          glossary: job.glossary,
+          numberLocalization: job.numberLocalization,
+          fidelityCheck: job.fidelityCheck,
+          translateReferences: job.translateReferences,
+          faces: await getFaces(),
+          maxPages: LIMITS.pdfMaxPages,
+          dual: job.dual,
+          cache,
+          signal: controller.signal,
+          ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
+        },
+      );
+      if (job.saveHistory) {
+        const name = job.file instanceof File ? job.file.name : 'document.pdf';
+        await addHistory(
+          {
+            id: job.jobId,
+            createdAt: Date.now(),
+            name,
+            outputName: `${name.replace(/\.pdf$/i, '')}.${job.pair.target}.pdf`,
+            kind: 'pdf',
+            pair: job.pair,
+            engine: job.engine.id,
+            ...(job.engine.model ? { model: job.engine.model } : {}),
+            summary: {
+              segments: report.summary.units,
+              translated: report.summary.translated,
+              warnings: report.summary.warnings,
+              untranslated: report.summary.untranslated + report.summary.keptOriginal,
+            },
+            sizeBytes: mono.byteLength,
+          },
+          mono.slice(),
+          report,
+        ).catch(() => undefined);
+      }
+      return transfer(
+        { ok: true as const, mono, dual, report },
+        dual ? [mono.buffer, dual.buffer] : [mono.buffer],
+      );
     } catch (error) {
       return toJobError(error, controller.signal);
     } finally {
