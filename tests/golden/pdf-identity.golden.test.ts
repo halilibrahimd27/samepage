@@ -87,7 +87,15 @@ describe.each(FIXTURES)('PDF identity check: %s', (name) => {
       const key = x.b.chain?.paragraphId ?? x.b.id;
       units.set(key, [...(units.get(key) ?? []), x]);
     }
-    const unitText = (raw: RawPage[], members: { p: number; b: BlockIR }[]) => norm(members.map(({ p, b }) => charsIn(raw[p]!, b.bbox)).join(''));
+    // Layout repair may widen a single-line heading/caption box (R2) up to its column edge.
+    const region = (p: number, b: BlockIR) => {
+      if (b.lines.length !== 1 || !['heading', 'caption', 'body'].includes(b.role)) return b.bbox;
+      const page = before[p]!;
+      const right = b.columnIndex >= 0 && page.columns[b.columnIndex] ? page.columns[b.columnIndex]!.x1 : page.width;
+      const left = b.align === 'center' ? (b.columnIndex >= 0 && page.columns[b.columnIndex] ? page.columns[b.columnIndex]!.x0 : 0) : b.bbox.x0;
+      return { ...b.bbox, x0: left, x1: right };
+    };
+    const unitText = (raw: RawPage[], members: { p: number; b: BlockIR }[]) => norm(members.map(({ p, b }) => charsIn(raw[p]!, region(p, b))).join(''));
     const all = [...units.entries()];
     const red = all.filter(([, m]) => unitText(rawAfter, m) !== unitText(rawBefore, m));
     const ratio = (all.length - red.length) / all.length;
