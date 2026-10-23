@@ -41,161 +41,161 @@
       "role": "heading",
       "status": "translated",
       "source": "Türkçe akademik metinlerde anlam kayması",
-      "target": "[Türkçе åkådеmık mеtınlеrdе ånlåm kåуmåşı ŝåmрļé ţéхţ]"
+      "target": "[Türkçе åkådеmık mеtınlеrdе ånlåm kåуmåşı ~~~~~~~ ~~~]"
     },
     {
       "part": "word/charts/chart1.xml",
       "role": "label",
       "status": "translated",
       "source": "Terim tutarlılığı",
-      "target": "[Tеrım tütårlılığı ŝåmрļé]"
+      "target": "[Tеrım tütårlılığı ~~~]"
     },
     {
       "part": "word/charts/chart1.xml",
       "role": "label",
       "status": "translated",
       "source": "Tümce uzunluğu",
-      "target": "[Tümçе üzünlüğü ŝåmрļé]"
+      "target": "[Tümçе üzünlüğü ~~]"
     },
     {
       "part": "word/charts/chart1.xml",
       "role": "label",
       "status": "translated",
       "source": "Yüzde",
-      "target": "[Yüzdе ŝåmрļé]"
+      "target": "[Yüzdе]"
     },
     {
       "part": "word/charts/chart1.xml",
       "role": "label",
       "status": "translated",
       "source": "Doğruluk",
-      "target": "[Döğrülük ŝåmрļé]"
+      "target": "[Döğrülük]"
     },
     {
       "part": "word/charts/chart1.xml",
       "role": "label",
       "status": "translated",
       "source": "Kısa tümce",
-      "target": "[Kışå tümçе ŝåmрļé]"
+      "target": "[Kışå tümçе ~]"
     },
     {
       "part": "word/charts/chart1.xml",
       "role": "label",
       "status": "translated",
       "source": "Uzun tümce",
-      "target": "[Üzün tümçе ŝåmрļé]"
+      "target": "[Üzün tümçе ~]"
     },
     {
       "part": "word/comments.xml",
       "role": "body",
       "status": "translated",
       "source": "Bu tümce daha açık yazılmalıdır.",
-      "target": "[Bü tümçе dåhå åçık уåzılmålıdır. ŝåmрļé ţéхţ]"
+      "target": "[Bü tümçе dåhå åçık уåzılmålıdır. ~~~~~~~]"
     },
     {
       "part": "word/document.xml",
       "role": "heading",
       "status": "translated",
       "source": "Türkçe akademik metinlerde anlam kayması",
-      "target": "[Türkçе åkådеmık mеtınlеrdе ånlåm kåуmåşı ŝåmрļé ţéхţ]"
+      "target": "[Türkçе åkådеmık mеtınlеrdе ånlåm kåуmåşı ~~~~~~~ ~~~]"
     },
     {
       "part": "word/document.xml",
       "role": "heading",
       "status": "translated",
       "source": "1. Giriş",
-      "target": "[1. Ğırış ŝåmрļé]"
+      "target": "[1. Ğırış]"
     },
     {
       "part": "word/document.xml",
       "role": "body",
       "status": "translated",
       "source": "Bu çalışmada makine çevirisi sistemlerinin terim tutarlılığı incelenmiştir. Ayrıntılar için proje sayfasına bakınız [3].",
-      "target": "[Bü çålışmådå måkınе çеvırışı şıştеmlеrının tеrım tütårlılığı ınçеlеnmıştır. Åуrıntılår ıçın рröjе şåуfåşınå båkınız [3]. ŝåmрļé ţéхţ ğļурħ çövеr Ŵörđ ļоņğ ƒіļļ ŝåmрļé ţéхţ]"
+      "target": "[Bü çålışmådå måkınе çеvırışı şıştеmlеrının tеrım tütårlılığı ınçеlеnmıştır. Åуrıntılår ıçın рröjе şåуfåşınå båkınız [3]. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~]"
     },
     {
       "part": "word/document.xml",
       "role": "body",
       "status": "translated",
       "source": "Ortalama doğruluk %87,4 olarak ölçülmüştür; fark anlamlıdır.",
-      "target": "[Örtålåmå döğrülük %87,4 ölåråk ölçülmüştür; fårk ånlåmlıdır. ŝåmрļé ţéхţ ğļурħ çövеr Ŵörđ]"
+      "target": "[Örtålåmå döğrülük %87,4 ölåråk ölçülmüştür; fårk ånlåmlıdır. ~~~~~~~ ~~~~~~~ ~~~~~~~]"
     },
     {
       "part": "word/document.xml",
       "role": "body",
       "status": "translated",
       "source": "F-ölçütü  biçiminde tanımlanır.",
-      "target": "[F-ölçütü  bıçımındе tånımlånır. ŝåmрļé ţéхţ]"
+      "target": "[F-ölçütü  bıçımındе tånımlånır. ~~~~~~~ ~]"
     },
     {
       "part": "word/document.xml",
       "role": "heading",
       "status": "translated",
       "source": "2. Bulgular",
-      "target": "[2. Bülğülår ŝåmрļé]"
+      "target": "[2. Bülğülår ~]"
     },
     {
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
       "source": "Ölçüt",
-      "target": "[Ölçüt ŝåmрļé]"
+      "target": "[Ölçüt]"
     },
     {
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
       "source": "Açıklama",
-      "target": "[Åçıklåmå ŝåmрļé]"
+      "target": "[Åçıklåmå]"
     },
     {
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
       "source": "Kesinlik",
-      "target": "[Kеşınlık ŝåmрļé]"
+      "target": "[Kеşınlık]"
     },
     {
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
       "source": "Doğru olarak sınıflandırılan örneklerin oranı",
-      "target": "[Döğrü ölåråk şınıflåndırılån örnеklеrın örånı ŝåmрļé ţéхţ ğļурħ]"
+      "target": "[Döğrü ölåråk şınıflåndırılån örnеklеrın örånı ~~~~~~~ ~~~~~]"
     },
     {
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
       "source": "Kaynak",
-      "target": "[Kåуnåk ŝåmрļé]"
+      "target": "[Kåуnåk]"
     },
     {
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
       "source": "Veri kümesi: ",
-      "target": "[Vеrı kümеşı:  ŝåmрļé]"
+      "target": "[Vеrı kümеşı:  ~~~]"
     },
     {
       "part": "word/document.xml",
       "role": "caption",
       "status": "translated",
       "source": "Şekil 1. Tümce uzunluğuna göre terim tutarlılığı.",
-      "target": "[Şеkıl 1. Tümçе üzünlüğünå ğörе tеrım tütårlılığı. ŝåmрļé ţéхţ ğļурħ]"
+      "target": "[Şеkıl 1. Tümçе üzünlüğünå ğörе tеrım tütårlılığı. ~~~~~~~ ~~~~~~]"
     },
     {
       "part": "word/document.xml",
       "role": "body",
       "status": "translated",
       "source": "Önemli not: sonuçlar genellenemez.",
-      "target": "[Önеmlı nöt: şönüçlår ğеnеllеnеmеz. ŝåmрļé ţéхţ]"
+      "target": "[Önеmlı nöt: şönüçlår ğеnеllеnеmеz. ~~~~~~~ ~]"
     },
     {
       "part": "word/document.xml",
       "role": "heading",
       "status": "translated",
       "source": "Kaynakça",
-      "target": "[Kåуnåkçå ŝåmрļé]"
+      "target": "[Kåуnåkçå]"
     },
     {
       "part": "word/document.xml",
@@ -209,21 +209,21 @@
       "role": "footer",
       "status": "translated",
       "source": "Sayfa ",
-      "target": "[Şåуfå  ŝåmрļé]"
+      "target": "[Şåуfå  ~~~~~]"
     },
     {
       "part": "word/footnotes.xml",
       "role": "footnote",
       "status": "translated",
       "source": "Derlem, 2019–2023 yılları arasında yayımlanmış makalelerden oluşmaktadır.",
-      "target": "[Dеrlеm, 2019–2023 уıllårı åråşındå уåуımlånmış måkålеlеrdеn ölüşmåktådır. ŝåmрļé ţéхţ ğļурħ çövеr Ŵörđ]"
+      "target": "[Dеrlеm, 2019–2023 уıllårı åråşındå уåуımlånmış måkålеlеrdеn ölüşmåktådır. ~~~~~~~ ~~~~~~~ ~~~~~~~]"
     },
     {
       "part": "word/header1.xml",
       "role": "header",
       "status": "translated",
       "source": "Samepage Dergisi · Cilt 3, Sayı 2",
-      "target": "[Şåmерåğе Dеrğışı · Çılt 3, Şåуı 2 ŝåmрļé ţéхţ]"
+      "target": "[Şåmерåğе Dеrğışı · Çılt 3, Şåуı 2 ~~~~~~~ ~]"
     }
   ]
 }

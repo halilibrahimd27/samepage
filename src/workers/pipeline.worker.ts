@@ -242,6 +242,7 @@ const api: PipelineApi = {
           numberLocalization: job.numberLocalization,
           fidelityCheck: job.fidelityCheck,
           translateReferences: job.translateReferences,
+          ...(job.overrides ? { overrides: job.overrides } : {}),
           faces: await getFaces(),
           maxPages: LIMITS.pdfMaxPages,
           dual: job.dual,

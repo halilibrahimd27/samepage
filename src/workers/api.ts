@@ -72,10 +72,7 @@ export interface DocxJob {
   overrides?: Record<string, string>;
 }
 
-export interface PdfJob extends Omit<
-  DocxJob,
-  'translateComments' | 'translateMetadata' | 'overrides'
-> {
+export interface PdfJob extends Omit<DocxJob, 'translateComments' | 'translateMetadata'> {
   /** Also produce the side-by-side (original | translation) PDF. */
   dual: boolean;
 }

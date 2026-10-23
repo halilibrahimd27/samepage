@@ -31,6 +31,9 @@ export function PdfTranslator(props: {
   const [download, setDownload] = useState<number | null>(null);
   const [result, setResult] = useState<(PdfJobResult & { ok: true }) | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Review-step corrections (tagged source → tagged target), applied on rebuild. */
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [applied, setApplied] = useState<Record<string, string>>({});
   const base = file.name.replace(/\.pdf$/i, '');
   const problem = config.problem(t);
   const jobErrorText = (e: JobError) =>
@@ -63,6 +66,7 @@ export function PdfTranslator(props: {
         translateReferences: settings.translateReferences,
         saveHistory: settings.saveHistory,
         dual: true,
+        ...(Object.keys(edits).length ? { overrides: edits } : {}),
       };
       const res = await pipelineClient.call<PdfJobResult>(
         (api) =>
@@ -73,8 +77,10 @@ export function PdfTranslator(props: {
           ),
         LONG_JOB_MS,
       );
-      if (res.ok) setResult(res);
-      else setError(jobErrorText(res));
+      if (res.ok) {
+        setResult(res);
+        setApplied(edits);
+      } else setError(jobErrorText(res));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -168,7 +174,29 @@ export function PdfTranslator(props: {
               {t('download.report')}
             </button>
           </div>
-          <PdfReportPanel report={result.report} />
+          {Object.keys(edits).some((k) => applied[k] !== edits[k]) && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-300 bg-violet-50 p-3 text-sm">
+              <span>
+                {t('review.pending', {
+                  count: Object.keys(edits).filter((k) => applied[k] !== edits[k]).length,
+                })}
+              </span>
+              <button
+                type="button"
+                disabled={running !== null}
+                onClick={() => void run()}
+                className="rounded bg-violet-700 px-3 py-1.5 text-white disabled:opacity-50"
+                data-testid="pdf-apply-edits"
+              >
+                {running ? t('review.applying') : t('review.apply')}
+              </button>
+            </div>
+          )}
+          <PdfReportPanel
+            report={result.report}
+            edits={edits}
+            onEdit={(src, tgt) => setEdits((e) => ({ ...e, [src]: tgt }))}
+          />
           <PdfPreview original={file} translated={mono} pageCount={result.report.summary.pages} />
         </>
       )}

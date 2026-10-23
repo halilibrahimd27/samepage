@@ -224,6 +224,16 @@ export const en = {
   'preview.pageOf': 'Page {page} of {total}',
   'preview.previous': 'Previous page',
   'preview.next': 'Next page',
+  'pdfReport.score': 'Layout score {score}/100',
+  'pdfReport.status.green': 'Good',
+  'pdfReport.status.yellow': 'Check',
+  'pdfReport.status.red': 'Needs review',
+  'pdfReport.pageScore': 'p. {page}: {score}',
+  'pdfReport.overflowNotes': '{count} overflow notes were added on extra pages at the end.',
+  'pdfReport.fallback.relaxed-min': 'Reduced below the normal minimum size',
+  'pdfReport.fallback.annotation': 'Original label kept; translation in a PDF note',
+  'pdfReport.fallback.overflow-note': 'Part of the text moved to the overflow notes',
+  'pdfReport.fallback.keep-original': 'Original text kept',
 } as const;
 
 export type MessageKey = keyof typeof en;

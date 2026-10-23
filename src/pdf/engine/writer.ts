@@ -9,6 +9,15 @@ export interface PageWrite {
   /** Areas whose text is removed (page space). Images, fills and rules survive. */
   redact: Rect[];
   lines: LayoutLine[];
+  /** PDF notes (annotation fallback): the original text stays, the translation is in the note. */
+  notes?: { rect: Rect; text: string }[];
+}
+
+/** Extra pages appended at the end (overflow notes), laid out in page space (y down). */
+export interface AppendedPage {
+  width: number;
+  height: number;
+  lines: LayoutLine[];
 }
 
 export interface WriteResult {
@@ -31,7 +40,7 @@ export async function writePdf(
   source: Uint8Array,
   pages: PageWrite[],
   faces: LoadedFaces,
-  opts: { dual: boolean },
+  opts: { dual: boolean; appendix?: AppendedPage[] },
 ): Promise<WriteResult> {
   const mupdf = await loadMupdf();
   const doc = mupdf.Document.openDocument(source, 'application/pdf').asPDF();
@@ -40,6 +49,55 @@ export async function writePdf(
   const missing = new Set<string>();
   let linksRemoved = 0;
   let linksAdded = 0;
+
+  /** Content-stream operators for laid-out lines; registers fonts in `fontDict`. */
+  const buildOps = (
+    lines: LayoutLine[],
+    fontDict: ReturnType<typeof doc.newDictionary>,
+    inv: [number, number, number, number, number, number],
+  ): string => {
+    let ops = 'q\n';
+    for (const line of lines) {
+      for (const run of line.runs) {
+        const file = FACE_FILES[run.face];
+        let entry = fontRefs.get(file);
+        if (!entry) {
+          entry = { name: `SP${fontRefs.size + 1}`, ref: doc.addFont(faces.font(run.face)) };
+          fontRefs.set(file, entry);
+        }
+        fontDict.put(entry.name, entry.ref);
+        const font = faces.font(run.face);
+        let hex = '';
+        for (const ch of run.text) {
+          const cp = ch.codePointAt(0)!;
+          if (cp === 0x200b || cp === 0xad) continue;
+          const gid = font.encodeCharacter(cp);
+          if (gid === 0) {
+            missing.add(ch);
+            continue;
+          }
+          hex += gid.toString(16).padStart(4, '0');
+        }
+        if (!hex) continue;
+        // Text matrix in page space (x along the line, y = glyph up), then into PDF space.
+        const [dx, dy] = line.dir ?? [1, 0];
+        const [ux, uy] = [dy, -dx];
+        const ox = line.origin ? line.origin.x + dx * run.x + ux * run.rise : run.x;
+        const oy = line.origin
+          ? line.origin.y + dy * run.x + uy * run.rise
+          : line.baseline - run.rise;
+        const tm = mupdf.Matrix.concat(
+          [dx * run.size, dy * run.size, ux * run.size, uy * run.size, ox, oy],
+          inv,
+        );
+        const [r, g, b] = run.color;
+        const tc = run.tracking ? `${fmt(run.tracking)} Tc ` : '';
+        ops += `BT /${entry.name} 1 Tf ${tc}${fmt(r)} ${fmt(g)} ${fmt(b)} rg ${tm.map(fmt).join(' ')} Tm <${hex}> Tj ET\n`;
+      }
+    }
+    ops += 'Q\n';
+    return ops;
+  };
 
   try {
     for (const pw of pages) {
@@ -117,45 +175,7 @@ export async function writePdf(
             fontDict = doc.newDictionary();
             resources.put('Font', fontDict);
           }
-          let ops = 'q\n';
-          for (const line of pw.lines) {
-            for (const run of line.runs) {
-              const file = FACE_FILES[run.face];
-              let entry = fontRefs.get(file);
-              if (!entry) {
-                entry = { name: `SP${fontRefs.size + 1}`, ref: doc.addFont(faces.font(run.face)) };
-                fontRefs.set(file, entry);
-              }
-              fontDict.put(entry.name, entry.ref);
-              const font = faces.font(run.face);
-              let hex = '';
-              for (const ch of run.text) {
-                const cp = ch.codePointAt(0)!;
-                if (cp === 0x200b || cp === 0xad) continue;
-                const gid = font.encodeCharacter(cp);
-                if (gid === 0) {
-                  missing.add(ch);
-                  continue;
-                }
-                hex += gid.toString(16).padStart(4, '0');
-              }
-              if (!hex) continue;
-              // Text matrix in page space (x along the line, y = glyph up), then into PDF space.
-              const [dx, dy] = line.dir ?? [1, 0];
-              const [ux, uy] = [dy, -dx];
-              const ox = line.origin ? line.origin.x + dx * run.x + ux * run.rise : run.x;
-              const oy = line.origin
-                ? line.origin.y + dy * run.x + uy * run.rise
-                : line.baseline - run.rise;
-              const tm = mupdf.Matrix.concat(
-                [dx * run.size, dy * run.size, ux * run.size, uy * run.size, ox, oy],
-                inv,
-              );
-              const [r, g, b] = run.color;
-              ops += `BT /${entry.name} 1 Tf ${fmt(r)} ${fmt(g)} ${fmt(b)} rg ${tm.map(fmt).join(' ')} Tm <${hex}> Tj ET\n`;
-            }
-          }
-          ops += 'Q\n';
+          const ops = buildOps(pw.lines, fontDict, inv);
           const contents = pageObj.get('Contents');
           const arr = doc.newArray();
           arr.push(doc.addStream('q\n', null));
@@ -166,10 +186,25 @@ export async function writePdf(
           arr.push(doc.addStream(ops, null));
           pageObj.put('Contents', arr);
         }
+        for (const note of pw.notes ?? []) {
+          const annot = page.createAnnotation('Text');
+          annot.setRect([note.rect.x1 - 2, note.rect.y0, note.rect.x1 + 14, note.rect.y0 + 16]);
+          annot.setContents(note.text);
+          annot.setIcon('Note');
+          annot.update();
+        }
         page.update();
       } finally {
         page.destroy();
       }
+    }
+    for (const extra of opts.appendix ?? []) {
+      const resources = doc.newDictionary();
+      const fontDict = doc.newDictionary();
+      resources.put('Font', fontDict);
+      const ops = buildOps(extra.lines, fontDict, [1, 0, 0, -1, 0, extra.height]);
+      const pageObj = doc.addPage([0, 0, extra.width, extra.height], 0, resources, ops);
+      doc.insertPage(doc.countPages(), pageObj);
     }
     doc.subsetFonts();
     const mono = doc.saveToBuffer('compress,garbage=compact').asUint8Array().slice();
