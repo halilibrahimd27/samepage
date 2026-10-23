@@ -1,0 +1,30 @@
+\documentclass[11pt,a4paper]{article}
+\input{common}
+\usepackage[margin=2.5cm]{geometry}
+\begin{document}
+\section{Ölçütler}
+Modelin başarımı kesinlik $P$ ve duyarlılık $R$ değerlerinin harmonik ortalaması olan
+\begin{equation}
+F_1 = \frac{2PR}{P+R}
+\end{equation}
+ölçütüyle hesaplanmıştır. Benzer biçimde çapraz entropi kaybı
+\begin{equation}
+\mathcal{L} = -\sum_{i=1}^{N} y_i \log \hat{y}_i
+\end{equation}
+olarak tanımlanır. Burada $N$ örnek sayısını, $\hat{y}_i$ ise modelin tahminini gösterir.
+\section{Sonuçlar}
+\paragrafC
+\begin{table}[h]
+\centering
+\caption{Sistemlerin karşılaştırılması.}
+\begin{tabular}{|l|c|c|c|}
+\hline
+Sistem & Kesinlik & Duyarlılık & $F_1$ \\
+\hline
+Temel yöntem & 0,78 & 0,74 & 0,76 \\
+Önerilen yöntem & 0,82 & 0,79 & 0,80 \\
+\hline
+\end{tabular}
+\end{table}
+Tablo~1'de görüldüğü üzere önerilen yöntem tüm ölçütlerde temel yöntemden daha yüksek değerler elde etmiştir.
+\end{document}

@@ -1,0 +1,38 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+\input{common}
+\usepackage[margin=1.8cm,columnsep=0.6cm]{geometry}
+\begin{document}
+\twocolumn[{\centering{\LARGE\bfseries İki Sütunlu Düzende Paragraf Zincirleri}\par\vspace{0.5em}{\large Zeynep Kaya}\par\vspace{1.5em}}]
+\section{Giriş}
+\paragrafA\ \paragrafB\ \paragrafC\ \paragrafA\ \paragrafB
+\section{İlgili Çalışmalar}
+\paragrafC\ \paragrafA\ \paragrafB\ \paragrafC\ \paragrafA\ \paragrafB\ \paragrafC
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\draw[fill=blue!15] (0,0) rectangle (3.2,1.6);
+\node at (1.6,0.8) {Kodlayıcı};
+\draw[->,thick] (3.3,0.8) -- (4.1,0.8);
+\draw[fill=orange!20] (4.2,0) rectangle (7.4,1.6);
+\node at (5.8,0.8) {Çözücü};
+\end{tikzpicture}
+\caption{Kodlayıcı–çözücü mimarisinin şematik gösterimi.}
+\end{figure}
+\section{Yöntem}
+\paragrafB\ \paragrafA\ \paragrafC\ \paragrafB\ \paragrafA\ \paragrafC\ \paragrafB\ \paragrafA
+\begin{table}[b]
+\centering
+\caption{Tümce uzunluğuna göre terim tutarlılığı.}
+\begin{tabular}{lrr}
+\toprule
+Uzunluk & Tümce & Tutarlılık (\%) \\
+\midrule
+Kısa & 9.120 & 87,4 \\
+Orta & 6.310 & 80,9 \\
+Uzun & 3.210 & 71,2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\section{Sonuç}
+\paragrafC\ \paragrafA\ \paragrafB\ \paragrafC\ \paragrafA\ \paragrafB\ \paragrafC\ \paragrafA\ \paragrafB
+\end{document}

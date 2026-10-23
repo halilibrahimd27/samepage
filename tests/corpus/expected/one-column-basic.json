@@ -1,0 +1,19 @@
+{
+  "roles": [
+    { "page": 0, "text": "Türkçe Akademik Metinlerde Anlam Kayması", "role": "heading" },
+    { "page": 0, "text": "Özet", "role": "heading" },
+    { "page": 0, "text": "Bu çalışmada makine çevirisinde", "role": "body" },
+    { "page": 0, "text": "1 Giriş", "role": "heading" },
+    { "page": 0, "text": "Makine çevirisi sistemleri", "role": "body" },
+    { "page": 0, "text": "1.1 Araştırma Soruları", "role": "heading" },
+    { "page": 0, "text": "2 Yöntem", "role": "heading" },
+    { "page": 0, "text": "Bulgular, uzun ve iç içe", "role": "body" },
+    { "page": 0, "text": "1Bu çalışma TÜBİTAK", "role": "footnote" },
+    { "page": 0, "text": "1", "role": "page-number" },
+    { "page": 1, "text": "toplam 18.640 tümce", "role": "body" },
+    { "page": 1, "text": "3 Sonuç", "role": "heading" },
+    { "page": 1, "text": "2Derlem talep üzerine", "role": "footnote" },
+    { "page": 1, "text": "2", "role": "page-number" }
+  ],
+  "chains": [[{ "page": 0, "text": "Bulgular, uzun ve iç içe" }, { "page": 1, "text": "toplam 18.640 tümce" }]]
+}

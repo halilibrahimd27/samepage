@@ -1,0 +1,28 @@
+{
+  "roles": [
+    { "page": 0, "text": "İki Sütunlu Düzende Paragraf Zincirleri", "role": "heading" },
+    { "page": 0, "text": "1 Giriş", "role": "heading" },
+    { "page": 0, "text": "Makine çevirisi sistemleri son on yılda", "role": "body" },
+    { "page": 0, "text": "2 İlgili Çalışmalar", "role": "heading" },
+    { "page": 0, "text": "Bulgular, uzun ve iç içe", "role": "body" },
+    { "page": 0, "text": "Kodlayıcı", "role": "label" },
+    { "page": 0, "text": "Çözücü", "role": "label" },
+    { "page": 0, "text": "Şekil 1:", "role": "caption" },
+    { "page": 0, "text": "göstermektedir. Ortalama", "role": "body" },
+    { "page": 0, "text": "3 Yöntem", "role": "heading" },
+    { "page": 0, "text": "Bu çalışmada 2019", "role": "body" },
+    { "page": 0, "text": "1", "role": "page-number" },
+    { "page": 1, "text": "tır. Makine çevirisi", "role": "body" },
+    { "page": 1, "text": "4 Sonuç", "role": "heading" },
+    { "page": 1, "text": "Tablo 1:", "role": "caption" },
+    { "page": 1, "text": "Uzunluk", "role": "table-cell" },
+    { "page": 1, "text": "87,4", "role": "table-cell" },
+    { "page": 1, "text": "on yılda büyük bir gelişme", "role": "body" },
+    { "page": 1, "text": "2", "role": "page-number" }
+  ],
+  "chains": [
+    [{ "page": 0, "text": "Bulgular, uzun ve iç içe" }, { "page": 0, "text": "göstermektedir. Ortalama" }],
+    [{ "page": 0, "text": "Bu çalışmada 2019" }, { "page": 1, "text": "tır. Makine çevirisi" }],
+    [{ "page": 1, "text": "Bulgular, uzun ve iç içe" }, { "page": 1, "text": "on yılda büyük bir gelişme" }]
+  ]
+}

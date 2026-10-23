@@ -1,0 +1,20 @@
+% Shared preamble for the synthetic Turkish corpus (compiled with tectonic).
+\usepackage{iftex}
+\ifXeTeX
+  \usepackage{fontspec} % Latin Modern OpenType, proper ToUnicode for Turkish letters
+\else
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{lmodern}
+\fi
+\usepackage[turkish,shorthands=off]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black,citecolor=green!40!black}
+\newcommand{\paragrafA}{Makine çevirisi sistemleri son on yılda büyük bir gelişme göstermiştir. Özellikle sinir ağı tabanlı yöntemler, kelime düzeyinde değil tümce düzeyinde bağlamı dikkate alarak daha akıcı çeviriler üretmektedir. Bununla birlikte akademik metinlerde terimlerin tutarlı biçimde çevrilmesi, kesinlik derecesinin korunması ve sayısal değerlerin değiştirilmemesi hâlâ önemli sorunlar arasında yer almaktadır.}
+\newcommand{\paragrafB}{Bu çalışmada 2019–2023 yılları arasında yayımlanmış 412 makaleden oluşan bir derlem kullanılmıştır. Her makale için özet, giriş ve sonuç bölümleri ayrı ayrı değerlendirilmiş; toplam 18.640 tümce iki bağımsız uzman tarafından incelenmiştir. Uzmanlar arasındaki uyum katsayısı $\kappa = 0{,}81$ olarak hesaplanmıştır.}
+\newcommand{\paragrafC}{Bulgular, uzun ve iç içe geçmiş tümcelerde terim tutarlılığının belirgin biçimde azaldığını göstermektedir. Ortalama terim tutarlılığı \%87,4 olarak ölçülmüş; ancak kırk sözcükten uzun tümcelerde bu oran \%71,2'ye düşmüştür. Bu fark istatistiksel olarak anlamlıdır ($p < 0{,}01$).}

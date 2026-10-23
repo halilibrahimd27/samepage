@@ -1,7 +1,9 @@
 // Regenerates the synthetic test corpus under tests/corpus/.
 // Node-side tooling may use MuPDF directly; app code goes through src/pdf/engine/.
 // LaTeX (Phase 3) and DOCX (Phase 2) generators are added here as they land.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as mupdf from 'mupdf';
 import { buildDocxFixtures } from './docxFixtures.mjs';
 
@@ -49,4 +51,21 @@ mkdirSync(DOCX_OUT, { recursive: true });
 for (const [name, bytes] of Object.entries(await buildDocxFixtures())) {
   writeFileSync(new URL(name, DOCX_OUT), bytes);
   console.log(`fixtures: wrote tests/corpus/docx/${name} (${bytes.length} bytes)`);
+}
+
+// LaTeX corpus (TESTING.md §2): compiled with tectonic when it is installed; the PDFs are committed.
+const SRC = fileURLToPath(new URL('../tests/corpus/src/', import.meta.url));
+const PDF_DIR = fileURLToPath(OUT);
+let tectonic = true;
+try {
+  execFileSync('tectonic', ['--version'], { stdio: 'ignore' });
+} catch {
+  tectonic = false;
+  console.log('fixtures: tectonic not found — skipping LaTeX corpus (committed PDFs are used).');
+}
+if (tectonic) {
+  for (const tex of readdirSync(SRC).filter((f) => f.endsWith('.tex') && f !== 'common.tex').sort()) {
+    execFileSync('tectonic', ['-X', 'compile', '--outdir', PDF_DIR, tex], { cwd: SRC, stdio: 'ignore' });
+    console.log(`fixtures: compiled tests/corpus/pdf/${tex.replace(/\.tex$/, '.pdf')}`);
+  }
 }

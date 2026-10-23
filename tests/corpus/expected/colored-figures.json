@@ -1,0 +1,15 @@
+{
+  "roles": [
+    { "page": 0, "text": "1 Renkli Kutular", "role": "heading" },
+    { "page": 0, "text": "Önemli: Bu kutudaki metin", "role": "body" },
+    { "page": 0, "text": "Makine çevirisi sistemleri", "role": "body" },
+    { "page": 0, "text": "Tutarlılık", "role": "label" },
+    { "page": 0, "text": "Yüzde", "role": "label" },
+    { "page": 0, "text": "Tümce uzunluğu", "role": "label" },
+    { "page": 0, "text": "Kısa", "role": "label" },
+    { "page": 0, "text": "Şekil 1:", "role": "caption" },
+    { "page": 0, "text": "oluşan bir derlem kullanılmıştır", "role": "body" },
+    { "page": 0, "text": "1", "role": "page-number" }
+  ],
+  "chains": [[{ "page": 0, "text": "Makine çevirisi sistemleri" }, { "page": 0, "text": "oluşan bir derlem kullanılmıştır" }]]
+}

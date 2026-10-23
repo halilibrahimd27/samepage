@@ -1,0 +1,25 @@
+\documentclass[11pt,a4paper]{article}
+\input{common}
+\usepackage[margin=2.5cm]{geometry}
+\begin{document}
+\section{Renkli Kutular}
+\noindent\colorbox{yellow!25}{\parbox{\dimexpr\linewidth-2\fboxsep}{\textbf{Önemli:} Bu kutudaki metin çevrildiğinde arka plan rengi korunmalıdır. Kutunun dolgusu metinle birlikte silinmemelidir.}}
+
+\medskip
+
+\paragrafA
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.9]
+\draw[->] (0,0) -- (7,0) node[right] {Tümce uzunluğu};
+\draw[->] (0,0) -- (0,4) node[above] {Tutarlılık};
+\foreach \x/\h/\l in {1/3.5/Kısa,3/3.0/Orta,5/2.4/Uzun} {
+  \draw[fill=teal!40] (\x-0.4,0) rectangle (\x+0.4,\h);
+  \node[below] at (\x,0) {\l};
+}
+\node[rotate=90] at (-0.8,2) {Yüzde};
+\end{tikzpicture}
+\caption{Tümce uzunluğuna göre terim tutarlılığı.}
+\end{figure}
+\paragrafB
+\end{document}

@@ -1,0 +1,21 @@
+{
+  "roles": [
+    { "page": 0, "text": "1 Ölçütler", "role": "heading" },
+    { "page": 0, "text": "Modelin başarımı kesinlik", "role": "body" },
+    { "page": 0, "text": "F1 = 2PR", "role": "formula" },
+    { "page": 0, "text": "P + R (1)", "role": "formula" },
+    { "page": 0, "text": "ölçütüyle hesaplanmıştır", "role": "body" },
+    { "page": 0, "text": "olarak tanımlanır", "role": "body" },
+    { "page": 0, "text": "2 Sonuçlar", "role": "heading" },
+    { "page": 0, "text": "Tablo 1:", "role": "caption" },
+    { "page": 0, "text": "Sistem", "role": "table-cell" },
+    { "page": 0, "text": "Önerilen yöntem", "role": "table-cell" },
+    { "page": 0, "text": "0,80", "role": "table-cell" },
+    { "page": 0, "text": "görüldüğü üzere", "role": "body" }
+  ],
+  "chains": [
+    [{ "page": 0, "text": "Modelin başarımı kesinlik" }, { "page": 0, "text": "ölçütüyle hesaplanmıştır" }],
+    [{ "page": 0, "text": "ölçütüyle hesaplanmıştır" }, { "page": 0, "text": "olarak tanımlanır" }],
+    [{ "page": 0, "text": "Bulgular, uzun ve iç içe" }, { "page": 0, "text": "görüldüğü üzere" }]
+  ]
+}
