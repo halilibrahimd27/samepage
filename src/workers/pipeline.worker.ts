@@ -4,22 +4,21 @@ import { buildGlossarySample } from '../core/glossary/glossary';
 import { estimateCost, translateSegments } from '../core/pipeline/translate';
 import { plainText } from '../core/segment/codec';
 import { parsePlaygroundMarkup } from '../core/segment/markup';
-import { createChromeEngine } from '../engines/chromeBuiltin';
+import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
+import { docxParagraphs, translateDocx } from '../docx/pipeline';
+import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
 import { inspectPdf } from '../pdf/engine';
 import { redactSecrets } from '../security/redact';
 import { LIMITS } from '../security/limits';
-import type { JobError, PipelineApi, TextJob } from './api';
+import type { DocxJob, JobError, PipelineApi, TextJob } from './api';
 
 const THUMBNAIL_WIDTH = 240;
 const cache = new IdbCache();
 const controllers = new Map<string, AbortController>();
 
-function engineFor(
-  job: TextJob,
-  chrome?: Parameters<PipelineApi['translateText']>[2],
-): TranslationEngine {
+function engineFor(job: TextJob | DocxJob, chrome?: ChromeTranslatorBridge): TranslationEngine {
   if (job.engine.id === 'chrome-builtin') {
     if (!chrome) throw new EngineError('unavailable', 'Chrome built-in translator bridge missing.');
     return createChromeEngine(chrome);
@@ -34,6 +33,9 @@ function encodeParagraphs(job: TextJob) {
 function toJobError(error: unknown, signal?: AbortSignal): JobError {
   if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
     return { ok: false, code: 'cancelled', message: 'Cancelled.' };
+  }
+  if (error instanceof DocxRejectedError) {
+    return { ok: false, code: 'rejected', message: error.rejection.reason };
   }
   if (
     error instanceof EngineError &&
@@ -140,6 +142,53 @@ const api: PipelineApi = {
       );
       const entries = await engine.extractGlossary(
         sample,
+        { pair: job.pair, glossary: [], numberLocalization: job.numberLocalization },
+        controller.signal,
+      );
+      return { ok: true, entries };
+    } catch (error) {
+      return toJobError(error, controller.signal);
+    } finally {
+      controllers.delete(job.jobId);
+    }
+  },
+
+  async translateDocx(job, onProgress, chrome) {
+    const controller = new AbortController();
+    controllers.set(job.jobId, controller);
+    try {
+      const { bytes, report } = await translateDocx(new Uint8Array(await job.file.arrayBuffer()), {
+        engine: engineFor(job, chrome),
+        pair: job.pair,
+        glossary: job.glossary,
+        numberLocalization: job.numberLocalization,
+        fidelityCheck: job.fidelityCheck,
+        translateComments: job.translateComments,
+        translateReferences: job.translateReferences,
+        translateMetadata: job.translateMetadata,
+        cache,
+        signal: controller.signal,
+        ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
+      });
+      return transfer({ ok: true as const, bytes, report }, [bytes.buffer]);
+    } catch (error) {
+      return toJobError(error, controller.signal);
+    } finally {
+      controllers.delete(job.jobId);
+    }
+  },
+
+  async extractDocxGlossary(job) {
+    const controller = new AbortController();
+    controllers.set(job.jobId, controller);
+    try {
+      const engine = engineFor(job);
+      if (!engine.extractGlossary) {
+        return { ok: false, code: 'unavailable', message: 'This engine cannot build a glossary.' };
+      }
+      const paragraphs = await docxParagraphs(new Uint8Array(await job.file.arrayBuffer()));
+      const entries = await engine.extractGlossary(
+        buildGlossarySample(paragraphs),
         { pair: job.pair, glossary: [], numberLocalization: job.numberLocalization },
         controller.signal,
       );

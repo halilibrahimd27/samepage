@@ -1,4 +1,5 @@
 import type { SegmentOutcome, CostEstimate } from '../core/pipeline/translate';
+import type { DocxReport } from '../docx/pipeline';
 import type { InlineStyle } from '../core/segment/markup';
 import type { TagDef, PlaceholderDef } from '../core/segment/types';
 import type { GlossaryEntry } from '../core/validate/validate';
@@ -45,9 +46,25 @@ export type JobError = {
     | 'bad-request'
     | 'unavailable'
     | 'cancelled'
+    | 'rejected'
     | 'internal';
   message: string;
 };
+
+export interface DocxJob {
+  jobId: string;
+  file: Blob;
+  engine: EngineSpec;
+  pair: LangPair;
+  glossary: GlossaryEntry[];
+  numberLocalization: boolean;
+  fidelityCheck: boolean;
+  translateComments: boolean;
+  translateReferences: boolean;
+  translateMetadata: boolean;
+}
+
+export type DocxJobResult = { ok: true; bytes: Uint8Array; report: DocxReport } | JobError;
 
 export type TextJobResult =
   | { ok: true; segments: TextSegment[]; tagSurvival: { survived: number; total: number } }
@@ -70,4 +87,11 @@ export interface PipelineApi {
   loadGlossary(pair: LangPair): Promise<GlossaryEntry[]>;
   saveGlossary(pair: LangPair, entries: GlossaryEntry[]): Promise<void>;
   clearCache(): Promise<void>;
+  translateDocx(
+    job: DocxJob,
+    onProgress?: (done: number, total: number) => void,
+    chrome?: ChromeTranslatorBridge,
+  ): Promise<DocxJobResult>;
+  /** Glossary suggestions from a DOCX file's paragraphs. */
+  extractDocxGlossary(job: DocxJob): Promise<{ ok: true; entries: GlossaryEntry[] } | JobError>;
 }

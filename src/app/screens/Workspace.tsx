@@ -3,6 +3,7 @@ import { WorkerFailedError } from '../../core/pipeline/workerClient';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
+import { DocxTranslator } from '../components/DocxTranslator';
 import { DropZone } from '../components/DropZone';
 import { EngineConfigPanel } from '../components/EngineConfigPanel';
 import type { EngineConfig } from '../engineConfig';
@@ -160,16 +161,27 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
 
       <EngineConfigPanel config={config} settings={settings} />
 
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          disabled
-          className="self-start rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {t('config.translate')}
-        </button>
-        <p className="text-sm text-slate-600">{t('config.translateSoon')}</p>
-      </div>
+      {doc?.status === 'ready' && doc.kind === 'docx' ? (
+        <DocxTranslator
+          key={`${doc.file.name}-${doc.file.size}`}
+          file={doc.file}
+          config={config}
+          settings={settings}
+        />
+      ) : (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled
+            className="self-start rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('config.translate')}
+          </button>
+          {doc?.status === 'ready' && doc.kind === 'pdf' && (
+            <p className="text-sm text-slate-600">{t('workspace.pdfSoon')}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

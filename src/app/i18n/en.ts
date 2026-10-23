@@ -131,6 +131,34 @@ export const en = {
   'jobError.unavailable': 'This engine is not available.',
   'jobError.cancelled': 'Cancelled.',
   'jobError.internal': 'Unexpected error.',
+  'jobError.rejected': 'The document was rejected by the safety checks.',
+  'workspace.translating': 'Translating… {done} / {total} paragraphs',
+  'workspace.pdfSoon':
+    'PDF translation arrives in an upcoming release. DOCX translation works today.',
+  'report.title': 'Quality report',
+  'report.summary':
+    '{translated} translated · {warnings} with warnings · {untranslated} untranslated · {skipped} skipped · {cached} from cache',
+  'report.repairs': 'Structural repairs',
+  'report.repair.D1_ROW_HEIGHT':
+    'Table row height changed from exact to minimum so the text is not clipped',
+  'report.repair.D2_TEXTBOX': 'Text box set to grow with its text',
+  'report.repair.D3_FRAME': 'Frame height changed from exact to minimum',
+  'report.repair.D4_LONG_TOKEN':
+    'Invisible line-break opportunities added to a long word or URL in a fixed-width cell',
+  'report.attention': 'Needs your attention',
+  'report.allSegments': 'All paragraphs',
+  'report.empty': 'Nothing needs attention.',
+  'report.status.translated': 'Translated',
+  'report.status.warning': 'Warning',
+  'report.status.untranslated': 'Untranslated — original kept',
+  'report.status.skipped': 'Not translated (reference list)',
+  'download.docx': 'Download translated DOCX',
+  'download.report': 'Download report (JSON)',
+  'preview.title': 'Preview',
+  'preview.original': 'Original',
+  'preview.translated': 'Translated',
+  'preview.loading': 'Rendering preview…',
+  'preview.failed': 'The preview could not be rendered. The download is not affected.',
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -133,4 +133,32 @@ export const tr: Record<MessageKey, string> = {
   'jobError.unavailable': 'Bu motor kullanılamıyor.',
   'jobError.cancelled': 'İptal edildi.',
   'jobError.internal': 'Beklenmeyen hata.',
+  'jobError.rejected': 'Belge güvenlik kontrollerinden geçemedi.',
+  'workspace.translating': 'Çevriliyor… {done} / {total} paragraf',
+  'workspace.pdfSoon':
+    'PDF çevirisi yakında gelecek bir sürümde. DOCX çevirisi şimdiden çalışıyor.',
+  'report.title': 'Kalite raporu',
+  'report.summary':
+    '{translated} çevrildi · {warnings} uyarılı · {untranslated} çevrilemedi · {skipped} atlandı · {cached} önbellekten',
+  'report.repairs': 'Yapısal onarımlar',
+  'report.repair.D1_ROW_HEIGHT':
+    'Metin kesilmesin diye tablo satır yüksekliği sabitten en aza çevrildi',
+  'report.repair.D2_TEXTBOX': 'Metin kutusu metne göre büyüyecek şekilde ayarlandı',
+  'report.repair.D3_FRAME': 'Çerçeve yüksekliği sabitten en aza çevrildi',
+  'report.repair.D4_LONG_TOKEN':
+    'Sabit genişlikli hücredeki uzun sözcük veya URL için görünmez satır kırma noktaları eklendi',
+  'report.attention': 'İlgilenmeniz gerekenler',
+  'report.allSegments': 'Tüm paragraflar',
+  'report.empty': 'İlgilenmeniz gereken bir şey yok.',
+  'report.status.translated': 'Çevrildi',
+  'report.status.warning': 'Uyarı',
+  'report.status.untranslated': 'Çevrilemedi — orijinal korundu',
+  'report.status.skipped': 'Çevrilmedi (kaynakça)',
+  'download.docx': 'Çevrilmiş DOCX’i indir',
+  'download.report': 'Raporu indir (JSON)',
+  'preview.title': 'Önizleme',
+  'preview.original': 'Orijinal',
+  'preview.translated': 'Çeviri',
+  'preview.loading': 'Önizleme hazırlanıyor…',
+  'preview.failed': 'Önizleme oluşturulamadı. İndirme etkilenmez.',
 };

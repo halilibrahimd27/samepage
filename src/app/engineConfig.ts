@@ -5,6 +5,7 @@ import type { EngineId } from '../engines/catalog';
 import { DEFAULT_LOCAL_BASE_URL } from '../engines/localDefaults';
 import type { EngineSpec } from '../workers/api';
 import { useApiKey } from './keyStore';
+import type { Translate } from './i18n';
 import type { Settings } from './settings';
 
 /** Translation configuration shared by the workspace and the playground. */
@@ -33,7 +34,17 @@ export function useEngineConfig(settings: Settings) {
     }
   };
 
+  /** First reason the current configuration cannot run, or null. */
+  const problem = (t: Translate): string | null => {
+    if (source === target) return t('config.sameLanguage');
+    if (activeEngine === 'anthropic' && !apiKey.key) return t('config.needKey');
+    if (activeEngine === 'openai-compatible' && !localModel.trim())
+      return t('config.needLocalModel');
+    return null;
+  };
+
   return {
+    problem,
     source,
     setSource,
     target,
