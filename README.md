@@ -12,31 +12,31 @@ looks like the original.
 > **Status: early development.** The roadmap is being implemented phase by phase. Features
 > listed below describe the target of v1.0; the app may not do all of this yet.
 
-## Privacy
+## Privacy and engines
 
 - **There is no backend.** samepage is a static site. Your document is opened, analysed and
   rebuilt entirely inside your browser.
-- **Your file never leaves your device.** Only the text segments that need translating are
-  sent — and only to the translation engine you pick:
+- **Translation is free.** No account and no API key are needed:
 
-  | Engine                                                  | Where your text goes                    |
-  | ------------------------------------------------------- | --------------------------------------- |
-  | Chrome built-in translator                              | Nowhere — translated on your device     |
-  | Local LLM server (Ollama, LM Studio, OpenAI-compatible) | Your own computer (`localhost`)         |
-  | Anthropic Claude (bring your own key)                   | Anthropic's API, under your own account |
+  | Engine                            | Where your text goes                                                                                  |
+  | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
+  | **Browser translation** (default) | Your browser's translation service (Chrome: Google, Edge: Microsoft, Safari: Apple). Works on phones. |
+  | Chrome built-in translator        | Nowhere — translated on your device (desktop Chrome and Edge)                                         |
+  | Advanced: Claude API / local LLM  | Anthropic under your own key, or your own computer (`localhost`)                                      |
+
+  Only the text that needs translating is sent; the file itself never leaves your device.
 
 - **No analytics, no telemetry, no cookies, no third-party scripts.** Fonts and WebAssembly are
-  self-hosted. A Content Security Policy only allows network connections to the engines above.
-- **API keys** stay in memory for the session unless you explicitly choose to remember them on
-  this device. Use a dedicated key with a low spend limit.
+  self-hosted. A Content Security Policy limits the app's own network connections.
+- **History** of finished translations is stored only in this browser (and can be turned off).
 
 ## Quality contract
 
-1. **Meaning first.** Academic text must not drift in meaning. Translations are checked for
-   preserved numbers, units, citations, equation and figure references, terminology and
-   formatting markers. With the Claude engine an additional fidelity check compares source and
-   translation and flags possible meaning differences for your review. samepage never shortens
-   or paraphrases body text to make it fit the page.
+1. **Meaning first.** Academic text must not drift in meaning. Every translation is checked for
+   preserved numbers, units, citations, formulas and formatting; glossary terms are enforced;
+   anything suspicious is listed for review. You can correct any paragraph before downloading,
+   and export a bilingual review document (source | translation | notes) for proofreading.
+   samepage never shortens or paraphrases body text to make it fit the page.
 2. **DOCX — structure-perfect.** Word reflows text, so samepage only swaps the text and keeps
    everything else.
 3. **PDF (text-based) — near-identical layout.** When a translation does not fit, the layout

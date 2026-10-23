@@ -57,7 +57,7 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
       <div className="min-h-screen bg-slate-50 text-slate-900">
         <header
           translate="no"
-          className="notranslate mx-auto flex max-w-3xl items-center justify-between px-6 pt-8"
+          className="notranslate mx-auto flex max-w-3xl flex-wrap items-start justify-between gap-3 px-6 pt-8"
         >
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">samepage</h1>

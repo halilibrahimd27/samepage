@@ -29,11 +29,23 @@ export function DocxPreview({ data, label }: { data: Blob; label: string }) {
         inWrapper: true,
         renderComments: false,
       });
+      fitToWidth();
       if (active) setState('ready');
     };
+    // Pages render at their real width (A4 ≈ 794 px); scale them down to fit phones.
+    const fitToWidth = () => {
+      const iframe = frame.current;
+      const doc = iframe?.contentDocument;
+      const page = doc?.querySelector<HTMLElement>('section.docx');
+      if (!iframe || !doc || !page) return;
+      const scale = Math.min(1, (iframe.clientWidth - 24) / (page.offsetWidth + 40));
+      doc.body.style.zoom = String(scale);
+    };
+    window.addEventListener('resize', fitToWidth);
     render().catch(() => active && setState('failed'));
     return () => {
       active = false;
+      window.removeEventListener('resize', fitToWidth);
     };
   }, [data, frameLoaded]);
 
