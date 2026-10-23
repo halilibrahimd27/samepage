@@ -1,0 +1,11 @@
+{
+  "name": "samepage — translate documents, keep the layout",
+  "short_name": "samepage",
+  "description": "Translate PDF and DOCX documents in your browser while keeping their layout.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e3a8a",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -11,3 +11,12 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// Offline app shell (production only; dev uses Vite's own module serving).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
+      .catch(() => undefined);
+  });
+}
