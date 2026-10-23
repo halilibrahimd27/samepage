@@ -8,5 +8,7 @@ export default defineConfig({
   base: '/samepage/',
   plugins: [react(), tailwindcss(), cspPlugin()],
   worker: { format: 'es' },
+  // MuPDF loads its WASM via new URL(..., import.meta.url); keep it out of dep pre-bundling.
+  optimizeDeps: { exclude: ['mupdf'] },
   build: { target: 'es2023' },
 });

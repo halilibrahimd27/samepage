@@ -1,10 +1,44 @@
 // Regenerates the synthetic test corpus under tests/corpus/.
-// Generators are registered here as they land (DOCX in Phase 2, PDF/LaTeX in Phase 3).
-const generators = [];
+// Node-side tooling may use MuPDF directly; app code goes through src/pdf/engine/.
+// LaTeX (Phase 3) and DOCX (Phase 2) generators are added here as they land.
+import { mkdirSync, writeFileSync } from 'node:fs';
+import * as mupdf from 'mupdf';
 
-if (generators.length === 0) {
-  console.log('fixtures: no generators registered yet — nothing to do.');
+const OUT = new URL('../tests/corpus/pdf/', import.meta.url);
+mkdirSync(OUT, { recursive: true });
+
+/** Builds a simple A4 PDF with one paragraph of text per page. */
+function buildTextPdf(pages) {
+  const buf = new mupdf.Buffer();
+  const writer = new mupdf.DocumentWriter(buf, 'pdf', '');
+  const font = new mupdf.Font('Times-Roman');
+  pages.forEach((lines) => {
+    const dev = writer.beginPage([0, 0, 595, 842]);
+    const text = new mupdf.Text();
+    lines.forEach((line, i) => text.showString(font, [12, 0, 0, -12, 72, 100 + i * 16], line));
+    dev.fillText(text, mupdf.Matrix.identity, mupdf.ColorSpace.DeviceRGB, [0, 0, 0], 1);
+    writer.endPage();
+  });
+  writer.close();
+  return buf.asUint8Array().slice();
 }
-for (const gen of generators) {
-  await gen();
+
+function save(name, bytes) {
+  writeFileSync(new URL(name, OUT), bytes);
+  console.log(`fixtures: wrote tests/corpus/pdf/${name} (${bytes.length} bytes)`);
 }
+
+const smoke = buildTextPdf([
+  ['Smoke test document, page one.', 'It exists to check that PDFs open in the browser.'],
+  ['Page two.'],
+]);
+save('smoke-2pages.pdf', smoke);
+
+const doc = mupdf.Document.openDocument(smoke, 'application/pdf').asPDF();
+save(
+  'encrypted.pdf',
+  doc
+    .saveToBuffer('encrypt=aes-256,user-password=secret,owner-password=owner')
+    .asUint8Array()
+    .slice(),
+);
