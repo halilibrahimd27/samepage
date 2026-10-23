@@ -10,6 +10,7 @@ export interface Settings {
   translateMetadata: boolean;
   showTestEngine: boolean;
   saveHistory: boolean;
+  showAdvancedEngines: boolean;
 }
 
 const STORAGE_KEY = 'samepage.settings';
@@ -23,6 +24,7 @@ export function defaultSettings(languages: readonly string[]): Settings {
     translateMetadata: false,
     showTestEngine: false,
     saveHistory: true,
+    showAdvancedEngines: false,
   };
 }
 
@@ -48,6 +50,7 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
     'translateMetadata',
     'showTestEngine',
     'saveHistory',
+    'showAdvancedEngines',
   ] as const) {
     if (typeof s[key] === 'boolean') result[key] = s[key];
   }

@@ -12,6 +12,7 @@ import { buildGlossarySample } from '../core/glossary/glossary';
 import { estimateCost, translateSegments } from '../core/pipeline/translate';
 import { plainText } from '../core/segment/codec';
 import { parsePlaygroundMarkup } from '../core/segment/markup';
+import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import { docxParagraphs, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
@@ -27,9 +28,11 @@ const cache = new IdbCache();
 const controllers = new Map<string, AbortController>();
 
 function engineFor(job: TextJob | DocxJob, chrome?: ChromeTranslatorBridge): TranslationEngine {
-  if (job.engine.id === 'chrome-builtin') {
-    if (!chrome) throw new EngineError('unavailable', 'Chrome built-in translator bridge missing.');
-    return createChromeEngine(chrome);
+  if (job.engine.id === 'chrome-builtin' || job.engine.id === 'browser') {
+    if (!chrome) throw new EngineError('unavailable', 'Main-thread translation bridge missing.');
+    return job.engine.id === 'browser'
+      ? createBrowserPageEngine(chrome)
+      : createChromeEngine(chrome);
   }
   return createEngine(job.engine.id, job.engine);
 }

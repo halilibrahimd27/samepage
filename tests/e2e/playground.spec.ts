@@ -72,6 +72,10 @@ test.describe('Anthropic engine (mocked API)', () => {
     });
 
     await page.goto('./#playground');
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByLabel('Show advanced engines (Claude API, local LLM)').check();
+    await page.getByRole('button', { name: 'Close' }).click();
+    await page.getByRole('radio', { name: /Claude/ }).check();
     await page.getByLabel('Anthropic API key').fill('sk-ant-TEST-0000000000000000');
     await page.getByRole('button', { name: 'Load Turkish academic sample' }).click();
     await expect(page.getByTestId('estimate')).toContainText('requests');

@@ -5,16 +5,22 @@ const PRIVACY_STYLE = {
   'on-device': 'bg-emerald-100 text-emerald-900',
   'local-server': 'bg-sky-100 text-sky-900',
   'third-party-api': 'bg-amber-100 text-amber-900',
+  'browser-vendor': 'bg-sky-100 text-sky-900',
 } as const;
 
 export function EnginePicker(props: {
   value: EngineId;
   onChange: (id: EngineId) => void;
   showTestEngine: boolean;
+  showAdvanced: boolean;
 }) {
   const { t } = useI18n();
   const chromePresent = isChromeTranslatorPresent();
-  const engines = ENGINES.filter((e) => props.showTestEngine || !e.testOnly);
+  const engines = ENGINES.filter(
+    (e) =>
+      (props.showTestEngine || !e.testOnly) &&
+      (props.showAdvanced || !e.advanced || e.id === props.value),
+  );
 
   return (
     <fieldset className="flex flex-col gap-2">

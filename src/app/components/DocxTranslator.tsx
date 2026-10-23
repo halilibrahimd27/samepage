@@ -2,6 +2,7 @@ import { proxy } from 'comlink';
 import { useState } from 'react';
 import type { ChromeTranslatorBridge } from '../../engines/chromeBuiltin';
 import type { DocxJob, DocxJobResult, JobError, PipelineApi } from '../../workers/api';
+import { browserTranslationBridge, sheetStore } from '../bridges/browserTranslator';
 import { chromeTranslatorBridge, prepareChromeTranslator } from '../bridges/chromeTranslator';
 import { downloadBlob } from '../download';
 import type { EngineConfig } from '../engineConfig';
@@ -67,6 +68,8 @@ export function DocxTranslator({
         await prepareChromeTranslator(pair, (f) => setDownload(Math.round(f * 100)));
         setDownload(null);
         bridge = proxy(chromeTranslatorBridge);
+      } else if (config.engine === 'browser') {
+        bridge = proxy(browserTranslationBridge);
       }
       const res = await pipelineClient.call<DocxJobResult>(
         (api) =>
@@ -131,7 +134,10 @@ export function DocxTranslator({
           {running && (
             <button
               type="button"
-              onClick={() => void pipelineClient.call((api) => api.cancel(running))}
+              onClick={() => {
+                sheetStore.cancel();
+                void pipelineClient.call((api) => api.cancel(running));
+              }}
               className="rounded-md border border-slate-300 px-4 py-2"
             >
               {t('playground.cancel')}

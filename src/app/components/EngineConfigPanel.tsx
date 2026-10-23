@@ -40,6 +40,7 @@ export function EngineConfigPanel({
         value={config.engine}
         onChange={config.setEngine}
         showTestEngine={settings.showTestEngine}
+        showAdvanced={settings.showAdvancedEngines}
       />
 
       {config.engine === 'anthropic' && (

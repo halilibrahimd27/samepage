@@ -178,4 +178,24 @@ export const tr: Record<MessageKey, string> = {
   'history.summary':
     '{translated}/{segments} çevrildi · {warnings} uyarı · {untranslated} çevrilemedi',
   'history.back': '← Geri',
+  'engine.browser.label': 'Tarayıcı çevirisi (ücretsiz)',
+  'engine.browser.description':
+    'Tarayıcınızın yerleşik çevirisini kullanır — Chrome’da Google, Edge’de Microsoft, Safari’de Apple. Telefonda da çalışır; tek dokunuşla açarsınız.',
+  'privacy.browser-vendor': 'Metin tarayıcınızın çeviri servisine gider',
+  'settings.showAdvancedEngines': 'Gelişmiş motorları göster (Claude API, yerel LLM)',
+  'sheet.title': 'Tarayıcınızla çevirin',
+  'sheet.intro':
+    'Aşağıdaki paragrafları tarayıcınız çevirir; sayfanın geri kalanı değişmez. Bitene kadar bu sayfayı açık tutun.',
+  'sheet.step.chrome-desktop':
+    'Adres çubuğundaki çeviri simgesine tıklayın (ya da sayfaya sağ tık → “… diline çevir”) ve {target} seçin.',
+  'sheet.step.chrome-android': '⋮ menüsünü açın → “Çevir…”, ardından dil olarak {target} seçin.',
+  'sheet.step.edge': 'Adres çubuğundaki çeviri simgesine tıklayın ve {target} seçin.',
+  'sheet.step.safari': 'Adres çubuğundaki “aA” düğmesine dokunun → “{target} diline çevir”.',
+  'sheet.step.firefox': 'Adres çubuğundaki çeviri simgesine tıklayın ve {target} seçin.',
+  'sheet.step.other': 'Tarayıcınızın “Sayfayı çevir” özelliğini kullanın ve {target} seçin.',
+  'sheet.privacy': 'Tarayıcınız bu metni kendi çeviri servisine gönderir (Chrome: Google).',
+  'sheet.waiting': 'Tarayıcınızın çevirmesi bekleniyor…',
+  'sheet.progress': '{done} / {total} paragraf çevrildi',
+  'sheet.wrongLanguage':
+    'Sayfa {got} diline çevrilmiş görünüyor. Tarayıcının çeviri menüsünden {target} seçin.',
 };

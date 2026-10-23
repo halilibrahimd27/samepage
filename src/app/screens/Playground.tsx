@@ -6,6 +6,7 @@ import type { InlineStyle } from '../../core/segment/markup';
 import type { GlossaryEntry } from '../../core/validate/validate';
 import type { ChromeTranslatorBridge } from '../../engines/chromeBuiltin';
 import type { JobError, PipelineApi, TextJob, TextJobResult, TextSegment } from '../../workers/api';
+import { browserTranslationBridge, sheetStore } from '../bridges/browserTranslator';
 import { chromeTranslatorBridge, prepareChromeTranslator } from '../bridges/chromeTranslator';
 import { EngineConfigPanel } from '../components/EngineConfigPanel';
 import { GlossaryPanel } from '../components/GlossaryPanel';
@@ -141,6 +142,8 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
         await prepareChromeTranslator(pair, (f) => setDownload(Math.round(f * 100)));
         setDownload(null);
         bridge = proxy(chromeTranslatorBridge);
+      } else if (config.engine === 'browser') {
+        bridge = proxy(browserTranslationBridge);
       }
       const res = await pipelineClient.call<TextJobResult>(
         (api) =>
@@ -275,7 +278,10 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
           {running && (
             <button
               type="button"
-              onClick={() => void pipelineClient.call((api) => api.cancel(running))}
+              onClick={() => {
+                sheetStore.cancel();
+                void pipelineClient.call((api) => api.cancel(running));
+              }}
               className="rounded-md border border-slate-300 px-4 py-2"
             >
               {t('playground.cancel')}

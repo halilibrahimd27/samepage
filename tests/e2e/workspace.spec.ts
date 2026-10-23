@@ -28,7 +28,10 @@ test('invalid and encrypted files fail gracefully', async ({ page }) => {
 
 test('UI language and settings persist; engines show privacy badges', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByTestId('privacy-anthropic')).toHaveText('Text sent to Anthropic');
+  await expect(page.getByTestId('privacy-browser')).toHaveText(
+    'Text sent to your browser’s translation service',
+  );
+  await expect(page.getByTestId('privacy-anthropic')).toHaveCount(0);
   await expect(page.getByTestId('privacy-pseudo')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Settings' }).click();

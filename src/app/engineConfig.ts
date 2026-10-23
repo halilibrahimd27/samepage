@@ -12,7 +12,7 @@ import type { Settings } from './settings';
 export function useEngineConfig(settings: Settings) {
   const [source, setSource] = useState<LanguageCode>('tr');
   const [target, setTarget] = useState<LanguageCode>('en');
-  const [engine, setEngine] = useState<EngineId>('anthropic');
+  const [engine, setEngine] = useState<EngineId>('browser');
   const [anthropicModel, setAnthropicModel] = useState<string>(DEFAULT_ANTHROPIC_MODEL);
   const [baseUrl, setBaseUrl] = useState(DEFAULT_LOCAL_BASE_URL);
   const [localModel, setLocalModel] = useState('');
@@ -31,6 +31,8 @@ export function useEngineConfig(settings: Settings) {
         return { id: 'pseudo', pseudo: { factor: 1.35, substitute: true } };
       case 'chrome-builtin':
         return { id: 'chrome-builtin' };
+      case 'browser':
+        return { id: 'browser' };
     }
   };
 
