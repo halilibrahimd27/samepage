@@ -8,6 +8,13 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # typescript-eslint 8.x supports TypeScript < 6.1; revisit when it supports 7.x.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Keep @types/node on the Node major used in CI (.nvmrc).
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
