@@ -25,3 +25,4 @@ test-results/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+tests/golden/__out__/

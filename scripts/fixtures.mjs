@@ -3,6 +3,7 @@
 // LaTeX (Phase 3) and DOCX (Phase 2) generators are added here as they land.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import * as mupdf from 'mupdf';
+import { buildDocxFixtures } from './docxFixtures.mjs';
 
 const OUT = new URL('../tests/corpus/pdf/', import.meta.url);
 mkdirSync(OUT, { recursive: true });
@@ -42,3 +43,10 @@ save(
     .asUint8Array()
     .slice(),
 );
+
+const DOCX_OUT = new URL('../tests/corpus/docx/', import.meta.url);
+mkdirSync(DOCX_OUT, { recursive: true });
+for (const [name, bytes] of Object.entries(await buildDocxFixtures())) {
+  writeFileSync(new URL(name, DOCX_OUT), bytes);
+  console.log(`fixtures: wrote tests/corpus/docx/${name} (${bytes.length} bytes)`);
+}

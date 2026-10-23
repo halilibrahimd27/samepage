@@ -7,3 +7,4 @@ CLAUDE.md
 package-lock.json
 tests/corpus
 public/fonts
+tests/golden

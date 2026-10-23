@@ -1,0 +1,228 @@
+{
+  "summary": {
+    "segments": 27,
+    "translated": 26,
+    "warnings": 0,
+    "untranslated": 0,
+    "skipped": 1,
+    "cached": 0,
+    "repairs": {
+      "D4_LONG_TOKEN": 1,
+      "D2_TEXTBOX": 1,
+      "D1_ROW_HEIGHT": 2
+    }
+  },
+  "repairs": [
+    {
+      "code": "D4_LONG_TOKEN",
+      "part": "word/document.xml",
+      "detail": "zero-width breaks added to long tokens in a fixed-width table cell (u20)"
+    },
+    {
+      "code": "D2_TEXTBOX",
+      "part": "word/document.xml",
+      "detail": "VML text box set to fit text"
+    },
+    {
+      "code": "D1_ROW_HEIGHT",
+      "part": "word/document.xml",
+      "detail": "table row height 400 twips: exact → at least"
+    },
+    {
+      "code": "D1_ROW_HEIGHT",
+      "part": "word/document.xml",
+      "detail": "table row height 400 twips: exact → at least"
+    }
+  ],
+  "segments": [
+    {
+      "part": "docProps/core.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Türkçe akademik metinlerde anlam kayması",
+      "target": "[Türkçе åkådеmık mеtınlеrdе ånlåm kåуmåşı ŝåmрļé ţéхţ]"
+    },
+    {
+      "part": "word/charts/chart1.xml",
+      "role": "label",
+      "status": "translated",
+      "source": "Terim tutarlılığı",
+      "target": "[Tеrım tütårlılığı ŝåmрļé]"
+    },
+    {
+      "part": "word/charts/chart1.xml",
+      "role": "label",
+      "status": "translated",
+      "source": "Tümce uzunluğu",
+      "target": "[Tümçе üzünlüğü ŝåmрļé]"
+    },
+    {
+      "part": "word/charts/chart1.xml",
+      "role": "label",
+      "status": "translated",
+      "source": "Yüzde",
+      "target": "[Yüzdе ŝåmрļé]"
+    },
+    {
+      "part": "word/charts/chart1.xml",
+      "role": "label",
+      "status": "translated",
+      "source": "Doğruluk",
+      "target": "[Döğrülük ŝåmрļé]"
+    },
+    {
+      "part": "word/charts/chart1.xml",
+      "role": "label",
+      "status": "translated",
+      "source": "Kısa tümce",
+      "target": "[Kışå tümçе ŝåmрļé]"
+    },
+    {
+      "part": "word/charts/chart1.xml",
+      "role": "label",
+      "status": "translated",
+      "source": "Uzun tümce",
+      "target": "[Üzün tümçе ŝåmрļé]"
+    },
+    {
+      "part": "word/comments.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Bu tümce daha açık yazılmalıdır.",
+      "target": "[Bü tümçе dåhå åçık уåzılmålıdır. ŝåmрļé ţéхţ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Türkçe akademik metinlerde anlam kayması",
+      "target": "[Türkçе åkådеmık mеtınlеrdе ånlåm kåуmåşı ŝåmрļé ţéхţ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "1. Giriş",
+      "target": "[1. Ğırış ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Bu çalışmada makine çevirisi sistemlerinin terim tutarlılığı incelenmiştir. Ayrıntılar için proje sayfasına bakınız [3].",
+      "target": "[Bü çålışmådå måkınе çеvırışı şıştеmlеrının tеrım tütårlılığı ınçеlеnmıştır. Åуrıntılår ıçın рröjе şåуfåşınå båkınız [3]. ŝåmрļé ţéхţ ğļурħ çövеr Ŵörđ ļоņğ ƒіļļ ŝåmрļé ţéхţ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Ortalama doğruluk %87,4 olarak ölçülmüştür; fark anlamlıdır.",
+      "target": "[Örtålåmå döğrülük %87,4 ölåråk ölçülmüştür; fårk ånlåmlıdır. ŝåmрļé ţéхţ ğļурħ çövеr Ŵörđ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "F-ölçütü  biçiminde tanımlanır.",
+      "target": "[F-ölçütü  bıçımındе tånımlånır. ŝåmрļé ţéхţ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "2. Bulgular",
+      "target": "[2. Bülğülår ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Ölçüt",
+      "target": "[Ölçüt ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Açıklama",
+      "target": "[Åçıklåmå ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Kesinlik",
+      "target": "[Kеşınlık ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Doğru olarak sınıflandırılan örneklerin oranı",
+      "target": "[Döğrü ölåråk şınıflåndırılån örnеklеrın örånı ŝåmрļé ţéхţ ğļурħ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Kaynak",
+      "target": "[Kåуnåk ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Veri kümesi: ",
+      "target": "[Vеrı kümеşı:  ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "caption",
+      "status": "translated",
+      "source": "Şekil 1. Tümce uzunluğuna göre terim tutarlılığı.",
+      "target": "[Şеkıl 1. Tümçе üzünlüğünå ğörе tеrım tütårlılığı. ŝåmрļé ţéхţ ğļурħ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Önemli not: sonuçlar genellenemez.",
+      "target": "[Önеmlı nöt: şönüçlår ğеnеllеnеmеz. ŝåmрļé ţéхţ]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Kaynakça",
+      "target": "[Kåуnåkçå ŝåmрļé]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "reference",
+      "status": "skipped",
+      "source": "Yılmaz, A. ve Demir, B. (2021). Türkçe metinlerde terim tutarlılığı. Dil Dergisi, 12(3), 45–67.",
+      "target": ""
+    },
+    {
+      "part": "word/footer1.xml",
+      "role": "footer",
+      "status": "translated",
+      "source": "Sayfa ",
+      "target": "[Şåуfå  ŝåmрļé]"
+    },
+    {
+      "part": "word/footnotes.xml",
+      "role": "footnote",
+      "status": "translated",
+      "source": "Derlem, 2019–2023 yılları arasında yayımlanmış makalelerden oluşmaktadır.",
+      "target": "[Dеrlеm, 2019–2023 уıllårı åråşındå уåуımlånmış måkålеlеrdеn ölüşmåktådır. ŝåmрļé ţéхţ ğļурħ çövеr Ŵörđ]"
+    },
+    {
+      "part": "word/header1.xml",
+      "role": "header",
+      "status": "translated",
+      "source": "Samepage Dergisi · Cilt 3, Sayı 2",
+      "target": "[Şåmерåğе Dеrğışı · Çılt 3, Şåуı 2 ŝåmрļé ţéхţ]"
+    }
+  ]
+}
