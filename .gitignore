@@ -1,0 +1,27 @@
+# Maintainer-only kit files — never committed (repo contains the product only)
+/CLAUDE.md
+/docs/
+/KICKOFF_PROMPT.md
+/.claude/
+
+# Maintainer's private test papers
+tests/private/
+
+# Dependencies & build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea/
