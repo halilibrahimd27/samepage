@@ -6,6 +6,7 @@ import { useI18n } from './i18n';
 import { I18nProvider } from './i18n/I18nProvider';
 import { useEngineConfig } from './engineConfig';
 import { Playground } from './screens/Playground';
+import { TranslateTest } from './screens/TranslateTest';
 import { Workspace } from './screens/Workspace';
 import { useSettings, type Settings } from './settings';
 
@@ -52,7 +53,10 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
       )}
     >
       <div className="min-h-screen bg-slate-50 text-slate-900">
-        <header className="mx-auto flex max-w-3xl items-center justify-between px-6 pt-8">
+        <header
+          translate="no"
+          className="notranslate mx-auto flex max-w-3xl items-center justify-between px-6 pt-8"
+        >
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">samepage</h1>
             <p className="mt-1 text-slate-600">{t('app.tagline')}</p>
@@ -67,14 +71,19 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
         </header>
 
         <main className="mx-auto max-w-3xl px-6 py-8">
-          {route === '#playground' ? (
+          {route === '#translate-test' ? (
+            <TranslateTest />
+          ) : route === '#playground' ? (
             <Playground config={config} settings={props.settings} />
           ) : (
             <Workspace config={config} settings={props.settings} />
           )}
         </main>
 
-        <footer className="mx-auto flex max-w-3xl flex-col gap-2 px-6 pb-10 text-sm text-slate-600">
+        <footer
+          translate="no"
+          className="notranslate mx-auto flex max-w-3xl flex-col gap-2 px-6 pb-10 text-sm text-slate-600"
+        >
           <p>{t('footer.privacy')}</p>
           <a href={REPO_URL} className="underline" rel="noopener noreferrer">
             {t('footer.source')}
