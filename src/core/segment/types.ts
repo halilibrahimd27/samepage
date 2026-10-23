@@ -4,9 +4,10 @@ import type { Role } from '../ir/types';
  * Atomic placeholder kinds (TRANSLATION.md §3):
  * F inline formula, N footnote mark, U URL/DOI/e-mail, C inline code, I inline image/drawing,
  * T tab, B manual line break, R cross-reference field result, L literal text that looked like
- * markup in the source (escaped so the codec stays unambiguous).
+ * markup in the source (escaped so the codec stays unambiguous), G glossary term protected for
+ * engines without glossary support (restored with the glossary target).
  */
-export type PlaceholderKind = 'F' | 'N' | 'U' | 'C' | 'I' | 'T' | 'B' | 'R' | 'L';
+export type PlaceholderKind = 'F' | 'N' | 'U' | 'C' | 'I' | 'T' | 'B' | 'R' | 'L' | 'G';
 
 export interface PlaceholderDef {
   /** e.g. "F1" — rendered as ⟦F1⟧. */

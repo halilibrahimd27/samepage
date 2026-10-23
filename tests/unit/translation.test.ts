@@ -149,3 +149,23 @@ describe('helpers', () => {
     );
   });
 });
+
+describe('glossary term protection', () => {
+  it('protects terms with suffixes and restores glossary targets', async () => {
+    const { protectTerms, restoreTerms } = await import('../../src/core/glossary/protect');
+    const glossary = [
+      { source: 'derin öğrenme', target: 'deep learning' },
+      { source: 'İstatistik', target: 'statistics' },
+    ];
+    const p = protectTerms(
+      '<t1>Derin öğrenmenin</t1> avantajları istatistiksel olarak ⟦F1⟧ incelendi.',
+      glossary,
+      'tr',
+    );
+    expect(p.text).toBe('<t1>⟦G1⟧</t1> avantajları ⟦G2⟧ olarak ⟦F1⟧ incelendi.');
+    expect(
+      restoreTerms('The advantages of <t1>⟦G1⟧</t1> were examined ⟦G2⟧ ⟦F1⟧.', p.targets),
+    ).toBe('The advantages of <t1>deep learning</t1> were examined statistics ⟦F1⟧.');
+    expect(restoreTerms('lost term', p.targets)).toBeNull();
+  });
+});

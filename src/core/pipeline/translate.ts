@@ -13,6 +13,7 @@ import {
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
 import { glossaryHash } from '../glossary/glossary';
+import { protectTerms, restoreTerms } from '../glossary/protect';
 import { plainText } from '../segment/codec';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
 
@@ -100,6 +101,8 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   const { engine, segments, signal } = job;
   const ctx: TranslateContext = { ...job.ctx };
   const checkLanguage = engine.id !== 'pseudo';
+  // Engines without glossary support get terms protected as placeholders (ADR-015).
+  const protecting = !engine.capabilities.glossary && job.ctx.glossary.length > 0;
   const gHash = await glossaryHash(ctx.glossary);
   const keys = await Promise.all(
     segments.map((s) =>
@@ -180,8 +183,27 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       ...(feedback ? { retryFeedback: feedback } : {}),
     };
     try {
-      const results = await engine.translate(batch, callCtx, signal);
-      return new Map(results.map((r) => [r.id, r]));
+      if (!protecting) {
+        const results = await engine.translate(batch, callCtx, signal);
+        return new Map(results.map((r) => [r.id, r]));
+      }
+      const protectedBatch = batch.map((s) => ({
+        req: s,
+        p: protectTerms(s.text, ctx.glossary, ctx.pair.source),
+      }));
+      const results = await engine.translate(
+        protectedBatch.map(({ req, p }) => ({ ...req, text: p.text })),
+        callCtx,
+        signal,
+      );
+      const targetsById = new Map(protectedBatch.map(({ req, p }) => [req.id, p.targets]));
+      return new Map(
+        results.map((r) => {
+          const restored = restoreTerms(r.text, targetsById.get(r.id) ?? []);
+          // A lost protected term fails validation (empty text → retry path).
+          return [r.id, restored === null ? { ...r, text: '' } : { ...r, text: restored }];
+        }),
+      );
     } catch (error) {
       if (error instanceof EngineError && error.code === 'truncated' && batch.length > 1) {
         const mid = Math.ceil(batch.length / 2);
