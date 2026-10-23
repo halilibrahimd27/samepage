@@ -159,6 +159,23 @@ export const en = {
   'preview.translated': 'Translated',
   'preview.loading': 'Rendering preview…',
   'preview.failed': 'The preview could not be rendered. The download is not affected.',
+  'settings.saveHistory': 'Keep a translation history on this device',
+  'settings.saveHistoryHint':
+    'Finished translations (file and report) are stored only in this browser so you can download them again.',
+  'header.history': 'History',
+  'history.title': 'Translation history',
+  'history.hint': 'Stored only in this browser. Clearing your browser data removes it.',
+  'history.empty': 'No translations yet.',
+  'history.download': 'Download',
+  'history.report': 'Report',
+  'history.delete': 'Delete',
+  'history.clear': 'Clear history',
+  'history.confirmClear': 'Delete all {count} entries? This cannot be undone.',
+  'history.confirm': 'Yes, delete all',
+  'history.cancel': 'Cancel',
+  'history.summary':
+    '{translated}/{segments} translated · {warnings} warnings · {untranslated} untranslated',
+  'history.back': '← Back',
 } as const;
 
 export type MessageKey = keyof typeof en;

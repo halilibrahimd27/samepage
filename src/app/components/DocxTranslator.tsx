@@ -46,6 +46,7 @@ export function DocxTranslator({
     translateComments: settings.translateComments,
     translateReferences: settings.translateReferences,
     translateMetadata: settings.translateMetadata,
+    saveHistory: settings.saveHistory,
   });
   const base = file.name.replace(/\.docx$/i, '');
   const jobErrorText = (e: JobError) =>

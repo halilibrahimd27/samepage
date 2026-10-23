@@ -1,4 +1,5 @@
 import type { SegmentOutcome, CostEstimate } from '../core/pipeline/translate';
+import type { HistoryMeta } from '../core/cache/idb';
 import type { DocxReport } from '../docx/pipeline';
 import type { InlineStyle } from '../core/segment/markup';
 import type { TagDef, PlaceholderDef } from '../core/segment/types';
@@ -62,6 +63,8 @@ export interface DocxJob {
   translateComments: boolean;
   translateReferences: boolean;
   translateMetadata: boolean;
+  /** Store the finished job in this device's translation history. */
+  saveHistory: boolean;
 }
 
 export type DocxJobResult = { ok: true; bytes: Uint8Array; report: DocxReport } | JobError;
@@ -92,6 +95,11 @@ export interface PipelineApi {
     onProgress?: (done: number, total: number) => void,
     chrome?: ChromeTranslatorBridge,
   ): Promise<DocxJobResult>;
+  listHistory(): Promise<HistoryMeta[]>;
+  /** Translated file and report of a history entry (the file buffer is transferred). */
+  getHistoryEntry(id: string): Promise<{ bytes: Uint8Array; report: unknown } | null>;
+  /** Deletes one entry, or everything when id is null. */
+  deleteHistory(id: string | null): Promise<void>;
   /** Glossary suggestions from a DOCX file's paragraphs. */
   extractDocxGlossary(job: DocxJob): Promise<{ ok: true; entries: GlossaryEntry[] } | JobError>;
 }

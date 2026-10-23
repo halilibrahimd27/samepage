@@ -1,5 +1,13 @@
 import { expose, transfer } from 'comlink';
-import { IdbCache, loadGlossary, saveGlossary } from '../core/cache/idb';
+import {
+  addHistory,
+  deleteHistory,
+  getHistoryEntry,
+  IdbCache,
+  listHistory,
+  loadGlossary,
+  saveGlossary,
+} from '../core/cache/idb';
 import { buildGlossarySample } from '../core/glossary/glossary';
 import { estimateCost, translateSegments } from '../core/pipeline/translate';
 import { plainText } from '../core/segment/codec';
@@ -170,6 +178,30 @@ const api: PipelineApi = {
         signal: controller.signal,
         ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
       });
+      if (job.saveHistory) {
+        const name = job.file instanceof File ? job.file.name : 'document.docx';
+        await addHistory(
+          {
+            id: job.jobId,
+            createdAt: Date.now(),
+            name,
+            outputName: `${name.replace(/\.docx$/i, '')}.${job.pair.target}.docx`,
+            kind: 'docx',
+            pair: job.pair,
+            engine: job.engine.id,
+            ...(job.engine.model ? { model: job.engine.model } : {}),
+            summary: {
+              segments: report.summary.segments,
+              translated: report.summary.translated,
+              warnings: report.summary.warnings,
+              untranslated: report.summary.untranslated,
+            },
+            sizeBytes: bytes.byteLength,
+          },
+          bytes.slice(),
+          report,
+        ).catch(() => undefined); // history is best effort (storage may be full or disabled)
+      }
       return transfer({ ok: true as const, bytes, report }, [bytes.buffer]);
     } catch (error) {
       return toJobError(error, controller.signal);
@@ -199,6 +231,15 @@ const api: PipelineApi = {
       controllers.delete(job.jobId);
     }
   },
+
+  listHistory: () => listHistory(),
+  async getHistoryEntry(id) {
+    const row = await getHistoryEntry(id);
+    if (!row) return null;
+    const bytes = row.bytes.slice();
+    return transfer({ bytes, report: row.report }, [bytes.buffer]);
+  },
+  deleteHistory: (id) => deleteHistory(id),
 
   loadGlossary: (pair) => loadGlossary(pair.source, pair.target),
   saveGlossary: (pair, entries) => saveGlossary(pair.source, pair.target, entries),

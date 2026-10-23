@@ -161,4 +161,21 @@ export const tr: Record<MessageKey, string> = {
   'preview.translated': 'Çeviri',
   'preview.loading': 'Önizleme hazırlanıyor…',
   'preview.failed': 'Önizleme oluşturulamadı. İndirme etkilenmez.',
+  'settings.saveHistory': 'Çeviri geçmişini bu cihazda sakla',
+  'settings.saveHistoryHint':
+    'Biten çeviriler (dosya ve rapor) yalnızca bu tarayıcıda saklanır, tekrar indirebilirsiniz.',
+  'header.history': 'Geçmiş',
+  'history.title': 'Çeviri geçmişi',
+  'history.hint': 'Yalnızca bu tarayıcıda saklanır. Tarayıcı verilerini silerseniz kaybolur.',
+  'history.empty': 'Henüz çeviri yok.',
+  'history.download': 'İndir',
+  'history.report': 'Rapor',
+  'history.delete': 'Sil',
+  'history.clear': 'Geçmişi temizle',
+  'history.confirmClear': '{count} kaydın tümü silinsin mi? Geri alınamaz.',
+  'history.confirm': 'Evet, tümünü sil',
+  'history.cancel': 'Vazgeç',
+  'history.summary':
+    '{translated}/{segments} çevrildi · {warnings} uyarı · {untranslated} çevrilemedi',
+  'history.back': '← Geri',
 };

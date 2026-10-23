@@ -5,6 +5,7 @@ import { WorkerStatus } from './components/WorkerStatus';
 import { useI18n } from './i18n';
 import { I18nProvider } from './i18n/I18nProvider';
 import { useEngineConfig } from './engineConfig';
+import { History } from './screens/History';
 import { Playground } from './screens/Playground';
 import { TranslateTest } from './screens/TranslateTest';
 import { Workspace } from './screens/Workspace';
@@ -61,17 +62,24 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
             <h1 className="text-3xl font-semibold tracking-tight">samepage</h1>
             <p className="mt-1 text-slate-600">{t('app.tagline')}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-100"
-          >
-            {t('header.settings')}
-          </button>
+          <nav className="flex items-center gap-2">
+            <a href="#history" className="rounded-md px-3 py-1.5 text-sm hover:bg-slate-100">
+              {t('header.history')}
+            </a>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-100"
+            >
+              {t('header.settings')}
+            </button>
+          </nav>
         </header>
 
         <main className="mx-auto max-w-3xl px-6 py-8">
-          {route === '#translate-test' ? (
+          {route === '#history' ? (
+            <History />
+          ) : route === '#translate-test' ? (
             <TranslateTest />
           ) : route === '#playground' ? (
             <Playground config={config} settings={props.settings} />

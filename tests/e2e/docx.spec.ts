@@ -35,3 +35,28 @@ test('DOCX is translated end-to-end with report, previews and download', async (
   expect(xml).toContain('Ğırış');
   expect(xml).toContain('<m:oMath');
 });
+
+test('finished translations appear in the history and can be downloaded again', async ({
+  page,
+}) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByLabel('Show the test engine').check();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('radio', { name: /Pseudo/ }).check();
+  await page.getByTestId('file-input').setInputFiles('tests/corpus/docx/academic.docx');
+  await page.getByRole('button', { name: 'Translate', exact: true }).click();
+  await expect(page.getByTestId('report-summary')).toBeVisible({ timeout: 60_000 });
+
+  await page.getByRole('link', { name: 'History' }).click();
+  const item = page.getByTestId('history-list').locator('li').first();
+  await expect(item).toContainText('academic.docx');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    item.getByRole('button', { name: 'Download' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('academic.en.docx');
+
+  await item.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByText('No translations yet.')).toBeVisible();
+});

@@ -9,6 +9,7 @@ export interface Settings {
   translateComments: boolean;
   translateMetadata: boolean;
   showTestEngine: boolean;
+  saveHistory: boolean;
 }
 
 const STORAGE_KEY = 'samepage.settings';
@@ -21,6 +22,7 @@ export function defaultSettings(languages: readonly string[]): Settings {
     translateComments: false,
     translateMetadata: false,
     showTestEngine: false,
+    saveHistory: true,
   };
 }
 
@@ -45,6 +47,7 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
     'translateComments',
     'translateMetadata',
     'showTestEngine',
+    'saveHistory',
   ] as const) {
     if (typeof s[key] === 'boolean') result[key] = s[key];
   }

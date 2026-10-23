@@ -8,6 +8,7 @@ const TOGGLES = [
   ['translateReferences', 'settings.translateReferences', null],
   ['translateComments', 'settings.translateComments', null],
   ['translateMetadata', 'settings.translateMetadata', null],
+  ['saveHistory', 'settings.saveHistory', 'settings.saveHistoryHint'],
   ['showTestEngine', 'settings.showTestEngine', null],
 ] as const;
 
