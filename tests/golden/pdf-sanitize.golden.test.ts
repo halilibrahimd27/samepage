@@ -50,3 +50,12 @@ it('translates bookmarks and honours the page range', async () => {
   // Only units entirely on page 2 were translated.
   expect(report.units.every((u) => u.pages.every((p) => p === 1))).toBe(true);
 }, 120_000);
+
+it('refuses malformed and encrypted PDFs politely', async () => {
+  const { inspectPdf } = await import('../../src/pdf/engine');
+  const malformed = new TextEncoder().encode('%PDF-1.7\n1 0 obj << /Type /Catalog >> garbage');
+  const result = await inspectPdf(malformed, { maxPages: 500, thumbnailWidth: 100 });
+  expect(result.ok ? 'ok' : result.reason).toBe('corrupt');
+  const encrypted = await inspectPdf(new Uint8Array(readFileSync('tests/corpus/pdf/encrypted.pdf')), { maxPages: 500, thumbnailWidth: 100 });
+  expect(encrypted.ok ? 'ok' : encrypted.reason).toBe('encrypted');
+});
