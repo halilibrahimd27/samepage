@@ -7,6 +7,7 @@ import { useI18n } from './i18n';
 import { I18nProvider } from './i18n/I18nProvider';
 import { useEngineConfig } from './engineConfig';
 import { History } from './screens/History';
+import { PdfDebug } from './screens/PdfDebug';
 import { Playground } from './screens/Playground';
 import { TranslateTest } from './screens/TranslateTest';
 import { Workspace } from './screens/Workspace';
@@ -79,7 +80,9 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
 
         <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
           <TranslationSheet />
-          {route === '#history' ? (
+          {route === '#pdf-debug' ? (
+            <PdfDebug />
+          ) : route === '#history' ? (
             <History />
           ) : route === '#translate-test' ? (
             <TranslateTest />

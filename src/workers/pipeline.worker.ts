@@ -19,7 +19,8 @@ import { docxParagraphs, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
-import { inspectPdf } from '../pdf/engine';
+import { inspectPdf, renderPagePng } from '../pdf/engine';
+import { extractAndAnalyze } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
 import { LIMITS } from '../security/limits';
 import type { DocxJob, JobError, PipelineApi, TextJob } from './api';
@@ -240,6 +241,13 @@ const api: PipelineApi = {
   async bilingualDocx(rows, labels) {
     const bytes = await buildBilingualDocx(rows, labels);
     return transfer(bytes, [bytes.buffer]);
+  },
+  async analyzePdf(file, maxPages) {
+    return extractAndAnalyze(new Uint8Array(await file.arrayBuffer()), maxPages);
+  },
+  async renderPdfPage(file, index, scale) {
+    const img = await renderPagePng(new Uint8Array(await file.arrayBuffer()), index, scale);
+    return transfer(img, [img.png.buffer]);
   },
   listHistory: () => listHistory(),
   async getHistoryEntry(id) {

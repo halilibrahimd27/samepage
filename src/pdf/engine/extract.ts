@@ -1,0 +1,130 @@
+import type { Rect } from '../../core/ir/types';
+import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
+import { loadMupdf } from './mupdf';
+
+/**
+ * Structured-text options (ARCHITECTURE.md §5). Never add `structured`, `table-hunt` or
+ * `segment`: the walker skips struct/grid blocks and their text would be lost.
+ */
+export const STEXT_OPTIONS = 'preserve-whitespace,preserve-ligatures,preserve-images,vectors';
+
+const quadToRect = (q: number[]): Rect => ({
+  x0: Math.min(q[0]!, q[2]!, q[4]!, q[6]!),
+  y0: Math.min(q[1]!, q[3]!, q[5]!, q[7]!),
+  x1: Math.max(q[0]!, q[2]!, q[4]!, q[6]!),
+  y1: Math.max(q[1]!, q[3]!, q[5]!, q[7]!),
+});
+const toRect = (r: number[]): Rect => ({ x0: r[0]!, y0: r[1]!, x1: r[2]!, y1: r[3]! });
+const round = (n: number) => Math.round(n * 100) / 100;
+const rgb = (c: number[]): [number, number, number] =>
+  c.length >= 3 ? [c[0]!, c[1]!, c[2]!] : c.length === 1 ? [c[0]!, c[0]!, c[0]!] : [0, 0, 0];
+
+/** "ABCDEF+CMR10" → "CMR10" */
+export const stripSubset = (name: string) => name.replace(/^[A-Z]{6}\+/, '');
+
+export interface OpenedPdf {
+  pageCount: number;
+  extractPage(index: number): RawPage;
+  close(): void;
+}
+
+/** Opens a PDF for extraction. Callers must call close() to free WASM memory. */
+export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf> {
+  const mupdf = await loadMupdf();
+  const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
+  return {
+    pageCount: doc.countPages(),
+    close: () => doc.destroy(),
+    extractPage(index) {
+      const page = doc.loadPage(index);
+      const stext = page.toStructuredText(STEXT_OPTIONS);
+      try {
+        const [x0, y0, x1, y1] = page.getBounds();
+        const fonts: Record<string, RawFont> = {};
+        const blocks: RawTextBlock[] = [];
+        const images: RawPage['images'] = [];
+        const vectors: RawPage['vectors'] = [];
+        let block: RawTextBlock | null = null;
+        let line: RawLine | null = null;
+
+        stext.walk({
+          beginTextBlock(bbox) {
+            block = { bbox: toRect(bbox), lines: [] };
+          },
+          beginLine(bbox, wmode, dir) {
+            line = { bbox: toRect(bbox), dir: [round(dir[0]), round(dir[1])], wmode, chars: [] };
+          },
+          onChar(c, origin, font, size, quad, color) {
+            const name = stripSubset(font.getName());
+            fonts[name] ??= {
+              name,
+              bold: font.isBold(),
+              italic: font.isItalic(),
+              serif: font.isSerif(),
+              mono: font.isMono(),
+            };
+            const ch: RawChar = {
+              c,
+              x: round(origin[0]),
+              y: round(origin[1]),
+              bbox: quadToRect(quad),
+              font: name,
+              size: round(size),
+              color: rgb(color),
+            };
+            line?.chars.push(ch);
+          },
+          endLine() {
+            if (line && block && line.chars.length) block.lines.push(line);
+            line = null;
+          },
+          endTextBlock() {
+            if (block?.lines.length) blocks.push(block);
+            block = null;
+          },
+          onImageBlock(bbox, _transform, image) {
+            images.push({ bbox: toRect(bbox) });
+            image.destroy();
+          },
+          onVector(bbox, flags, color) {
+            const f = flags as { isRectangle: boolean; isStroked: boolean };
+            vectors.push({
+              bbox: toRect(bbox),
+              isRectangle: f.isRectangle,
+              isStroked: f.isStroked,
+              color: rgb(color),
+            });
+          },
+        });
+
+        const links: RawPage['links'] = [];
+        for (const link of page.getLinks()) {
+          if (link.isExternal()) links.push({ bbox: toRect(link.getBounds()), uri: link.getURI() });
+          link.destroy();
+        }
+
+        let rotation: RawPage['rotation'] = 0;
+        if (page instanceof mupdf.PDFPage) {
+          const rot = page.getObject().getInheritable('Rotate');
+          if (rot.isNumber())
+            rotation = (((rot.asNumber() % 360) + 360) % 360) as RawPage['rotation'];
+        }
+
+        return {
+          index,
+          width: x1 - x0,
+          height: y1 - y0,
+          rotation,
+          blocks,
+          images,
+          vectors,
+          links,
+          fonts,
+        };
+      } finally {
+        stext.destroy();
+        page.destroy();
+      }
+    },
+  };
+}

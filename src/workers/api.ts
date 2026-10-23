@@ -7,7 +7,8 @@ import type { TagDef, PlaceholderDef } from '../core/segment/types';
 import type { GlossaryEntry } from '../core/validate/validate';
 import type { ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import type { EngineId, LangPair } from '../engines/types';
-import type { PdfInspection } from '../pdf/engine';
+import type { PdfInspection, Thumbnail } from '../pdf/engine';
+import type { PageIR } from '../core/ir/types';
 
 export interface EngineSpec {
   id: EngineId;
@@ -103,6 +104,10 @@ export interface PipelineApi {
     rows: BilingualRow[],
     labels: { title: string; source: string; target: string; notes: string },
   ): Promise<Uint8Array>;
+  /** PDF analysis for the debug overlay (P3.3). */
+  analyzePdf(file: Blob, maxPages: number): Promise<PageIR[]>;
+  /** One page as PNG at `scale` (1 = 72 dpi); the buffer is transferred. */
+  renderPdfPage(file: Blob, index: number, scale: number): Promise<Thumbnail>;
   listHistory(): Promise<HistoryMeta[]>;
   /** Translated file and report of a history entry (the file buffer is transferred). */
   getHistoryEntry(id: string): Promise<{ bytes: Uint8Array; report: unknown } | null>;
