@@ -32,6 +32,8 @@ export interface SpanIR {
   size: number;
   color: [number, number, number];
   linkUri?: string;
+  /** Mean baseline (y) of the span's characters; differs from the line's for sub/superscripts. */
+  baseline?: number;
 }
 
 export interface LineIR {

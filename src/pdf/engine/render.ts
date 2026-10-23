@@ -34,3 +34,44 @@ export async function renderPagePng(
     doc.destroy();
   }
 }
+
+export interface PagePixels {
+  /** RGB, 3 bytes per pixel, row-major. */
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+}
+
+/** Renders one page to raw RGB pixels (render-diff checks, Phase 5 post-apply verification). */
+export async function renderPagePixels(
+  bytes: Uint8Array,
+  index: number,
+  scale: number,
+): Promise<PagePixels> {
+  const mupdf = await loadMupdf();
+  const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
+  try {
+    const page = doc.loadPage(index);
+    try {
+      const pixmap = page.toPixmap(
+        mupdf.Matrix.scale(scale, scale),
+        mupdf.ColorSpace.DeviceRGB,
+        false,
+        true,
+      );
+      try {
+        return {
+          data: pixmap.getPixels().slice(),
+          width: pixmap.getWidth(),
+          height: pixmap.getHeight(),
+        };
+      } finally {
+        pixmap.destroy();
+      }
+    } finally {
+      page.destroy();
+    }
+  } finally {
+    doc.destroy();
+  }
+}

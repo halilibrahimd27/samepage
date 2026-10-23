@@ -1,3 +1,5 @@
 export { inspectPdf, type PdfInspection, type Thumbnail } from './inspect';
 export { openPdfForExtraction, STEXT_OPTIONS, type OpenedPdf } from './extract';
-export { renderPagePng } from './render';
+export { renderPagePixels, renderPagePng, type PagePixels } from './render';
+export { loadFaces, type LoadedFaces } from './fonts';
+export { writePdf, type PageWrite, type WriteResult } from './writer';
