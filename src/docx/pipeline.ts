@@ -3,7 +3,11 @@ import type { TranslationCache } from '../core/cache/cache';
 import type { Role } from '../core/ir/types';
 import { translateSegments } from '../core/pipeline/translate';
 import { decode, plainText } from '../core/segment/codec';
-import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
+import {
+  validateTranslation,
+  type GlossaryEntry,
+  type ValidationIssue,
+} from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { extractA, extractW, localeFor, rebuild, type ExtractedParagraph } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
@@ -22,6 +26,8 @@ export interface DocxOptions {
   cache?: TranslationCache;
   signal: AbortSignal;
   onProgress?: (done: number, total: number) => void;
+  /** Manual corrections from the review step: tagged source → tagged target (reported as manual). */
+  overrides?: Record<string, string>;
 }
 
 export interface DocxSegmentReport {
@@ -32,7 +38,12 @@ export interface DocxSegmentReport {
   target: string;
   status: 'translated' | 'warning' | 'untranslated' | 'skipped';
   cached: boolean;
+  /** Edited by the user in the review step. */
+  manual: boolean;
   issues: ValidationIssue[];
+  /** Tagged text, for the review editor. */
+  sourceTagged: string;
+  targetTagged: string;
 }
 
 export interface DocxReport {
@@ -43,6 +54,7 @@ export interface DocxReport {
     untranslated: number;
     skipped: number;
     cached: number;
+    manual: number;
     repairs: Partial<Record<DocxRepair['code'], number>>;
   };
   segments: DocxSegmentReport[];
@@ -92,6 +104,35 @@ function wRole(para: XElement, part: string): Role {
 }
 
 const hasLetters = (s: string) => /\p{L}/u.test(s);
+
+/**
+ * Keeps a manual edit structurally valid without losing content: placeholders the user deleted
+ * (footnote marks, formulas…) are appended again, unknown tags/placeholders are dropped. The
+ * validator still reports the change as a warning.
+ */
+export function repairManual(source: string, target: string): string {
+  const ids = (text: string, re: RegExp) => new Set([...text.matchAll(re)].map((m) => m[1]!));
+  const srcPh = ids(source, /⟦([A-Z]\d+)⟧/g);
+  const srcTags = ids(source, /<(t\d+)>/g);
+  let out = target
+    .replace(/⟦([A-Z]\d+)⟧/g, (m, id: string) => (srcPh.has(id) ? m : ''))
+    .replace(/<\/?(t\d+)>/g, (m, id: string) => (srcTags.has(id) ? m : ''));
+  const present = ids(out, /⟦([A-Z]\d+)⟧/g);
+  for (const id of srcPh) if (!present.has(id)) out += ` ⟦${id}⟧`;
+  return out;
+}
+
+/** Manual edits are validated like engine output; structural errors are reported, never fixed silently. */
+function manualIssues(source: string, target: string, opts: DocxOptions): ValidationIssue[] {
+  return validateTranslation({
+    source,
+    target,
+    sourceLang: opts.pair.source,
+    targetLang: opts.pair.target,
+    glossary: opts.glossary,
+    checkLanguage: false,
+  }).map((i) => ({ ...i, severity: 'warning' as const }));
+}
 
 interface Unit {
   id: string;
@@ -222,11 +263,25 @@ export async function translateDocx(
         target: '',
         status: 'skipped',
         cached: false,
+        manual: false,
         issues: [],
+        sourceTagged: u.source,
+        targetTagged: '',
       });
       continue;
     }
-    const o = outcomeBySource.get(u.source)!;
+    const rawManual = opts.overrides?.[u.source];
+    const manualText = rawManual === undefined ? undefined : repairManual(u.source, rawManual);
+    const base = outcomeBySource.get(u.source)!;
+    const o =
+      manualText !== undefined
+        ? {
+            ...base,
+            text: manualText,
+            untranslated: false,
+            issues: manualIssues(u.source, rawManual!, opts),
+          }
+        : base;
     const status = o.untranslated ? 'untranslated' : o.issues.length ? 'warning' : 'translated';
     segReports.push({
       id: u.id,
@@ -236,7 +291,10 @@ export async function translateDocx(
       target: o.untranslated ? '' : plainText(o.text),
       status,
       cached: o.cached,
+      manual: manualText !== undefined,
       issues: o.issues,
+      sourceTagged: u.source,
+      targetTagged: o.untranslated ? '' : o.text,
     });
     if (o.untranslated) continue; // the original paragraph stays untouched
     touched.add(u.part);
@@ -298,6 +356,7 @@ export async function translateDocx(
         untranslated: count('untranslated'),
         skipped: count('skipped'),
         cached: segReports.filter((r) => r.cached).length,
+        manual: segReports.filter((r) => r.manual).length,
         repairs: repairCounts,
       },
       segments: segReports,

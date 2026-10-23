@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { DocxReport } from '../../docx/pipeline';
+import { SegmentEditor } from './SegmentEditor';
 import { useI18n } from '../i18n';
 
 const STATUS_STYLE = {
@@ -9,11 +10,21 @@ const STATUS_STYLE = {
   skipped: 'bg-slate-100 text-slate-700',
 } as const;
 
-export function DocxReportPanel({ report }: { report: DocxReport }) {
+export function DocxReportPanel({
+  report,
+  edits,
+  onEdit,
+}: {
+  report: DocxReport;
+  edits: Record<string, string>;
+  onEdit: (sourceTagged: string, targetTagged: string) => void;
+}) {
   const { t } = useI18n();
   const [showAll, setShowAll] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const attention = report.segments.filter(
-    (s) => s.status === 'warning' || s.status === 'untranslated',
+    (s) =>
+      s.status === 'warning' || s.status === 'untranslated' || s.manual || s.sourceTagged in edits,
   );
   const list = showAll ? report.segments : attention;
   const { repairs, ...counts } = report.summary;
@@ -66,12 +77,40 @@ export function DocxReportPanel({ report }: { report: DocxReport }) {
                 <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[s.status]}`}>
                   {t(`report.status.${s.status}`)}
                 </span>
+                {(s.manual || s.sourceTagged in edits) && (
+                  <span className="rounded bg-violet-100 px-1.5 py-0.5 text-violet-900">
+                    {t('review.manual')}
+                  </span>
+                )}
                 <span className="text-slate-500">
                   {s.part} · {s.role}
                 </span>
               </div>
               <p className="mt-1 text-slate-600">{s.source}</p>
-              {s.target && <p className="mt-1">{s.target}</p>}
+              {editing === s.id ? (
+                <SegmentEditor
+                  tagged={edits[s.sourceTagged] ?? s.targetTagged}
+                  source={s.sourceTagged}
+                  onSave={(tagged) => {
+                    onEdit(s.sourceTagged, tagged);
+                    setEditing(null);
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
+              ) : (
+                <>
+                  {s.target && <p className="mt-1">{s.target}</p>}
+                  {s.status !== 'skipped' && (
+                    <button
+                      type="button"
+                      className="mt-1 text-xs text-blue-700 underline"
+                      onClick={() => setEditing(s.id)}
+                    >
+                      {t('review.edit')}
+                    </button>
+                  )}
+                </>
+              )}
               {s.issues.length > 0 && (
                 <ul className="mt-1 list-disc pl-5 text-xs">
                   {s.issues.map((issue, i) => (

@@ -14,6 +14,7 @@ import { plainText } from '../core/segment/codec';
 import { parsePlaygroundMarkup } from '../core/segment/markup';
 import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
+import { buildBilingualDocx } from '../docx/bilingual';
 import { docxParagraphs, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
@@ -177,6 +178,7 @@ const api: PipelineApi = {
         translateComments: job.translateComments,
         translateReferences: job.translateReferences,
         translateMetadata: job.translateMetadata,
+        ...(job.overrides ? { overrides: job.overrides } : {}),
         cache,
         signal: controller.signal,
         ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
@@ -235,6 +237,10 @@ const api: PipelineApi = {
     }
   },
 
+  async bilingualDocx(rows, labels) {
+    const bytes = await buildBilingualDocx(rows, labels);
+    return transfer(bytes, [bytes.buffer]);
+  },
   listHistory: () => listHistory(),
   async getHistoryEntry(id) {
     const row = await getHistoryEntry(id);

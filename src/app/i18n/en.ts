@@ -197,6 +197,18 @@ export const en = {
   'sheet.progress': '{done} / {total} paragraphs translated',
   'sheet.wrongLanguage':
     'The page seems to be translated to {got}. Choose {target} in your browser’s translate menu.',
+  'review.edit': 'Edit',
+  'review.save': 'Save',
+  'review.cancel': 'Cancel',
+  'review.manual': 'Edited by you',
+  'review.hint':
+    'Dotted text keeps its formatting; grey boxes are formulas, marks or links and stay in place.',
+  'review.pending': '{count} edits not applied yet',
+  'review.apply': 'Apply edits and rebuild the document',
+  'review.applying': 'Rebuilding…',
+  'download.bilingual': 'Download bilingual review (DOCX)',
+  'bilingual.title': 'Bilingual review — {name}',
+  'bilingual.notes': 'Notes',
 } as const;
 
 export type MessageKey = keyof typeof en;

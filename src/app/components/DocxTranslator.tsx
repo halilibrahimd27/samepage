@@ -1,5 +1,6 @@
 import { proxy } from 'comlink';
 import { useState } from 'react';
+import { languageName } from '../../core/languages';
 import type { ChromeTranslatorBridge } from '../../engines/chromeBuiltin';
 import type { DocxJob, DocxJobResult, JobError, PipelineApi } from '../../workers/api';
 import { browserTranslationBridge, sheetStore } from '../bridges/browserTranslator';
@@ -26,7 +27,7 @@ export function DocxTranslator({
   config: EngineConfig;
   settings: Settings;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
   const [running, setRunning] = useState<string | null>(null);
@@ -35,6 +36,9 @@ export function DocxTranslator({
   const [result, setResult] = useState<(DocxJobResult & { ok: true }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  /** Review-step corrections (tagged source → tagged target), applied on rebuild. */
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [applied, setApplied] = useState<Record<string, string>>({});
 
   const job = (jobId: string): DocxJob => ({
     jobId,
@@ -48,6 +52,7 @@ export function DocxTranslator({
     translateReferences: settings.translateReferences,
     translateMetadata: settings.translateMetadata,
     saveHistory: settings.saveHistory,
+    ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });
   const base = file.name.replace(/\.docx$/i, '');
   const jobErrorText = (e: JobError) =>
@@ -80,8 +85,10 @@ export function DocxTranslator({
           ),
         LONG_JOB_MS,
       );
-      if (res.ok) setResult(res);
-      else setError(jobErrorText(res));
+      if (res.ok) {
+        setResult(res);
+        setApplied(edits);
+      } else setError(jobErrorText(res));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -110,6 +117,38 @@ export function DocxTranslator({
   }
 
   const outBlob = result ? new Blob([result.bytes.slice()], { type: DOCX_MIME }) : null;
+  const pendingEdits = Object.keys(edits).filter((k) => applied[k] !== edits[k]).length;
+
+  async function downloadBilingual() {
+    if (!result) return;
+    const rows = result.report.segments.map((s) => ({
+      source: s.source,
+      target: s.target,
+      notes: [
+        s.status === 'skipped'
+          ? t('report.status.skipped')
+          : s.status === 'untranslated'
+            ? t('report.status.untranslated')
+            : '',
+        s.manual ? t('review.manual') : '',
+        ...s.issues.map((i) => `${i.code}: ${i.detail}`),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    }));
+    const bytes = await pipelineClient.call((api) =>
+      api.bilingualDocx(rows, {
+        title: t('bilingual.title', { name: file.name }),
+        source: languageName(config.source, lang),
+        target: languageName(config.target, lang),
+        notes: t('bilingual.notes'),
+      }),
+    );
+    downloadBlob(
+      new Blob([bytes.slice()], { type: DOCX_MIME }),
+      `${base}.${config.source}-${config.target}.review.docx`,
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -183,8 +222,34 @@ export function DocxTranslator({
             >
               {t('download.report')}
             </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-4 py-2"
+              onClick={() => void downloadBilingual()}
+              data-testid="download-bilingual"
+            >
+              {t('download.bilingual')}
+            </button>
           </div>
-          <DocxReportPanel report={result.report} />
+          {pendingEdits > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-300 bg-violet-50 p-3 text-sm">
+              <span>{t('review.pending', { count: pendingEdits })}</span>
+              <button
+                type="button"
+                disabled={running !== null}
+                onClick={() => void run()}
+                className="rounded bg-violet-700 px-3 py-1.5 text-white disabled:opacity-50"
+                data-testid="apply-edits"
+              >
+                {running ? t('review.applying') : t('review.apply')}
+              </button>
+            </div>
+          )}
+          <DocxReportPanel
+            report={result.report}
+            edits={edits}
+            onEdit={(src, tgt) => setEdits((e) => ({ ...e, [src]: tgt }))}
+          />
           <section className="grid gap-4 lg:grid-cols-2">
             <DocxPreview data={file} label={t('preview.original')} />
             <DocxPreview data={outBlob} label={t('preview.translated')} />

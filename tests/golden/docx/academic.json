@@ -6,6 +6,7 @@
     "untranslated": 0,
     "skipped": 1,
     "cached": 0,
+    "manual": 0,
     "repairs": {
       "D4_LONG_TOKEN": 1,
       "D2_TEXTBOX": 1,

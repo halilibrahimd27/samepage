@@ -198,4 +198,16 @@ export const tr: Record<MessageKey, string> = {
   'sheet.progress': '{done} / {total} paragraf çevrildi',
   'sheet.wrongLanguage':
     'Sayfa {got} diline çevrilmiş görünüyor. Tarayıcının çeviri menüsünden {target} seçin.',
+  'review.edit': 'Düzenle',
+  'review.save': 'Kaydet',
+  'review.cancel': 'Vazgeç',
+  'review.manual': 'Sizin düzeltmeniz',
+  'review.hint':
+    'Noktalı altı çizili metin biçimini korur; gri kutular formül, işaret veya bağlantıdır ve yerinde kalır.',
+  'review.pending': '{count} düzeltme henüz uygulanmadı',
+  'review.apply': 'Düzeltmeleri uygula ve belgeyi yeniden oluştur',
+  'review.applying': 'Yeniden oluşturuluyor…',
+  'download.bilingual': 'İki dilli kontrol belgesini indir (DOCX)',
+  'bilingual.title': 'İki dilli kontrol — {name}',
+  'bilingual.notes': 'Notlar',
 };
