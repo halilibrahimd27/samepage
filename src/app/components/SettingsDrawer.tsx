@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { pipelineClient } from '../pipelineClient';
 import { useI18n, UI_LANGS, type UiLang } from '../i18n';
 import type { Settings } from '../settings';
 
@@ -20,6 +21,7 @@ export function SettingsDrawer(props: {
 }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
+  const [cacheCleared, setCacheCleared] = useState(false);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -80,6 +82,21 @@ export function SettingsDrawer(props: {
             </span>
           </label>
         ))}
+      </div>
+      <div className="mt-8 flex flex-col items-start gap-3 border-t border-slate-200 pt-6 text-sm">
+        <button
+          type="button"
+          className="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-100"
+          onClick={() =>
+            void pipelineClient.call((api) => api.clearCache()).then(() => setCacheCleared(true))
+          }
+        >
+          {t('settings.clearCache')}
+        </button>
+        {cacheCleared && <p role="status">{t('settings.cacheCleared')}</p>}
+        <a href="#playground" className="text-blue-700 underline" onClick={props.onClose}>
+          {t('settings.playground')}
+        </a>
       </div>
     </dialog>
   );

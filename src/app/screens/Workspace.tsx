@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { LanguageCode } from '../../core/languages';
 import { WorkerFailedError } from '../../core/pipeline/workerClient';
-import type { EngineId } from '../../engines/catalog';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
 import { DropZone } from '../components/DropZone';
-import { EnginePicker } from '../components/EnginePicker';
-import { LanguageSelect } from '../components/LanguageSelect';
+import { EngineConfigPanel } from '../components/EngineConfigPanel';
+import type { EngineConfig } from '../engineConfig';
 import { formatBytes } from '../format';
 import { useI18n, type Translate } from '../i18n';
 import { pipelineClient } from '../pipelineClient';
@@ -36,14 +34,9 @@ function rejectionMessage(r: FileRejection, t: Translate, lang: string): string 
   }
 }
 
-export function Workspace({ settings }: { settings: Settings }) {
+export function Workspace({ settings, config }: { settings: Settings; config: EngineConfig }) {
   const { t, lang } = useI18n();
   const [doc, setDoc] = useState<DocState | null>(null);
-  const [source, setSource] = useState<LanguageCode>('tr');
-  const [target, setTarget] = useState<LanguageCode>('en');
-  const [engine, setEngine] = useState<EngineId>('anthropic');
-  const [apiKey, setApiKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('http://localhost:11434/v1');
   const request = useRef(0);
 
   const thumbUrl = doc?.status === 'ready' ? doc.thumb?.url : undefined;
@@ -52,10 +45,6 @@ export function Workspace({ settings }: { settings: Settings }) {
       if (thumbUrl) URL.revokeObjectURL(thumbUrl);
     };
   }, [thumbUrl]);
-
-  // Hiding the test engine falls back to the default engine without an extra state update.
-  const activeEngine: EngineId =
-    engine === 'pseudo' && !settings.showTestEngine ? 'anthropic' : engine;
 
   async function openFile(file: File) {
     const id = ++request.current;
@@ -109,8 +98,6 @@ export function Workspace({ settings }: { settings: Settings }) {
       });
     }
   }
-
-  const sameLanguage = source === target;
 
   return (
     <div className="flex flex-col gap-6">
@@ -171,54 +158,7 @@ export function Workspace({ settings }: { settings: Settings }) {
         </section>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <LanguageSelect label={t('config.source')} value={source} onChange={setSource} />
-        <LanguageSelect label={t('config.target')} value={target} onChange={setTarget} />
-        {sameLanguage && (
-          <p role="alert" className="text-sm text-red-800 sm:col-span-2">
-            {t('config.sameLanguage')}
-          </p>
-        )}
-      </section>
-
-      <EnginePicker
-        value={activeEngine}
-        onChange={setEngine}
-        showTestEngine={settings.showTestEngine}
-      />
-
-      {activeEngine === 'anthropic' && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="api-key" className="text-sm font-medium">
-            {t('key.label')}
-          </label>
-          <input
-            id="api-key"
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-2 font-mono"
-          />
-          <p className="text-sm text-slate-600">{t('key.hint')}</p>
-        </div>
-      )}
-      {activeEngine === 'openai-compatible' && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="base-url" className="text-sm font-medium">
-            {t('baseUrl.label')}
-          </label>
-          <input
-            id="base-url"
-            type="url"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-2 font-mono"
-          />
-          <p className="text-sm text-slate-600">{t('baseUrl.hint')}</p>
-        </div>
-      )}
+      <EngineConfigPanel config={config} settings={settings} />
 
       <div className="flex flex-col gap-2">
         <button

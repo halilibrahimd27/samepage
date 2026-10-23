@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SettingsDrawer } from './components/SettingsDrawer';
 import { WorkerStatus } from './components/WorkerStatus';
 import { useI18n } from './i18n';
 import { I18nProvider } from './i18n/I18nProvider';
+import { useEngineConfig } from './engineConfig';
+import { Playground } from './screens/Playground';
 import { Workspace } from './screens/Workspace';
 import { useSettings, type Settings } from './settings';
 
@@ -22,9 +24,21 @@ export function App() {
   );
 }
 
+function useHashRoute(): string {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener('hashchange', onChange);
+      return () => window.removeEventListener('hashchange', onChange);
+    },
+    () => window.location.hash,
+  );
+}
+
 function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Settings>) => void }) {
   const { t } = useI18n();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const config = useEngineConfig(props.settings);
+  const route = useHashRoute();
 
   return (
     <ErrorBoundary
@@ -53,7 +67,11 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
         </header>
 
         <main className="mx-auto max-w-3xl px-6 py-8">
-          <Workspace settings={props.settings} />
+          {route === '#playground' ? (
+            <Playground config={config} settings={props.settings} />
+          ) : (
+            <Workspace config={config} settings={props.settings} />
+          )}
         </main>
 
         <footer className="mx-auto flex max-w-3xl flex-col gap-2 px-6 pb-10 text-sm text-slate-600">
