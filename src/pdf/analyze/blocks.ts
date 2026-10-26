@@ -183,7 +183,16 @@ function splitParagraphs(
             .join('')
             .trimStart(),
         );
-      const bigGap = lineGap > 0.8 * em;
+      // Wider than the page's usual line spacing (theses are often one-and-a-half spaced) and
+      // than the spacing around it (a double-spaced section on a page of tighter text).
+      const next = lines[i + 1];
+      const around = [
+        lines[i - 2] ? prev.bbox.y0 - lines[i - 2]!.bbox.y1 : undefined,
+        next ? next.bbox.y0 - line.bbox.y1 : undefined,
+      ];
+      const regular = around.some((g) => g !== undefined && Math.abs(g - lineGap) < 0.15 * em);
+      const bigGap =
+        lineGap > Math.max(0.8, layout.lineGapEm + 0.5) * em && !(regular && lineGap < 2 * em);
       // Text on a coloured box and text outside it are different paragraphs.
       const backgroundChange = backgroundOf(line.bbox) !== backgroundOf(prev.bbox);
       if (
@@ -263,6 +272,11 @@ function rejoinSplitLines(blocks: RawTextBlock[]): RawTextBlock[] {
 interface PageLayout {
   /** Most lines end at a common text edge (justified setting). */
   justified: boolean;
+  /**
+   * Usual white space between consecutive lines of running text, in em (≈ 0.2 single-spaced,
+   * ≈ 0.8 in a one-and-a-half-spaced thesis). Paragraph gaps are measured against it.
+   */
+  lineGapEm: number;
   /** The text edge a block's lines run to (a column's right margin). */
   edgeFor: (block: Rect) => number;
 }
@@ -287,7 +301,31 @@ function pageLayout(page: RawPage): PageLayout {
   return {
     justified: ends.length >= 6 && onEdge >= 0.5 * ends.length,
     edgeFor: (r) => edges.find((e) => e >= r.x1 - 3) ?? r.x1,
+    lineGapEm: usualLineGap(page),
   };
+}
+
+/** Median gap (in em) between each long line and the next long line below it in its column. */
+function usualLineGap(page: RawPage): number {
+  const lines = page.blocks
+    .flatMap((b) => b.lines)
+    .filter((l) => l.chars.length > 20 && l.dir[1] === 0)
+    .sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+  const gaps: number[] = [];
+  lines.forEach((line, i) => {
+    const size = dominantSize(line);
+    const width = line.bbox.x1 - line.bbox.x0;
+    const next = lines.slice(i + 1).find((n) => {
+      const overlap = Math.min(n.bbox.x1, line.bbox.x1) - Math.max(n.bbox.x0, line.bbox.x0);
+      return n.bbox.y0 > line.bbox.y0 + 0.5 * size && overlap > 0.5 * width;
+    });
+    if (!next || Math.abs(dominantSize(next) - size) > 0.5 || size <= 0) return;
+    const gap = (next.bbox.y0 - line.bbox.y1) / size;
+    if (gap > -0.5 && gap < 2.5) gaps.push(gap);
+  });
+  if (gaps.length < 4) return 0;
+  gaps.sort((a, b) => a - b);
+  return Math.max(0, gaps[Math.floor(gaps.length / 2)]!);
 }
 
 /**
@@ -322,6 +360,7 @@ function markUnderlines(lines: LineIR[], rules: Rect[]): Rect[] {
  */
 export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[] {
   const blocks: BlockIR[] = [];
+  const cells = new Set<BlockIR>();
   const inTable = (r: Rect) => tables.some((t) => coverage(r, t.rect) > 0.6);
   // Filled rectangles behind text (coloured boxes, shaded cells): index of the one under a line.
   const fills = page.vectors
@@ -354,7 +393,7 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
       if (!lines.length) continue;
       const bbox = unionAll(lines.map((l) => l.bbox));
       const underlines = inTable(bbox) ? [] : markUnderlines(lines, rules);
-      blocks.push({
+      const block: BlockIR = {
         ...(underlines.length ? { underlines } : {}),
         id: `p${page.index}-b${blocks.length}`,
         bbox,
@@ -365,10 +404,12 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
         direction: group[0]!.dir,
         columnIndex: 0,
         readingOrder: 0,
-      });
+      };
+      if (inTable(bbox)) cells.add(block);
+      blocks.push(block);
     }
   }
-  return mergeSplitParagraphs(blocks);
+  return mergeSplitParagraphs(blocks, layout, cells);
 }
 
 /**
@@ -378,9 +419,14 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
  * centred heading (same centre, same font: "A Machine Learning-Based Approach For Detecting
  * Malicious" + "PyPI Packages" is one title and must be translated as one).
  */
-function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
+function mergeSplitParagraphs(
+  blocks: BlockIR[],
+  layout: PageLayout,
+  cells: Set<BlockIR>,
+): BlockIR[] {
   const out: BlockIR[] = [];
-  for (const b of blocks) {
+  const gapOf = (x: LineIR, y: LineIR) => y.bbox.y0 - x.bbox.y1;
+  blocks.forEach((b, k) => {
     const a = out[out.length - 1];
     if (a) {
       const aLast = a.lines[a.lines.length - 1]!;
@@ -394,7 +440,18 @@ function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
         .map((s) => s.text)
         .join('')
         .trim();
-      const gap = bFirst.bbox.y0 - aLast.bbox.y1;
+      const gap = gapOf(aLast, bFirst);
+      // Spacing like that of the lines around it: one paragraph, however wide the spacing.
+      const nextBlock = blocks[k + 1];
+      const around = [
+        a.lines.length > 1 ? gapOf(a.lines[a.lines.length - 2]!, aLast) : undefined,
+        b.lines.length > 1
+          ? gapOf(bFirst, b.lines[1]!)
+          : nextBlock
+            ? gapOf(bFirst, nextBlock.lines[0]!)
+            : undefined,
+      ];
+      const regular = around.some((g) => g !== undefined && Math.abs(g - gap) < 0.15 * size);
       const centre = (r: Rect) => (r.x0 + r.x1) / 2;
       const fontA = aLast.spans[0]!.font;
       const fontB = bFirst.spans[0]!.font;
@@ -402,6 +459,17 @@ function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
         /^\p{Ll}/u.test(bText) &&
         bFirst.bbox.x0 <= a.bbox.x0 + 2 &&
         bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
+      // On a justified page a line that runs to the text edge does not end its paragraph, even
+      // when the next line starts with a capital ("We can use Network" | "Property Chains to").
+      // Not in tables: a number column may end at the text edge.
+      const continuesFull =
+        !cells.has(a) &&
+        !cells.has(b) &&
+        layout.justified &&
+        layout.edgeFor(a.bbox) - aLast.bbox.x1 < 3 &&
+        bFirst.bbox.x0 <= a.bbox.x0 + 2 &&
+        bFirst.bbox.x0 >= a.bbox.x0 - 3 * size &&
+        fontA.name === fontB.name;
       const continuesCentred =
         Math.abs(centre(aLast.bbox) - centre(bFirst.bbox)) < 3 &&
         Math.abs(aLast.bbox.x0 - bFirst.bbox.x0) > 6 &&
@@ -415,19 +483,19 @@ function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
       if (
         !/[.!?…:]["”»’)\]]*$/.test(aText) &&
         !opensWithMark &&
-        (continuesLeft || continuesCentred) &&
+        (continuesLeft || continuesFull || continuesCentred) &&
         gap >= -1 &&
-        gap < 0.6 * size &&
+        (gap < Math.max(0.6, layout.lineGapEm + 0.3) * size || (regular && gap < 2 * size)) &&
         Math.abs(aLast.spans[0]!.size - size) < 0.3
       ) {
         const lines = [...a.lines, ...b.lines];
         const bbox = union(a.bbox, b.bbox);
         out[out.length - 1] = { ...a, lines, bbox, align: alignment(lines, bbox) };
-        continue;
+        return;
       }
     }
     out.push(b);
-  }
+  });
   return out.map((b, i) => ({ ...b, id: b.id.replace(/-b\d+$/, `-b${i}`) }));
 }
 

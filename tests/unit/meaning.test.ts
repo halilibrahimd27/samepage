@@ -104,11 +104,86 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('compares long paragraphs sentence by sentence and names the sentence', () => {
+    const source =
+      'We trained the model on all data. The results suggest that it generalises. It did not overfit.';
+    const back =
+      'We trained the model on all data. The results show that it generalises. It did not overfit.';
+    expect(compareMeaning(source, back, 'en')).toEqual([
+      {
+        issue: 'hedging lost: the claim may read stronger than in the source',
+        severity: 'major',
+        sentence: 'The results show that it generalises.',
+      },
+    ]);
+    // A hedge the back-translation adds is paraphrase, not reported.
+    expect(
+      issues(
+        'These goals would have been unattainable without their contributions.',
+        'Without their contributions, these goals could not have been achieved.',
+        'en',
+      ),
+    ).toEqual([]);
+  });
+
+  it('ignores limits, lexical negation and back-translations left untranslated', () => {
+    expect(
+      issues(
+        'We show that the redundancy of the algorithm tends to zero as the trees grow large.',
+        'We show that the redundancy of the algorithm approaches zero as the trees grow.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'The Kolmogorov complexity of a string is incomputable, but upper bounds can be found.',
+        'The Kolmogorov complexity of a string cannot be calculated, but upper bounds can be found.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Meaning, we can guess whether an edge exists or not from the other edges.',
+        'That is, we can predict the existence of an edge from the other edges.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'The proposed method not only improves the performance by itself, but also adds benefits.',
+        'The proposed method improves the performance on its own and also adds benefits.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'We also test the model on a set of benign packages that are also not popular.',
+        'We also test the model on a set of unpopular benign packages.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      backTranslationFindings(
+        [
+          {
+            id: 'x',
+            source: 'The method is not reliable in all of these cases at all.',
+            target: '…',
+          },
+        ],
+        ['Bu yöntem bu durumların hepsinde güvenilirdir ve çok iyidir.'],
+        'en',
+        'tr',
+      ),
+    ).toEqual([]);
+  });
+
   it('attaches the back-translation to each finding', () => {
     const findings = backTranslationFindings(
       [{ id: 's1', source: 'The effect was <t1>not</t1> significant in ⟦F1⟧ cases.', target: '…' }],
       ['The effect was significant in these cases.'],
       'en',
+      'tr',
     );
     expect(findings).toEqual([
       {

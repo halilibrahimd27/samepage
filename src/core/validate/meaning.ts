@@ -1,4 +1,6 @@
 import type { FidelityFinding, FidelityPair } from '../../engines/types';
+import { splitSentences } from '../../engines/plainText';
+import { functionWords } from '../detectLanguage';
 import { tokenize } from '../segment/codec';
 
 /**
@@ -14,6 +16,8 @@ const words = (alternatives: string[]) =>
   new RegExp(`(?<!\\p{L})(?:${alternatives.join('|')})(?!\\p{L})`, 'giu');
 
 interface Cues {
+  /** Phrases that look like negation but are not ("whether … or not", "not only … but"). */
+  ignore?: RegExp;
   /** Syntactic negation ("not", "never", Turkish "-me-"): its loss or gain reverses a claim. */
   negation: RegExp;
   /**
@@ -45,7 +49,8 @@ const EN_HEDGE = [
   '(?:results|findings|data|evidence|analys[ie]s|study|studies|this|these|which|it) suggests?',
   'appear(?:s|ed)? to',
   'seem(?:s|ed)?',
-  'tend(?:s|ed)? to',
+  // Not the limit of mathematics ("tends to zero", "tends to the stationary distribution").
+  'tend(?:s|ed)? to(?! (?:zero|infinity|one|a|an|the|its|\\d|∞))',
 ];
 const TR_HEDGE = [
   'muhtemel\\p{L}*',
@@ -82,11 +87,35 @@ const CUES: Record<string, Cues> = {
       'impossible',
       'in(?:feasible|complete|correct|sufficient|valid|accurate|capable)',
       'im(?:practical|proper|probable)',
-      'un(?:clear|known|certain|stable|necessary|expected|available|related|successful|reliable|changed|realistic|suitable|affected|solved|seen|labell?ed|supervised|biased)',
+      '(?:in|un|im)\\p{L}{3,}(?:able|ible)',
+      'a(?:periodic|symmetric|typical|cyclic)',
+      '\\p{L}{3,}less',
+      '\\p{L}+-free',
+      '\\p{L}+-less',
+      'otherwise',
+      'yet to',
+      'instead',
+      'rather than',
+      // un- adjectives ("not popular" ↔ "unpopular"), not under-, uni-, until, unless.
+      'un(?!der|i|til|less)\\p{L}{4,}',
       'non-?\\p{L}{3,}',
     ]),
     hedge: words(EN_HEDGE),
-    weakHedge: words([...EN_HEDGE, 'can', 'possible', 'possibility', 'probable', 'maybe']),
+    weakHedge: words([
+      ...EN_HEDGE,
+      'can',
+      'possible',
+      'possibility',
+      'probable',
+      'maybe',
+      'seemingly',
+      'apparently',
+      'appear(?:s|ed)?',
+      'as if',
+      'as though',
+      'almost',
+    ]),
+    ignore: words(['(?:whether )?or not', 'not only']),
     quantifiers: {
       'all/every': words(['all', 'every', 'each', 'always', 'entire(?:ly)?', 'whole']),
       most: words(['most', 'majority', 'mostly', 'largely']),
@@ -107,6 +136,8 @@ const CUES: Record<string, Cues> = {
       'olanaksız\\p{L}*',
     ]),
     hedge: words(TR_HEDGE),
+    // "olup olmadığı" is "whether or not".
+    ignore: words(['olup olma\\p{L}*']),
     weakHedge: words([...TR_HEDGE, 'mümkün\\p{L}*', 'olasılık\\p{L}*']),
     quantifiers: {
       'all/every': words([
@@ -161,43 +192,45 @@ const has = (re: RegExp, text: string) => {
   return re.test(text);
 };
 
-/** Plain words of tagged text: identifiers as written, other placeholders (formulas) as spaces. */
+/**
+ * Plain words of tagged text: identifiers as written, formulas and code as "X" (a sentence
+ * without its formulas falls apart in back-translation), other placeholders as spaces.
+ */
 export function cueText(tagged: string, verbatim?: Record<string, string>): string {
+  const ph = (id: string) => verbatim?.[id] ?? (/^[FC]/.test(id) ? ' X ' : ' ');
   return tokenize(tagged)
-    .map((t) => (t.type === 'text' ? t.text : t.type === 'ph' ? (verbatim?.[t.id] ?? ' ') : ''))
+    .map((t) => (t.type === 'text' ? t.text : t.type === 'ph' ? ph(t.id) : ''))
     .join('')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/** Meaning differences between a source text and the back-translation of its translation. */
-export function compareMeaning(
-  source: string,
-  back: string,
-  lang: string,
-): { issue: string; severity: 'minor' | 'major' }[] {
-  const cues = CUES[lang];
-  // Headings and table cells are too short for a reliable comparison.
-  if (!cues || !back.trim() || source.split(/\s+/).length < 5) return [];
-  const out: { issue: string; severity: 'minor' | 'major' }[] = [];
+interface Difference {
+  issue: string;
+  severity: 'minor' | 'major';
+  /** The back-translated sentence the difference was found in (long paragraphs). */
+  sentence?: string;
+}
+
+/** Cue differences between one source passage and its back-translation. */
+function differences(sourceText: string, backText: string, cues: Cues): Difference[] {
+  const out: Difference[] = [];
+  const clean = (t: string) => (cues.ignore ? t.replace(cues.ignore, ' ') : t);
+  const source = clean(sourceText);
+  const back = clean(backText);
   const negSource = has(cues.negation, source);
   const negBack = has(cues.negation, back);
   const soft =
     !!cues.softNegation && (has(cues.softNegation, source) || has(cues.softNegation, back));
   if (negSource && !negBack && !soft) out.push({ issue: 'negation lost', severity: 'major' });
   if (!negSource && negBack && !soft) out.push({ issue: 'negation added', severity: 'major' });
-  if (cues.hedge && cues.weakHedge) {
-    if (has(cues.hedge, source) && !has(cues.weakHedge, back))
-      out.push({
-        issue: 'hedging lost: the claim may read stronger than in the source',
-        severity: 'major',
-      });
-    else if (has(cues.hedge, back) && !has(cues.weakHedge, source))
-      out.push({
-        issue: 'hedging added: the claim may read weaker than in the source',
-        severity: 'minor',
-      });
-  }
+  // Only a hedge that disappears is reported: one the back-translation adds is nearly always
+  // paraphrase ("would have been unattainable" → "could not have been achieved").
+  if (cues.hedge && cues.weakHedge && has(cues.hedge, source) && !has(cues.weakHedge, back))
+    out.push({
+      issue: 'hedging lost: the claim may read stronger than in the source',
+      severity: 'major',
+    });
   if (cues.quantifiers) {
     const classes = Object.entries(cues.quantifiers);
     const lost = classes.filter(([, re]) => has(re, source) && !has(re, back)).map(([k]) => k);
@@ -211,17 +244,55 @@ export function compareMeaning(
   return out;
 }
 
+/**
+ * Meaning differences between a source text and the back-translation of its translation.
+ * Back-translation usually keeps the sentence count; then sentences are compared pairwise and
+ * each finding names its sentence. Otherwise the whole passage is compared, which in a long
+ * paragraph only reports a cue class that is missing everywhere on one side.
+ */
+export function compareMeaning(source: string, back: string, lang: string): Difference[] {
+  const cues = CUES[lang];
+  // Headings and table cells are too short for a reliable comparison.
+  if (!cues || !back.trim() || source.split(/\s+/).length < 5) return [];
+  const sourceSentences = splitSentences(source);
+  const backSentences = splitSentences(back);
+  const words = (t: string) => t.split(/\s+/).length;
+  // Pairs only when every pair has a similar length (otherwise sentences were split or merged
+  // differently and the pairs are shifted).
+  const aligned =
+    sourceSentences.length > 1 &&
+    sourceSentences.length === backSentences.length &&
+    sourceSentences.every((t, i) => {
+      const r = words(backSentences[i]!) / words(t);
+      return r > 0.5 && r < 2;
+    });
+  if (!aligned) return differences(source, back, cues);
+  const seen = new Set<string>();
+  return sourceSentences.flatMap((sentence, i) =>
+    differences(sentence, backSentences[i]!, cues)
+      .filter((d) => !seen.has(d.issue) && seen.add(d.issue))
+      .map((d) => ({ ...d, sentence: backSentences[i]!.trim() })),
+  );
+}
+
 /** Findings for translated pairs, given the back-translation of each target. */
 export function backTranslationFindings(
   pairs: FidelityPair[],
   back: string[],
   lang: string,
+  targetLang: string,
 ): FidelityFinding[] {
+  // A back-translation the translator left in the target language says nothing.
+  const inSource = (t: string) => functionWords(t, lang) >= functionWords(t, targetLang);
   return pairs.flatMap((p, i) =>
-    compareMeaning(cueText(p.source, p.verbatim), back[i] ?? '', lang).map((f) => ({
+    (inSource(back[i] ?? '')
+      ? compareMeaning(cueText(p.source, p.verbatim), back[i] ?? '', lang)
+      : []
+    ).map((f) => ({
       id: p.id,
-      ...f,
-      backTranslation: back[i]!,
+      issue: f.issue,
+      severity: f.severity,
+      backTranslation: f.sentence ?? back[i]!,
     })),
   );
 }

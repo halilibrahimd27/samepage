@@ -1,0 +1,19 @@
+% One-and-a-half and double line spacing, as in theses: every line must stay in its paragraph.
+\documentclass[12pt,a4paper]{article}
+\input{common}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\begin{document}
+\onehalfspacing
+\section{Giriş}
+\paragrafA\ \paragrafB
+
+\paragrafC\ \paragrafA
+
+\section{Yöntem}
+\begin{doublespace}
+\paragrafB\ \paragrafC
+
+\paragrafA
+\end{doublespace}
+\end{document}

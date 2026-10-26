@@ -45,8 +45,9 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       vision: false,
       fidelityCheck: true,
     },
-    // Part of the cache key: bumped when results change (2: spaces around placeholders).
-    model: 'browser-page-2',
+    // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
+    // sentence-level meaning check).
+    model: 'browser-page-3',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

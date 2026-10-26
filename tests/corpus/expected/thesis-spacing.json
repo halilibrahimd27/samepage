@@ -1,0 +1,16 @@
+{
+  "roles": [
+    { "page": 0, "text": "1 Giriş", "role": "heading" },
+    { "page": 0, "text": "Makine çevirisi sistemleri son on yılda", "role": "body" },
+    { "page": 0, "text": "Bulgular, uzun ve iç içe geçmiş", "role": "body" },
+    { "page": 0, "text": "2 Yöntem", "role": "heading" },
+    { "page": 0, "text": "Bu çalışmada 2019", "role": "body" },
+    { "page": 0, "text": "1", "role": "page-number" }
+  ],
+  "chains": [],
+  "paragraphs": [
+    { "page": 0, "text": "Makine çevirisi sistemleri son on yılda", "lines": 8 },
+    { "page": 0, "text": "Bulgular, uzun ve iç içe geçmiş", "lines": 8 },
+    { "page": 0, "text": "Bu çalışmada 2019", "lines": 7 }
+  ]
+}

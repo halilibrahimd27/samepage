@@ -46,7 +46,7 @@ export async function checkByBackTranslation(
     )
     .catch(() => null);
   signal.throwIfAborted();
-  return back ? backTranslationFindings(pairs, back, ctx.pair.source) : [];
+  return back ? backTranslationFindings(pairs, back, ctx.pair.source, ctx.pair.target) : [];
 }
 
 const tagIds = (t: string) =>

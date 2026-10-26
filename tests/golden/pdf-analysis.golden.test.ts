@@ -6,6 +6,8 @@ import { blockText, extractAndAnalyze } from '../../src/pdf/analyze';
 interface Expected {
   roles: { page: number; text: string; role: Role }[];
   chains: [{ page: number; text: string }, { page: number; text: string }][];
+  /** Paragraphs that must keep all their lines (one block each, not one block per line). */
+  paragraphs?: { page: number; text: string; lines: number }[];
 }
 
 const find = (pages: PageIR[], page: number, text: string): BlockIR | undefined =>
@@ -38,5 +40,9 @@ describe.each(fixtures)('PDF analysis: %s', (file) => {
       .map(([a, b]) => `${find(pages, a.page, a.text)?.id}->${find(pages, b.page, b.text)?.id}`)
       .sort();
     expect(chainPairs).toEqual(expectedPairs);
+
+    for (const p of expected.paragraphs ?? []) {
+      expect(find(pages, p.page, p.text)?.lines.length, p.text).toBe(p.lines);
+    }
   });
 });
