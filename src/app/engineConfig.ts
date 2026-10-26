@@ -12,7 +12,10 @@ import type { Settings } from './settings';
 export function useEngineConfig(settings: Settings) {
   const [source, setSource] = useState<LanguageCode>('tr');
   const [target, setTarget] = useState<LanguageCode>('en');
-  const [engine, setEngine] = useState<EngineId>('browser');
+  // Chrome's on-device translator runs on its own; where it exists it is the better default.
+  const [engine, setEngine] = useState<EngineId>(() =>
+    'Translator' in globalThis ? 'chrome-builtin' : 'browser',
+  );
   const [anthropicModel, setAnthropicModel] = useState<string>(DEFAULT_ANTHROPIC_MODEL);
   const [baseUrl, setBaseUrl] = useState(DEFAULT_LOCAL_BASE_URL);
   const [localModel, setLocalModel] = useState('');

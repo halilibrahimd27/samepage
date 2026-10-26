@@ -56,13 +56,13 @@ export const browserTranslationBridge: ChromeTranslatorBridge = {
 };
 
 export type BrowserKind =
-  'chrome-android' | 'chrome-desktop' | 'edge' | 'safari' | 'firefox' | 'other';
+  'chrome-android' | 'chrome-ios' | 'chrome-desktop' | 'edge' | 'safari' | 'firefox' | 'other';
 
 export function detectBrowser(ua = navigator.userAgent): BrowserKind {
   if (/Edg\//.test(ua)) return 'edge';
   if (/Firefox\//.test(ua)) return 'firefox';
-  if (/Chrome\//.test(ua) || /CriOS\//.test(ua))
-    return /Android|Mobile|CriOS/.test(ua) ? 'chrome-android' : 'chrome-desktop';
+  if (/CriOS\//.test(ua)) return 'chrome-ios';
+  if (/Chrome\//.test(ua)) return /Android|Mobile/.test(ua) ? 'chrome-android' : 'chrome-desktop';
   if (/Safari\//.test(ua)) return 'safari';
   return 'other';
 }

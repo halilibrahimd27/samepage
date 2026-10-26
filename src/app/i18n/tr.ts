@@ -181,15 +181,18 @@ export const tr: Record<MessageKey, string> = {
   'history.back': '← Geri',
   'engine.browser.label': 'Tarayıcı çevirisi (ücretsiz)',
   'engine.browser.description':
-    'Tarayıcınızın yerleşik çevirisini kullanır — Chrome’da Google, Edge’de Microsoft, Safari’de Apple. Telefonda da çalışır; tek dokunuşla açarsınız.',
+    'Tarayıcınızın sayfa çevirisini kullanır — Chrome’da Google, Edge’de Microsoft, Safari’de Apple; telefonda da çalışır. Çeviriyi tarayıcıda açar ve hedef dili orada seçersiniz.',
   'privacy.browser-vendor': 'Metin tarayıcınızın çeviri servisine gider',
   'settings.showAdvancedEngines': 'Gelişmiş motorları göster (Claude API, yerel LLM)',
   'sheet.title': 'Tarayıcınızla çevirin',
   'sheet.intro':
     'Aşağıdaki paragrafları tarayıcınız çevirir; sayfanın geri kalanı değişmez. Bitene kadar bu sayfayı açık tutun.',
   'sheet.step.chrome-desktop':
-    'Adres çubuğundaki çeviri simgesine tıklayın (ya da sayfaya sağ tık → “… diline çevir”) ve {target} seçin.',
-  'sheet.step.chrome-android': '⋮ menüsünü açın → “Çevir…”, ardından dil olarak {target} seçin.',
+    'Adres çubuğundaki çeviri simgesine tıklayın. {target} önerilmiyorsa ⋮ menüsü → “Başka bir dil seç” → {target}.',
+  'sheet.step.chrome-android':
+    '⋮ menüsünü açın → “Çevir…”. Sayfa {target} değilse çeviri çubuğunun menüsü → “Daha fazla dil” → {target}.',
+  'sheet.step.chrome-ios':
+    '••• → “Çevir” (ya da adres çubuğundaki çeviri simgesi). Sayfa {target} değilse çeviri çubuğunun seçenekleri → “Daha fazla dil” → {target}.',
   'sheet.step.edge': 'Adres çubuğundaki çeviri simgesine tıklayın ve {target} seçin.',
   'sheet.step.safari': 'Adres çubuğundaki “aA” düğmesine dokunun → “{target} diline çevir”.',
   'sheet.step.firefox': 'Adres çubuğundaki çeviri simgesine tıklayın ve {target} seçin.',
@@ -199,6 +202,10 @@ export const tr: Record<MessageKey, string> = {
   'sheet.progress': '{done} / {total} paragraf çevrildi',
   'sheet.wrongLanguage':
     'Sayfa {got} diline çevrilmiş görünüyor. Tarayıcının çeviri menüsünden {target} seçin.',
+  'sheet.stuck':
+    'Henüz hiçbir şey çevrilmedi. Tarayıcılar varsayılan olarak kendi dillerine çevirir — çeviri menüsünden {target} seçin.',
+  'sheet.stuckChrome':
+    'Bu bilgisayarda “Chrome yerleşik çevirmen” motoru kendiliğinden çalışır: iptal edip yukarıdan onu seçebilirsiniz.',
   'review.edit': 'Düzenle',
   'review.save': 'Kaydet',
   'review.cancel': 'Vazgeç',

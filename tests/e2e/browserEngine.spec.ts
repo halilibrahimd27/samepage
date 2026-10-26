@@ -53,7 +53,7 @@ async function installFakeBrowserTranslation(page: Page) {
 
 test('browser engine: translation sheet is harvested into a translated DOCX', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByRole('radio', { name: /Browser translation/ })).toBeChecked();
+  await page.getByRole('radio', { name: /Browser translation/ }).check();
   await page.getByTestId('file-input').setInputFiles('tests/corpus/docx/academic.docx');
   await page.getByRole('button', { name: 'Translate', exact: true }).click();
 

@@ -196,6 +196,8 @@ function classify(
         role = 'formula';
       else if (allMono(b)) role = 'code';
       else if (CAPTION.test(text)) role = 'caption';
+      else if (b.direction[1] !== 0)
+        role = 'label'; // rotated text: margin stamps, axis titles
       else if (size >= stats.bodySize * 1.12 && b.lines.length <= 3) role = 'heading';
       else if (
         b.direction[1] !== 0 ||
@@ -203,7 +205,13 @@ function classify(
         (b.lines.length === 1 &&
           text.length < 50 &&
           !TERMINAL.test(text) &&
-          figures.some((f) => coverage(b.bbox, f) > 0))
+          // Small type just outside a chart (tick labels under the axis, the axis title)
+          // belongs to it too.
+          figures.some(
+            (f) =>
+              coverage(b.bbox, size < stats.bodySize * 0.95 ? expand(f, 1.5 * stats.bodySize) : f) >
+              0,
+          ))
       )
         role = 'label';
       else if (
@@ -228,8 +236,14 @@ function orderPage(blocks: BlockIR[], width: number): Rect[] {
   const contentX0 = Math.min(...flow.map((b) => b.bbox.x0));
   const contentX1 = Math.max(...flow.map((b) => b.bbox.x1));
   const contentWidth = Math.max(contentX1 - contentX0, width * 0.3);
+  // Column starts come from running text: multi-line paragraphs that are not centred (a
+  // centred affiliation line would invent a column boundary inside the left column).
   const narrow = flow.filter(
-    (b) => b.bbox.x1 - b.bbox.x0 < contentWidth * 0.6 && b.role === 'body',
+    (b) =>
+      b.bbox.x1 - b.bbox.x0 < contentWidth * 0.6 &&
+      b.role === 'body' &&
+      b.align !== 'center' &&
+      b.lines.length >= 2,
   );
   const starts = cluster(
     narrow.map((b) => b.bbox.x0),
@@ -242,26 +256,62 @@ function orderPage(blocks: BlockIR[], width: number): Rect[] {
     y1: Number.POSITIVE_INFINITY,
   }));
   const multi = columns.length > 1;
+  // A table's cells share its extent, so a full-width table spans as a whole.
+  const tableBox = new Map<string, Rect>();
+  for (const b of flow) {
+    if (!b.tableCell) continue;
+    const r = tableBox.get(b.tableCell.tableId);
+    tableBox.set(b.tableCell.tableId, r ? union(r, b.bbox) : b.bbox);
+  }
+  const crossesGutter = (r: Rect) =>
+    columns.slice(1).some((c) => r.x0 < c.x0 - 8 && r.x1 > c.x0 + 8);
   const columnOf = (b: BlockIR) => {
     if (!multi) return 0;
     if (b.bbox.x1 - b.bbox.x0 >= contentWidth * 0.6) return -1;
+    const extent = b.tableCell ? tableBox.get(b.tableCell.tableId)! : b.bbox;
+    if (crossesGutter(extent)) return -1;
     const cx = (b.bbox.x0 + b.bbox.x1) / 2;
-    return columns.findIndex(
-      (c, i) => cx >= c.x0 - 5 && (i === columns.length - 1 || cx < columns[i + 1]!.x0),
+    const i = columns.findIndex(
+      (c, k) => cx >= c.x0 - 5 && (k === columns.length - 1 || cx < columns[k + 1]!.x0),
     );
+    // Narrow blocks in the margin (a rotated arXiv stamp) belong to the nearest column; only
+    // wide blocks split the flow.
+    return i >= 0 ? i : 0;
   };
   for (const b of flow) b.columnIndex = columnOf(b);
+
+  // A single line cannot tell its own alignment: one centred in its column (or across the
+  // columns) and not starting at the column's edge is centred. Text edges come from the running
+  // text, not from margin stamps or the gutter.
+  const textRight = (k: number) =>
+    Math.max(
+      ...flow
+        .filter((b) => b.columnIndex === k && b.role === 'body' && b.lines.length >= 2)
+        .map((b) => b.bbox.x1),
+      columns[k]?.x0 ?? contentX0,
+    );
+  for (const b of flow) {
+    if (b.lines.length !== 1 || b.align !== 'left' || b.role === 'table-cell') continue;
+    const area =
+      multi && b.columnIndex >= 0
+        ? { x0: columns[b.columnIndex]!.x0, x1: textRight(b.columnIndex) }
+        : multi
+          ? { x0: columns[0]!.x0, x1: textRight(columns.length - 1) }
+          : { x0: contentX0, x1: contentX1 };
+    const centre = (b.bbox.x0 + b.bbox.x1) / 2;
+    if (Math.abs(centre - (area.x0 + area.x1) / 2) < 4 && b.bbox.x0 - area.x0 > 6) {
+      b.align = 'center';
+    }
+  }
 
   // Bands separated by full-width blocks, then columns left → right, top → bottom.
   const spanning = flow.filter((b) => b.columnIndex === -1).sort((a, b) => a.bbox.y0 - b.bbox.y0);
   const ordered: BlockIR[] = [];
-  let bandTop = Number.NEGATIVE_INFINITY;
   const placed = new Set<BlockIR>();
   const emitBand = (bottom: number) => {
-    const inBand = flow.filter(
-      (b) =>
-        !placed.has(b) && b.columnIndex !== -1 && b.bbox.y0 >= bandTop - 1 && b.bbox.y0 < bottom,
-    );
+    // Everything above `bottom` not placed yet, including blocks that start beside a tall
+    // full-width block.
+    const inBand = flow.filter((b) => !placed.has(b) && b.columnIndex !== -1 && b.bbox.y0 < bottom);
     inBand.sort(
       (a, b) => a.columnIndex - b.columnIndex || a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0,
     );
@@ -271,7 +321,6 @@ function orderPage(blocks: BlockIR[], width: number): Rect[] {
     emitBand(s.bbox.y0);
     ordered.push(s);
     placed.add(s);
-    bandTop = s.bbox.y1;
   }
   emitBand(Number.POSITIVE_INFINITY);
   for (const b of flow) if (!placed.has(b)) ordered.push(b);
@@ -326,8 +375,9 @@ function linkChains(pages: BlockIR[][]): void {
       link(a, b);
   }
 
-  // Paragraphs continued in the next column or on the next page.
-  const sequence = ordered.filter((b) => b.role === 'body');
+  // Paragraphs continued in the next column or on the next page. Full-width blocks on
+  // multi-column pages (table descriptions, author lists) are not part of the column flow.
+  const sequence = ordered.filter((b) => b.role === 'body' && b.columnIndex !== -1);
   for (let i = 0; i + 1 < sequence.length; i++) {
     const a = sequence[i]!;
     const b = sequence[i + 1]!;

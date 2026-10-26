@@ -263,7 +263,12 @@ export function layoutUnit(
         x0: box.x0,
       };
       if (s.baseline > lastBaseline + 0.5) break;
-      const x0 = Math.max(box.x0, Math.min(s.x0, box.x1 - 1));
+      // Left/justified lines keep their original start (indents); centred and right-aligned
+      // lines use the whole box, whatever the length of the original line in that slot.
+      const x0 =
+        block.align === 'center' || block.align === 'right'
+          ? box.x0
+          : Math.max(box.x0, Math.min(s.x0, box.x1 - 1));
       const maxWidth = box.x1 - x0;
       const line: Piece[] = [];
       let width = 0;

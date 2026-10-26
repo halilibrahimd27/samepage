@@ -11,7 +11,7 @@ import { translatePdf } from '../../src/pdf/pipeline';
  * Identity check (TESTING.md §3): pseudo ×1.0 without letter substitution must reproduce the
  * original pages closely, isolating typesetting/font errors from translation effects.
  */
-const FIXTURES = ['one-column-basic', 'two-column', 'formulas-tables', 'colored-figures'];
+const FIXTURES = ['one-column-basic', 'two-column', 'formulas-tables', 'colored-figures', 'two-column-floats'];
 // Whitespace, dashes, format characters and accents are ignored: the new typesetting breaks lines
 // at different places and inline math is re-set approximately (ˆy → ŷ).
 const norm = (s: string) => s.normalize('NFD').replace(/[\s\p{Pd}\p{M}\p{Cf}\p{Sk}\p{Lm}]+/gu, '');

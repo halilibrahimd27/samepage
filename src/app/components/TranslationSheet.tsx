@@ -12,6 +12,8 @@ import { useI18n } from '../i18n';
 
 /** Quiet period after the last DOM change before a partially translated batch is returned. */
 const SETTLE_MS = 6000;
+/** Without any change after this long, the user probably has not picked the target language. */
+const STUCK_MS = 20_000;
 
 /**
  * The `browser` engine's translation sheet (ADR-015). Renders the pending batch in the source
@@ -24,6 +26,7 @@ export function TranslationSheet() {
   const root = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [state, setState] = useState(pageTranslationState());
+  const [stuck, setStuck] = useState(false);
 
   useEffect(() => {
     const el = root.current;
@@ -63,9 +66,13 @@ export function TranslationSheet() {
       setState(pageTranslationState());
       if (done === items.length) setTimeout(finish, 500); // let the browser finish its last node
     };
+    const stuckTimer = setTimeout(() => setStuck(!firstChange), STUCK_MS);
     const observer = new MutationObserver(() => {
       const now = performance.now();
-      if (!firstChange) firstChange = now;
+      if (!firstChange) {
+        firstChange = now;
+        setStuck(false);
+      }
       lastChange = now;
       check();
     });
@@ -80,6 +87,7 @@ export function TranslationSheet() {
       observer.disconnect();
       htmlObserver.disconnect();
       clearInterval(timer);
+      clearTimeout(stuckTimer);
       if (!pageTranslationState().chromeTranslated) html.lang = previousLang;
     };
   }, [batch]);
@@ -102,6 +110,11 @@ export function TranslationSheet() {
         <p aria-live="polite" data-testid="sheet-progress">
           {progress.done === 0 ? t('sheet.waiting') : t('sheet.progress', progress)}
         </p>
+        {stuck && !wrongLanguage && (
+          <p role="alert" className="text-amber-800" data-testid="sheet-stuck">
+            {t('sheet.stuck', { target })} {'Translator' in globalThis && t('sheet.stuckChrome')}
+          </p>
+        )}
         {wrongLanguage && (
           <p role="alert" className="text-amber-800">
             {t('sheet.wrongLanguage', { got: languageName(translatedTo, lang), target })}

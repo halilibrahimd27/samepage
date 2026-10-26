@@ -179,16 +179,18 @@ export const en = {
   'history.back': '← Back',
   'engine.browser.label': 'Browser translation (free)',
   'engine.browser.description':
-    'Uses your browser’s built-in translation — Google in Chrome, Microsoft in Edge, Apple in Safari. Works on phones; you turn it on with one tap.',
+    'Uses your browser’s page translation — Google in Chrome, Microsoft in Edge, Apple in Safari; also on phones. You switch it on in the browser and pick the language to translate into.',
   'privacy.browser-vendor': 'Text sent to your browser’s translation service',
   'settings.showAdvancedEngines': 'Show advanced engines (Claude API, local LLM)',
   'sheet.title': 'Translate with your browser',
   'sheet.intro':
     'Your browser translates the paragraphs below; the rest of the page stays as it is. Leave this page open until it finishes.',
   'sheet.step.chrome-desktop':
-    'Click the translate icon in the address bar (or right-click the page → “Translate to…”) and choose {target}.',
+    'Click the translate icon in the address bar. If it does not offer {target}, open its ⋮ menu → “Choose another language” → {target}.',
   'sheet.step.chrome-android':
-    'Open the ⋮ menu → “Translate…”, then choose {target} as the language.',
+    'Open the ⋮ menu → “Translate…”. If the page is not in {target}, open the translate bar’s menu → “More languages” → {target}.',
+  'sheet.step.chrome-ios':
+    'Tap ••• → “Translate” (or the translate icon in the address bar). If the page is not in {target}, open the translate bar’s options → “More languages” → {target}.',
   'sheet.step.edge': 'Click the translate icon in the address bar and choose {target}.',
   'sheet.step.safari': 'Tap the “aA” button in the address bar → “Translate to {target}”.',
   'sheet.step.firefox': 'Click the translation icon in the address bar and choose {target}.',
@@ -198,6 +200,10 @@ export const en = {
   'sheet.progress': '{done} / {total} paragraphs translated',
   'sheet.wrongLanguage':
     'The page seems to be translated to {got}. Choose {target} in your browser’s translate menu.',
+  'sheet.stuck':
+    'Nothing has been translated yet. Browsers translate into their own language by default — choose {target} in the translate menu.',
+  'sheet.stuckChrome':
+    'On this computer the “Chrome built-in translator” engine works automatically: cancel and choose it above.',
   'review.edit': 'Edit',
   'review.save': 'Save',
   'review.cancel': 'Cancel',

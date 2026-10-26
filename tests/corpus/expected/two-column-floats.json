@@ -1,0 +1,33 @@
+{
+  "roles": [
+    { "page": 0, "text": "Akademik Metinlerin Makine Çevirisinde Anlam Kaymasını Ölçen Yeni Bir Yaklaşım", "role": "heading" },
+    { "page": 0, "text": "Zeynep Kaya1, Ahmet Demir2", "role": "heading" },
+    { "page": 0, "text": "1Orta Doğu Teknik Üniversitesi, Ankara, Türkiye; zeynep@example.org", "role": "body" },
+    { "page": 0, "text": "2Boğaziçi Üniversitesi, İstanbul, Türkiye; ahmet@example.org", "role": "body" },
+    { "page": 0, "text": "arXiv:2401.01234v1", "role": "label" },
+    { "page": 0, "text": "1 Giriş", "role": "heading" },
+    { "page": 0, "text": "Makine çevirisi sistemleri son on yılda", "role": "body" },
+    { "page": 0, "text": "2 Yöntem", "role": "heading" },
+    { "page": 0, "text": "3 Sonuç", "role": "heading" },
+    { "page": 0, "text": "1", "role": "page-number" },
+    { "page": 1, "text": "Tablo 1:", "role": "caption" },
+    { "page": 1, "text": "Girdi", "role": "table-cell" },
+    { "page": 1, "text": "Sınıf başına", "role": "table-cell" },
+    { "page": 1, "text": "Tablo 2:", "role": "caption" },
+    { "page": 1, "text": "Rastgele orman", "role": "table-cell" },
+    { "page": 1, "text": "Tablo 3:", "role": "caption" },
+    { "page": 1, "text": "Test", "role": "table-cell" },
+    { "page": 1, "text": "zararlı", "role": "table-cell" },
+    { "page": 1, "text": "143", "role": "table-cell" },
+    { "page": 1, "text": "has_url", "role": "label" },
+    { "page": 1, "text": "0,000 0,001", "role": "label" },
+    { "page": 1, "text": "Permütasyon önemi", "role": "label" },
+    { "page": 1, "text": "Tablo 4:", "role": "caption" },
+    { "page": 1, "text": "bu oran %71,2", "role": "body" },
+    { "page": 1, "text": "2", "role": "page-number" }
+  ],
+  "chains": [
+    [{ "page": 0, "text": "Bu çalışmada 2019" }, { "page": 0, "text": "kullanılmıştır. Her makale" }],
+    [{ "page": 0, "text": "Bulgular, uzun ve iç içe" }, { "page": 1, "text": "bu oran %71,2" }]
+  ]
+}

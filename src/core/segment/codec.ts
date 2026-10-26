@@ -21,9 +21,12 @@ export type Token =
 const TOKEN_RE = /<(\/?)(t\d+)>|⟦([A-Z]\d+)⟧/g;
 /** Text that would be mistaken for markup; escaped as ⟦L…⟧ placeholders. */
 const LITERAL_RE = /<\/?t\d+>|[⟦⟧]/g;
-/** URLs, DOIs, arXiv ids and e-mail addresses are never translated (⟦U…⟧). */
+/**
+ * URLs, DOIs, arXiv ids, e-mail addresses and snake_case identifiers (`has_long_str`,
+ * `n_estimators`) are never translated (⟦U…⟧).
+ */
 const URL_RE =
-  /\b(?:https?:\/\/|www\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/gi;
+  /\b(?:https?:\/\/|www\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b/gi;
 
 /** Splits tagged text into tokens. Unknown-looking markup stays as plain text. */
 export function tokenize(tagged: string): Token[] {

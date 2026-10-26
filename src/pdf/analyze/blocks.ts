@@ -101,6 +101,8 @@ function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
   return out;
 }
 
+const MARK_ONLY = /^[\d*†‡§¶]{1,3}$/u;
+
 const dominantSize = (line: RawLine) => {
   const counts = new Map<number, number>();
   for (const c of line.chars) counts.set(c.size, (counts.get(c.size) ?? 0) + 1);
@@ -129,11 +131,25 @@ function splitParagraphs(
       const em = Math.max(size, 1);
       const indented = line.bbox.x0 - blockBox.x0 > 0.6 * em && line.bbox.x0 - blockBox.x0 < 4 * em;
       const prevShort = blockBox.x1 - prev.bbox.x1 > 0.08 * blockWidth;
-      const sizeChange = Math.abs(size - prevSize) > 0.5;
+      // A line that starts with a superscript mark is a new item (affiliations, footnotes). The
+      // mark may come as a line of its own (raised baseline); the text after it stays with it.
+      const markOnly = (l: RawLine) =>
+        MARK_ONLY.test(
+          l.chars
+            .map((c) => c.c)
+            .join('')
+            .trim(),
+        );
+      const prevIsMark = markOnly(prev) && prevSize < 0.8 * size;
+      const sizeChange = Math.abs(size - prevSize) > 0.5 && !prevIsMark;
+      const lead = /^[\d*†‡§¶]{1,3}/u.exec(line.chars.map((c) => c.c).join(''))?.[0] ?? '';
+      const marked =
+        (lead.length > 0 && line.chars.slice(0, lead.length).every((c) => c.size < 0.8 * size)) ||
+        (markOnly(line) && size < 0.8 * prevSize);
       const bigGap = lineGap > 0.8 * em;
       // Text on a coloured box and text outside it are different paragraphs.
       const backgroundChange = backgroundOf(line.bbox) !== backgroundOf(prev.bbox);
-      if (sizeChange || bigGap || backgroundChange || (indented && prevShort)) {
+      if (sizeChange || bigGap || backgroundChange || marked || (indented && prevShort)) {
         groups.push(cur);
         cur = [];
       }
@@ -152,13 +168,17 @@ function alignment(lines: LineIR[], box: Rect): BlockIR['align'] {
     return Math.abs(leftGap - rightGap) < 2 && leftGap > 2 ? 'center' : 'left';
   }
   const tol = 1.5;
+  const centre = (l: LineIR) => (l.bbox.x0 + l.bbox.x1) / 2;
+  const mid = (box.x0 + box.x1) / 2;
+  // A shorter last line centred under the others: a centred title, not a justified paragraph
+  // (whose last line starts at the left edge).
+  const last = lines[lines.length - 1]!;
+  if (Math.abs(centre(last) - mid) < 3 && last.bbox.x0 - box.x0 > 4) return 'center';
   const body = lines.slice(0, -1);
   const fullRight = body.filter((l) => box.x1 - l.bbox.x1 < tol).length / body.length;
   const fullLeft = body.filter((l) => l.bbox.x0 - box.x0 < tol * 8).length / body.length;
   if (fullRight > 0.8 && fullLeft > 0.6) return 'justify';
-  const centers = lines.map((l) => (l.bbox.x0 + l.bbox.x1) / 2);
-  const mid = (box.x0 + box.x1) / 2;
-  if (centers.every((c) => Math.abs(c - mid) < 3)) return 'center';
+  if (lines.every((l) => Math.abs(centre(l) - mid) < 3)) return 'center';
   if (lines.every((l) => box.x1 - l.bbox.x1 < tol)) return 'right';
   return 'left';
 }
@@ -242,8 +262,14 @@ function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
         Math.abs(aLast.bbox.x0 - bFirst.bbox.x0) > 6 &&
         fontA.name === fontB.name &&
         fontA.bold === fontB.bold;
+      // A block that opens with a superscript mark is a new item (the next affiliation).
+      const lead = bFirst.spans[0]!;
+      const opensWithMark =
+        MARK_ONLY.test(lead.text.trim()) &&
+        lead.size < 0.8 * Math.max(...bFirst.spans.map((x) => x.size));
       if (
         !/[.!?…:]["”»’)\]]*$/.test(aText) &&
+        !opensWithMark &&
         (continuesLeft || continuesCentred) &&
         gap >= -1 &&
         gap < 0.6 * size &&

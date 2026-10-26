@@ -1,5 +1,5 @@
 import type { TranslationCache } from '../core/cache/cache';
-import type { BlockIR, Rect, Role } from '../core/ir/types';
+import type { BlockIR, LineIR, Rect, Role } from '../core/ir/types';
 import { translateSegments } from '../core/pipeline/translate';
 import { decode, plainText } from '../core/segment/codec';
 import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
@@ -154,6 +154,29 @@ function noteBox(id: string, rect: Rect, size: number): BlockIR {
   };
 }
 
+/**
+ * Area removed for a translated line. Vertically it follows the glyphs (each span's baseline and
+ * size, so superscripts are covered) instead of MuPDF's line box, which spans the font's full
+ * ascent and descent and can reach into the line above (chart tick labels under an axis title).
+ */
+function redactRect(line: LineIR, horizontal: boolean): Rect {
+  const pad = 0.5;
+  const box = {
+    x0: line.bbox.x0 - pad,
+    y0: line.bbox.y0 - pad,
+    x1: line.bbox.x1 + pad,
+    y1: line.bbox.y1 + pad,
+  };
+  if (!horizontal || !line.spans.length) return box;
+  const tops = line.spans.map((s) => (s.baseline ?? line.baseline) - 0.8 * s.size);
+  const bottoms = line.spans.map((s) => (s.baseline ?? line.baseline) + 0.25 * s.size);
+  return {
+    ...box,
+    y0: Math.max(box.y0, Math.min(...tops)),
+    y1: Math.min(box.y1, Math.max(...bottoms)),
+  };
+}
+
 export async function translatePdf(
   bytes: Uint8Array,
   opts: PdfOptions,
@@ -282,13 +305,8 @@ export async function translatePdf(
       for (const l of r.layouts) {
         const block = blockById.get(l.blockId)!;
         const w = writes[pageOf(block)]!;
-        for (const line of block.lines)
-          w.redact.push({
-            x0: line.bbox.x0 - 0.5,
-            y0: line.bbox.y0 - 0.5,
-            x1: line.bbox.x1 + 0.5,
-            y1: line.bbox.y1 + 0.5,
-          });
+        const horizontal = block.direction[1] === 0;
+        for (const line of block.lines) w.redact.push(redactRect(line, horizontal));
         w.lines.push(...l.lines);
       }
       // Overflow note marker after the last laid-out word.

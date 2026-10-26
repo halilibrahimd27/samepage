@@ -78,8 +78,14 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
           </nav>
         </header>
 
-        <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+        {/* Only the sheet is translatable: page translation must not rewrite React's UI text. */}
+        <div className="mx-auto max-w-3xl px-6 pt-8 empty:hidden">
           <TranslationSheet />
+        </div>
+        <main
+          translate="no"
+          className="notranslate mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8"
+        >
           {route === '#pdf-debug' ? (
             <PdfDebug />
           ) : route === '#history' ? (
