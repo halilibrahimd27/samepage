@@ -3,8 +3,11 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
 async function audit(page: Page, label: string) {
+  // Legacy mode merges frame results in the page itself: the default mode opens a blank page per
+  // audit, which hangs under parallel load once the sandboxed DOCX preview iframe is present.
   const { violations } = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .setLegacyMode()
     .analyze();
   const serious = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
   expect(
