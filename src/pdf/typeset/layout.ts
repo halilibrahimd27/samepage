@@ -1,7 +1,7 @@
 import type { DecodedRun } from '../../core/segment/codec';
 import type { BlockIR, Rect } from '../../core/ir/types';
 import type { MathPart, PdfStyle } from './segments';
-import { faceKey, type FaceKey, type Measurer } from './types';
+import { faceKey, type FaceKey, type Family, type Measurer } from './types';
 
 export interface LayoutRun {
   text: string;
@@ -16,6 +16,7 @@ export interface LayoutRun {
   /** Letter spacing in em. */
   tracking?: number;
   linkUri?: string;
+  underline?: boolean;
 }
 
 export interface LayoutLine {
@@ -64,6 +65,7 @@ interface Piece {
   color: [number, number, number];
   rise: number;
   linkUri?: string;
+  underline?: boolean;
   /** Whitespace piece (a break opportunity). */
   space: boolean;
 }
@@ -142,10 +144,66 @@ function toPieces(runs: DecodedRun<PdfStyle>[], baseStyle: PdfStyle, opts: Layou
         space: /^ +$/.test(part),
       };
       if (s.linkUri) piece.linkUri = s.linkUri;
+      if (s.underline) piece.underline = true;
       pieces.push(piece);
     }
   }
   return pieces;
+}
+
+/** Look-alikes for symbols none of the bundled faces has. */
+const SUBSTITUTE: Record<string, string> = {
+  '∗': '*',
+  '∑': 'Σ',
+  '∏': 'Π',
+  '⋅': '·',
+  '∕': '/',
+  '∣': '|',
+};
+
+/** Mathematical alphanumerics (𝑁, 𝐲): bold and italic ranges of U+1D400–U+1D49B. */
+function mathStyle(cp: number): { bold: boolean; italic: boolean } {
+  return {
+    bold: (cp >= 0x1d400 && cp <= 0x1d433) || (cp >= 0x1d468 && cp <= 0x1d49b),
+    italic: cp >= 0x1d434 && cp <= 0x1d49b,
+  };
+}
+
+/**
+ * Characters the chosen face lacks fall back, in order, to: their compatibility form in the same
+ * family ("𝑁" → italic "N"), the mono face of the same weight (arrows, ≤), a look-alike ("∗" →
+ * "*"). What still has no glyph is left as is and reported by the writer.
+ */
+function resolveGlyphs(pieces: Piece[], measurer: Measurer): Piece[] {
+  const out: Piece[] = [];
+  for (const p of pieces) {
+    if (p.space || measurer.covers(p.text, p.face)) {
+      out.push(p);
+      continue;
+    }
+    const [family, variant] = p.face.split('-') as [Family, string];
+    const bold = variant.startsWith('bold');
+    const italic = variant.endsWith('italic');
+    const parts: Piece[] = [];
+    for (const ch of p.text) {
+      let text = ch;
+      let face = p.face;
+      if (!measurer.covers(ch, face)) {
+        const compat = ch.normalize('NFKC');
+        const math = mathStyle(ch.codePointAt(0)!);
+        const styled = faceKey(family, bold || math.bold, italic || math.italic);
+        const mono = faceKey('mono', bold, italic);
+        if (compat !== ch && measurer.covers(compat, styled)) [text, face] = [compat, styled];
+        else if (measurer.covers(ch, mono)) face = mono;
+        else if (SUBSTITUTE[ch] && measurer.covers(SUBSTITUTE[ch], face)) text = SUBSTITUTE[ch];
+      }
+      const last = parts[parts.length - 1];
+      if (last?.face === face) last.text += text;
+      else parts.push({ ...p, text, face });
+    }
+    out.push(...parts);
+  }
+  return out;
 }
 
 /** Line slots of a box: original baselines and left edges, continued at the original leading. */
@@ -175,7 +233,7 @@ export function layoutUnit(
   measurer: Measurer,
   opts: LayoutOptions,
 ): BlockLayout[] {
-  const pieces = toPieces(runs, baseStyle, opts);
+  const pieces = resolveGlyphs(toPieces(runs, baseStyle, opts), measurer);
   const tracking = opts.trackingEm ?? 0;
   const spaceFactor = opts.spaceFactor ?? 1;
   const widthOf = (p: Piece) => {
@@ -317,6 +375,7 @@ export function layoutUnit(
             tracking,
           };
           if (p.linkUri) run.linkUri = p.linkUri;
+          if (p.underline) run.underline = true;
           laid.push(run);
         }
         x += w;

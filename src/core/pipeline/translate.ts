@@ -226,7 +226,15 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         p: protectTerms(s.text, ctx.glossary, ctx.pair.source),
       }));
       const results = await engine.translate(
-        protectedBatch.map(({ req, p }) => ({ ...req, text: p.text })),
+        protectedBatch.map(({ req, p }) => ({
+          ...req,
+          text: p.text,
+          // Plain-text engines may send the protected terms inline (as their target wording).
+          verbatim: {
+            ...req.verbatim,
+            ...Object.fromEntries(p.targets.map((t, i) => [`G${i + 1}`, t])),
+          },
+        })),
         callCtx,
         signal,
       );

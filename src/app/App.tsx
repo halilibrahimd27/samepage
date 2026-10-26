@@ -1,7 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SettingsDrawer } from './components/SettingsDrawer';
-import { TranslationSheet } from './components/TranslationSheet';
 import { WorkerStatus } from './components/WorkerStatus';
 import { useI18n } from './i18n';
 import { I18nProvider } from './i18n/I18nProvider';
@@ -78,10 +77,7 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
           </nav>
         </header>
 
-        {/* Only the sheet is translatable: page translation must not rewrite React's UI text. */}
-        <div className="mx-auto max-w-3xl px-6 pt-8 empty:hidden">
-          <TranslationSheet />
-        </div>
+        {/* Page translation must not rewrite React's UI text; the sheet opts back in. */}
         <main
           translate="no"
           className="notranslate mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8"

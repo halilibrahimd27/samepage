@@ -1,7 +1,7 @@
 import type { TranslationCache } from '../core/cache/cache';
 import type { BlockIR, LineIR, Rect, Role } from '../core/ir/types';
 import { translateSegments } from '../core/pipeline/translate';
-import { decode, plainText } from '../core/segment/codec';
+import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { extractAndAnalyze } from './analyze';
@@ -200,6 +200,7 @@ export async function translatePdf(
         id: `s${unique.size + 1}`,
         text: u.encoded.source,
         role: u.role,
+        ...verbatimOf(u.encoded.placeholders),
       });
   // Bookmarks and the document title are translated as plain segments (no layout).
   for (const t of [...meta.outline, meta.title]) {
@@ -239,8 +240,8 @@ export async function translatePdf(
       id: u.id,
       role: u.role,
       pages: [...new Set(u.blocks.map(pageOf))],
-      source: plainText(u.encoded.source),
-      target: o.untranslated ? '' : plainText(o.text),
+      source: readableText(u.encoded.source, u.encoded.placeholders),
+      target: o.untranslated ? '' : readableText(o.text, u.encoded.placeholders),
       status: o.untranslated ? 'untranslated' : o.issues.length ? 'warning' : 'translated',
       scale: 1,
       score: 100,
@@ -307,6 +308,8 @@ export async function translatePdf(
         const w = writes[pageOf(block)]!;
         const horizontal = block.direction[1] === 0;
         for (const line of block.lines) w.redact.push(redactRect(line, horizontal));
+        if (block.underlines?.length) (w.lineArt ??= []).push(...block.underlines);
+        if (block.extraRedact?.length) w.redact.push(...block.extraRedact);
         w.lines.push(...l.lines);
       }
       // Overflow note marker after the last laid-out word.

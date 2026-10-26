@@ -259,8 +259,14 @@ export function repairDocument(input: RepairInput): RepairOutput {
     const grown = { ...box };
 
     // Down: until the next obstacle overlapping horizontally, the content bottom, or the growth cap.
+    // Line boxes of adjacent paragraphs overlap by a point or two (ascenders, descenders): a
+    // block that starts inside our box but reaches below it is still the next obstacle.
     const below = obstacles.filter(
-      (o) => o.rect.x0 < box.x1 && o.rect.x1 > box.x0 && o.rect.y0 >= box.y1 - 0.5,
+      (o) =>
+        o.rect.x0 < box.x1 &&
+        o.rect.x1 > box.x0 &&
+        o.rect.y0 > box.y0 + 0.5 * (box.y1 - box.y0) &&
+        o.rect.y1 > box.y1,
     );
     const floor = Math.min(bounds.y1, ...below.map((o) => o.rect.y0 - clearance));
     grown.y1 = Math.max(

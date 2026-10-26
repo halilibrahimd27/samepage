@@ -10,6 +10,8 @@ export interface PageWrite {
   index: number;
   /** Areas whose text is removed (page space). Images, fills and rules survive. */
   redact: Rect[];
+  /** Underline rules of translated text, removed (the translation draws its own). */
+  lineArt?: Rect[];
   lines: LayoutLine[];
   /** PDF notes (annotation fallback): the original text stays, the translation is in the note. */
   notes?: { rect: Rect; text: string }[];
@@ -104,6 +106,12 @@ export async function writePdf(
         const [r, g, b] = run.color;
         const tc = run.tracking ? `${fmt(run.tracking)} Tc ` : '';
         ops += `BT /${entry.name} 1 Tf ${tc}${fmt(r)} ${fmt(g)} ${fmt(b)} rg ${tm.map(fmt).join(' ')} Tm <${hex}> Tj ET\n`;
+        if (run.underline && !line.origin) {
+          // Drawn in page space (y down) through the page's inverse transform.
+          const thick = Math.max(0.4, 0.05 * run.size);
+          const y = line.baseline - run.rise + 0.12 * run.size;
+          ops += `q ${inv.map(fmt).join(' ')} cm ${fmt(r)} ${fmt(g)} ${fmt(b)} rg ${fmt(ox)} ${fmt(y)} ${fmt(run.width)} ${fmt(thick)} re f Q\n`;
+        }
       }
     }
     ops += 'Q\n';
@@ -126,6 +134,18 @@ export async function writePdf(
             mupdf.PDFPage.REDACT_IMAGE_NONE,
             mupdf.PDFPage.REDACT_LINE_ART_NONE,
             mupdf.PDFPage.REDACT_TEXT_REMOVE,
+          );
+        }
+        if (pw.lineArt?.length) {
+          for (const r of pw.lineArt) {
+            const annot = page.createAnnotation('Redact');
+            annot.setRect([r.x0 - 0.5, r.y0 - 0.5, r.x1 + 0.5, r.y1 + 0.5]);
+          }
+          page.applyRedactions(
+            false,
+            mupdf.PDFPage.REDACT_IMAGE_NONE,
+            mupdf.PDFPage.REDACT_LINE_ART_REMOVE_IF_COVERED,
+            mupdf.PDFPage.REDACT_TEXT_NONE,
           );
         }
 

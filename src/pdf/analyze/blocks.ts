@@ -1,12 +1,13 @@
 import { union, unionAll } from '../../core/ir/geometry';
 import type { BlockIR, LineIR, Rect, SpanIR } from '../../core/ir/types';
 import { coverage } from '../../core/ir/geometry';
-import type { RawChar, RawFont, RawLine, RawPage } from '../extract/raw';
+import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
 import type { TableRegion } from './tables';
 
 const MATH_FONT =
   /^(CM(MI|SY|EX|BSY)|LMMath|MSAM|MSBM|Symbol|STIX.*Math|Cambria\s*Math|Euclid|rsfs|eufm|.*Math)/i;
-const MONO_FONT = /(Mono|Courier|CMTT|LMMono|Consolas|Menlo|Typewriter)/i;
+const MONO_FONT =
+  /(Mono|Courier|CMTT|LMMono|Consolas|Inconsolata|Menlo|Monaco|Typewriter|SFTT|TXTT|SourceCode|FiraCode|LucidaConsole|Cursor)/i;
 const SANS_FONT = /(Sans|Arial|Helvetica|CMSS|LMSans|Calibri|Verdana|Segoe|Roboto)/i;
 const BOLD_FONT = /(Bold|Black|Heavy|Semibold|Demi|CMBX|-Bd|BX\d)/i;
 const ITALIC_FONT = /(Italic|Oblique|CMTI|CMSL|Slanted|-It)/i;
@@ -102,6 +103,8 @@ function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
 }
 
 const MARK_ONLY = /^[\d*†‡§¶]{1,3}$/u;
+/** List items start a new paragraph: bullets and numbered items ("1. ", "(2) "). */
+const BULLET = /^(?:[•◦▪▫‣●○■□➢✓]|\(?\d{1,2}[.)]\s)/u;
 
 const dominantSize = (line: RawLine) => {
   const counts = new Map<number, number>();
@@ -117,10 +120,32 @@ function splitParagraphs(
   lines: RawLine[],
   blockBox: Rect,
   backgroundOf: (r: Rect) => number,
+  fonts: RawPage['fonts'],
+  layout: PageLayout,
 ): RawLine[][] {
+  const textOf = (l: RawLine) => l.chars.map((c) => c.c).join('');
+  const styled = (c: RawChar) => !!(fonts[c.font]?.bold || fonts[c.font]?.italic);
+  /**
+   * A run-in heading opens a new paragraph inside the block: after a sentence end, the line
+   * starts with a bold or italic phrase that ends in "." or ":" and is followed by regular text
+   * ("Test dataset. While …", "Has long string: The …").
+   */
+  const runIn = (line: RawLine, prev: RawLine) => {
+    if (!/[.!?:]["”’)\]]*\s*$/u.test(textOf(prev))) return false;
+    let k = 0;
+    while (k < line.chars.length && (styled(line.chars[k]!) || /\s/u.test(line.chars[k]!.c))) k++;
+    if (k === 0 || k >= line.chars.length) return false;
+    const lead = textOf(line).slice(0, k).trim();
+    return /\p{L}{2,}/u.test(lead) && (/[.:]$/u.test(lead) || /^[.:]/u.test(line.chars[k]!.c));
+  };
   const groups: RawLine[][] = [];
   let cur: RawLine[] = [];
   const blockWidth = blockBox.x1 - blockBox.x0;
+  // On a justified page every line but a paragraph's last reaches the text edge, so a short
+  // line followed by one starting at the left edge is a forced break (closing lines of a
+  // letter, an address) — measured against the page's text edge, not the block's own.
+  const edge = layout.edgeFor(blockBox);
+  const reaches = (l: RawLine) => edge - l.bbox.x1 < 3;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     const prev = lines[i - 1];
@@ -145,11 +170,25 @@ function splitParagraphs(
       const lead = /^[\d*†‡§¶]{1,3}/u.exec(line.chars.map((c) => c.c).join(''))?.[0] ?? '';
       const marked =
         (lead.length > 0 && line.chars.slice(0, lead.length).every((c) => c.size < 0.8 * size)) ||
-        (markOnly(line) && size < 0.8 * prevSize);
+        (markOnly(line) && size < 0.8 * prevSize) ||
+        BULLET.test(
+          line.chars
+            .map((c) => c.c)
+            .join('')
+            .trimStart(),
+        );
       const bigGap = lineGap > 0.8 * em;
       // Text on a coloured box and text outside it are different paragraphs.
       const backgroundChange = backgroundOf(line.bbox) !== backgroundOf(prev.bbox);
-      if (sizeChange || bigGap || backgroundChange || marked || (indented && prevShort)) {
+      if (
+        sizeChange ||
+        bigGap ||
+        backgroundChange ||
+        marked ||
+        runIn(line, prev) ||
+        (indented && prevShort) ||
+        (layout.justified && !reaches(prev) && Math.abs(line.bbox.x0 - blockBox.x0) < 2)
+      ) {
         groups.push(cur);
         cur = [];
       }
@@ -167,7 +206,9 @@ function alignment(lines: LineIR[], box: Rect): BlockIR['align'] {
     const rightGap = box.x1 - l.bbox.x1;
     return Math.abs(leftGap - rightGap) < 2 && leftGap > 2 ? 'center' : 'left';
   }
-  const tol = 1.5;
+  // LaTeX's microtype lets hyphens and punctuation protrude into the margin: the right edge of
+  // a justified paragraph varies by a couple of points.
+  const tol = 3;
   const centre = (l: LineIR) => (l.bbox.x0 + l.bbox.x1) / 2;
   const mid = (box.x0 + box.x1) / 2;
   // A shorter last line centred under the others: a centred title, not a justified paragraph
@@ -176,11 +217,97 @@ function alignment(lines: LineIR[], box: Rect): BlockIR['align'] {
   if (Math.abs(centre(last) - mid) < 3 && last.bbox.x0 - box.x0 > 4) return 'center';
   const body = lines.slice(0, -1);
   const fullRight = body.filter((l) => box.x1 - l.bbox.x1 < tol).length / body.length;
-  const fullLeft = body.filter((l) => l.bbox.x0 - box.x0 < tol * 8).length / body.length;
+  const fullLeft = body.filter((l) => l.bbox.x0 - box.x0 < 12).length / body.length;
   if (fullRight > 0.8 && fullLeft > 0.6) return 'justify';
-  if (lines.every((l) => Math.abs(centre(l) - mid) < 3)) return 'center';
+  // Centred lines have different lengths; lines that all fill the width are not "centred".
+  if (
+    lines.every((l) => Math.abs(centre(l) - mid) < 3) &&
+    lines.some((l) => l.bbox.x0 - box.x0 > 4)
+  )
+    return 'center';
   if (lines.every((l) => box.x1 - l.bbox.x1 < tol)) return 'right';
   return 'left';
+}
+
+/**
+ * MuPDF sometimes ends a block with the first part of a line and starts the next block with the
+ * rest ("Has invalid or no homepage (repository):" | "Previous work showed that"): the run-in
+ * heading belongs to the paragraph it introduces, so the trailing line moves to the next block.
+ */
+function rejoinSplitLines(blocks: RawTextBlock[]): RawTextBlock[] {
+  const out = blocks.map((b) => ({ ...b, lines: [...b.lines] }));
+  for (let i = 0; i + 1 < out.length; i++) {
+    const a = out[i]!;
+    const b = out[i + 1]!;
+    const last = a.lines[a.lines.length - 1];
+    const first = b.lines[0];
+    if (!last || !first || a.lines.length < 2 || last.dir[1] !== 0) continue;
+    const size = Math.max(...last.chars.map((c) => c.size), 1);
+    const sameBaseline = Math.abs((last.chars[0]?.y ?? 0) - (first.chars[0]?.y ?? 0)) < 0.5;
+    const gap = first.bbox.x0 - last.bbox.x1;
+    if (!sameBaseline || gap < -1 || gap > 3 * size) continue;
+    a.lines.pop();
+    a.bbox = unionAll(a.lines.map((l) => l.bbox));
+    b.lines.unshift(last);
+    b.bbox = union(b.bbox, last.bbox);
+  }
+  return out;
+}
+
+interface PageLayout {
+  /** Most lines end at a common text edge (justified setting). */
+  justified: boolean;
+  /** The text edge a block's lines run to (a column's right margin). */
+  edgeFor: (block: Rect) => number;
+}
+
+/** Right text edges of the page: x positions where many long lines end. */
+function pageLayout(page: RawPage): PageLayout {
+  const ends = page.blocks
+    .flatMap((b) => b.lines)
+    .filter((l) => l.chars.length > 20)
+    .map((l) => l.bbox.x1)
+    .sort((a, b) => a - b);
+  const groups: number[][] = [];
+  for (const x of ends) {
+    const g = groups[groups.length - 1];
+    if (g && x - g[g.length - 1]! <= 3) g.push(x);
+    else groups.push([x]);
+  }
+  const edges = groups
+    .filter((g) => g.length >= Math.max(3, 0.15 * ends.length))
+    .map((g) => Math.max(...g));
+  const onEdge = groups.filter((g) => edges.includes(Math.max(...g))).flat().length;
+  return {
+    justified: ends.length >= 6 && onEdge >= 0.5 * ends.length,
+    edgeFor: (r) => edges.find((e) => e >= r.x1 - 3) ?? r.x1,
+  };
+}
+
+/**
+ * Marks spans with a thin rule right under their baseline as underlined and returns those rules
+ * (a full-width rule under a short heading is a separator, not an underline).
+ */
+function markUnderlines(lines: LineIR[], rules: Rect[]): Rect[] {
+  const found: Rect[] = [];
+  for (const line of lines) {
+    const size = Math.max(...line.spans.map((sp) => sp.size));
+    for (const rule of rules) {
+      if (rule.y0 < line.baseline - 0.5 || rule.y0 > line.baseline + 0.4 * size) continue;
+      const under = line.spans.filter((sp) => {
+        const w = sp.bbox.x1 - sp.bbox.x0;
+        const overlap = Math.min(rule.x1, sp.bbox.x1) - Math.max(rule.x0, sp.bbox.x0);
+        return !sp.font.isMath && sp.text.trim() && w > 0 && overlap >= 0.7 * w;
+      });
+      if (!under.length) continue;
+      const extent =
+        Math.max(...under.map((sp) => sp.bbox.x1)) - Math.min(...under.map((sp) => sp.bbox.x0));
+      if (rule.x1 - rule.x0 > extent + 2 * size) continue;
+      for (const sp of under) sp.underline = true;
+      found.push(rule);
+    }
+  }
+  return found;
 }
 
 /**
@@ -195,7 +322,11 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
     .filter((v) => v.isRectangle && !v.isStroked && v.bbox.y1 - v.bbox.y0 > 4)
     .map((v) => v.bbox);
   const backgroundOf = (r: Rect) => fills.findIndex((f) => coverage(r, f) > 0.8);
-  for (const raw of page.blocks) {
+  const layout = pageLayout(page);
+  const rules = page.vectors
+    .filter((v) => v.bbox.y1 - v.bbox.y0 < 1.5 && v.bbox.x1 - v.bbox.x0 > 3)
+    .map((v) => v.bbox);
+  for (const raw of rejoinSplitLines(page.blocks)) {
     const sizes = raw.lines.map(dominantSize);
     const em = sizes.length ? Math.max(...sizes) : 10;
     const cellLines = raw.lines.filter((l) => inTable(l.bbox));
@@ -203,14 +334,22 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
     const groups = [
       ...cellLines.map((l) => [l]),
       ...(flowLines.length
-        ? splitParagraphs(mergeBaselines(flowLines, 3 * em), raw.bbox, backgroundOf)
+        ? splitParagraphs(
+            mergeBaselines(flowLines, 3 * em),
+            raw.bbox,
+            backgroundOf,
+            page.fonts,
+            layout,
+          )
         : []),
     ];
     for (const group of groups) {
       const lines = group.map((l) => toLine(l.chars, page)).filter((l) => l.spans.length);
       if (!lines.length) continue;
       const bbox = unionAll(lines.map((l) => l.bbox));
+      const underlines = inTable(bbox) ? [] : markUnderlines(lines, rules);
       blocks.push({
+        ...(underlines.length ? { underlines } : {}),
         id: `p${page.index}-b${blocks.length}`,
         bbox,
         role: 'unknown',

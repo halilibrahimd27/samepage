@@ -18,12 +18,13 @@ const STUCK_MS = 20_000;
 /**
  * The `browser` engine's translation sheet (ADR-015). Renders the pending batch in the source
  * language; once the user turns on the browser's page translation, harvests the result.
- * Everything else in the app is marked translate="no".
+ * The app's main area is translate="no"; the sheet's content opts back in with translate="yes".
  */
 export function TranslationSheet() {
   const { t, lang } = useI18n();
   const batch = useSyncExternalStore(sheetStore.subscribe, sheetStore.get);
   const root = useRef<HTMLDivElement>(null);
+  const section = useRef<HTMLElement>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [state, setState] = useState(pageTranslationState());
   const [stuck, setStuck] = useState(false);
@@ -31,6 +32,8 @@ export function TranslationSheet() {
   useEffect(() => {
     const el = root.current;
     if (!batch || !el) return;
+    // The steps must be visible where the user is: bring the sheet into view.
+    section.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     const html = document.documentElement;
     const previousLang = html.lang;
     if (!pageTranslationState().chromeTranslated) html.lang = batch.pair.source;
@@ -99,6 +102,7 @@ export function TranslationSheet() {
 
   return (
     <section
+      ref={section}
       className="flex flex-col gap-3 rounded-xl border-2 border-blue-400 bg-blue-50 p-4"
       data-testid="translation-sheet"
     >
@@ -131,6 +135,7 @@ export function TranslationSheet() {
       <div
         ref={root}
         lang={batch.pair.source}
+        translate="yes"
         className="max-h-96 overflow-y-auto rounded border border-slate-200 bg-white p-3 font-serif"
       />
     </section>

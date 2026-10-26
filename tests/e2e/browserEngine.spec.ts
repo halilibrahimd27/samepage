@@ -25,7 +25,13 @@ async function installFakeBrowserTranslation(page: Page) {
     };
     const translateNode = (n: Text) => {
       const parent = n.parentElement;
-      if (!parent || parent.closest('[translate="no"]') || parent.closest('font')) return;
+      // Like real page translation: the nearest translate attribute decides.
+      if (
+        !parent ||
+        parent.closest('[translate]')?.getAttribute('translate') === 'no' ||
+        parent.closest('font')
+      )
+        return;
       const outer = document.createElement('font');
       const inner = document.createElement('font');
       inner.textContent = (n.textContent ?? '').replace(/[ğĞıİşŞçÇöÖüÜ]/g, (c) => map[c] ?? c);

@@ -124,8 +124,8 @@
       "part": "word/document.xml",
       "role": "body",
       "status": "translated",
-      "source": "F-ölçütü  biçiminde tanımlanır.",
-      "target": "[F-ölçütü  bıçımındе tånımlånır. ~~~~~~~ ~]"
+      "source": "F-ölçütü F = 2PRP+R biçiminde tanımlanır.",
+      "target": "[F-ölçütü F = 2PRP+R bıçımındе tånımlånır. ~~~~~~~ ~]"
     },
     {
       "part": "word/document.xml",
@@ -173,8 +173,8 @@
       "part": "word/document.xml",
       "role": "table-cell",
       "status": "translated",
-      "source": "Veri kümesi: ",
-      "target": "[Vеrı kümеşı:  ~~~]"
+      "source": "Veri kümesi: https://example.org/cok/uzun/bir/yol/adi/veri-kumesi-2023",
+      "target": "[Vеrı kümеşı: https://example.org/cok/uzun/bir/yol/adi/veri-kumesi-2023 ~~~]"
     },
     {
       "part": "word/document.xml",
@@ -208,8 +208,8 @@
       "part": "word/footer1.xml",
       "role": "footer",
       "status": "translated",
-      "source": "Sayfa ",
-      "target": "[Şåуfå  ~~~~~]"
+      "source": "Sayfa",
+      "target": "[Şåуfå ~~~~~]"
     },
     {
       "part": "word/footnotes.xml",

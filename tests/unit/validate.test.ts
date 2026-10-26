@@ -42,8 +42,9 @@ describe('validateTranslation', () => {
       codes({ source, target: 'In this study a <t1>new</t1> method is proposed [12].' }),
     ).toContain('PLACEHOLDER_MISMATCH');
     expect(
+      // Citations are checked as citations (not again as numbers).
       codes({ source, target: 'In this study a <t1>new</t1> method ⟦F1⟧ is proposed [13].' }),
-    ).toEqual(expect.arrayContaining(['NUMBER_MISMATCH', 'CITATION_MISMATCH']));
+    ).toContain('CITATION_MISMATCH');
     expect(codes({ source, target: source })).toContain('UNTRANSLATED');
     expect(
       codes({
@@ -56,6 +57,25 @@ describe('validateTranslation', () => {
       codes({ source, target: 'Here is the translation: a <t1>new</t1> method ⟦F1⟧ [12].' }),
     ).toContain('CHATTER');
     expect(codes({ source, target: '' })).toEqual(['EMPTY']);
+  });
+
+  it('does not read citation spacing or placeholders as changed numbers', () => {
+    const codes = (source: string, target: string) =>
+      validateTranslation({ source, target, sourceLang: 'en', targetLang: 'tr' }).map(
+        (i) => i.code,
+      );
+    expect(
+      codes(
+        'This is a stalled effort [3,5] in the housing sector of the country.',
+        'Bu, ülkenin konut sektöründe durmuş bir çabadır [3, 5].',
+      ),
+    ).not.toContain('NUMBER_MISMATCH');
+    expect(
+      codes(
+        'Six sensors with 2048⟦F1⟧ 2448 pixels resolution are used here.',
+        'Burada 2048 ⟦F1⟧ 2448 piksel çözünürlüklü altı sensör kullanılır.',
+      ),
+    ).not.toContain('NUMBER_MISMATCH');
   });
 
   it('warns when a glossary term is not used', () => {

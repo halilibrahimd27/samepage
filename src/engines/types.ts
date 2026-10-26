@@ -12,6 +12,11 @@ export interface SegmentRequest {
   role: Role;
   /** Soft length limit (PDF only). */
   budgetChars?: number;
+  /**
+   * Text of the ⟦U⟧ placeholders (URLs, identifiers). Engines that cannot keep placeholders may
+   * send it inline and put the placeholder back.
+   */
+  verbatim?: Record<string, string>;
 }
 
 export interface SegmentResult {

@@ -11,6 +11,8 @@ export const tr: Record<MessageKey, string> = {
   'file.change': 'Başka dosya seç',
   'file.reading': 'Belge okunuyor…',
   'file.pages': '{count} sayfa',
+  'error.chromeTranslator':
+    'Chrome bu dil çifti için cihaz içi çevirmeni hazırlayamadı (dil paketi indirilemedi olabilir). Biraz sonra tekrar deneyin ya da “Tarayıcı çevirisi”ni seçin.',
   'file.detected': 'Algılanan dil: {lang}',
   'file.thumbnail': '{name} belgesinin ilk sayfası',
 

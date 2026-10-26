@@ -1,3 +1,4 @@
+import { academicTerm } from '../core/glossary/academic';
 import { plainText, tokenize } from '../core/segment/codec';
 
 /**
@@ -26,10 +27,14 @@ export type Piece =
       trail: string;
       /** Tag wrapping the whole piece (a sentence-level style run). */
       wrap?: string;
-      /** The piece ends with punctuation that sits outside the wrapping tag. */
-      punctOutside?: boolean;
+      /** Final punctuation of a wrapped piece, not sent ("Test dataset" is a noun phrase,
+       * "Test dataset." reads like an imperative); `punctInside` = it belongs inside the tag. */
+      punct?: string;
+      punctInside?: boolean;
       /** Tags stripped from inside the piece. */
       inner: InnerTag[];
+      /** Placeholders sent as their text (identifiers, URLs), put back after translation. */
+      inlined: InnerTag[];
       /** The piece starts a sentence or a table cell (its first letter's case is kept). */
       sentenceStart: boolean;
     };
@@ -42,24 +47,42 @@ export interface PiecePlan {
 
 type Unit =
   | { kind: 'text'; text: string }
+  | { kind: 'inline'; id: string; text: string }
   | { kind: 'atom'; raw: string; cell: boolean; lettered: boolean }
-  | { kind: 'styled'; id: string; text: string; lettered: boolean };
+  | {
+      kind: 'styled';
+      id: string;
+      /** Text sent (identifiers inline). */
+      text: string;
+      /** The same with its placeholders (what the tag wraps in the tagged result). */
+      raw: string;
+      lettered: boolean;
+      inlined: InnerTag[];
+    };
 
 const LETTER = /\p{L}/u;
 const SENTENCE_END = /[.!?:;]$/;
 
-function toUnits(tagged: string): Unit[] {
+function toUnits(tagged: string, verbatim?: Record<string, string>): Unit[] {
   const tokens = tokenize(tagged);
   const units: Unit[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]!;
     if (t.type === 'text') units.push({ kind: 'text', text: t.text });
     else if (t.type === 'ph') {
-      units.push({ kind: 'atom', raw: `⟦${t.id}⟧`, cell: t.id.startsWith('T'), lettered: false });
+      const v = verbatim?.[t.id];
+      // Single words (identifiers, URLs) and glossary terms travel inline.
+      if (v && (/^\S+$/u.test(v) || t.id.startsWith('G'))) {
+        units.push({ kind: 'inline', id: t.id, text: v });
+      } else {
+        units.push({ kind: 'atom', raw: `⟦${t.id}⟧`, cell: t.id.startsWith('T'), lettered: false });
+      }
     } else if (t.type === 'open') {
       let raw = '';
       let text = '';
+      let plain = '';
       let hasPlaceholder = false;
+      const inlined: InnerTag[] = [];
       let j = i + 1;
       for (; j < tokens.length; j++) {
         const u = tokens[j]!;
@@ -67,58 +90,67 @@ function toUnits(tagged: string): Unit[] {
         if (u.type === 'text') {
           raw += u.text;
           text += u.text;
+          plain += u.text;
         } else if (u.type === 'ph') {
           raw += `⟦${u.id}⟧`;
-          hasPlaceholder = true;
+          const v = verbatim?.[u.id];
+          if (v && /^\S+$/u.test(v)) {
+            text += v;
+            inlined.push({ id: u.id, text: v });
+          } else hasPlaceholder = true;
         }
       }
       i = j;
-      const lettered = LETTER.test(text);
-      if (hasPlaceholder || !text.trim()) {
-        units.push({ kind: 'atom', raw: `<${t.id}>${raw}</${t.id}>`, cell: false, lettered });
+      const lettered = LETTER.test(plain);
+      // A styled run of one or two letters is a mark (author/affiliation letters "a", "b"), not
+      // a word to translate ("a" would become "bir"). Digit marks (citation numbers) travel
+      // with the text instead, so sentences are not cut at every citation.
+      const letterMark = lettered && /^\s*\S{1,2}\s*$/u.test(plain);
+      if (hasPlaceholder || !text.trim() || letterMark) {
+        units.push({
+          kind: 'atom',
+          raw: `<${t.id}>${raw}</${t.id}>`,
+          cell: false,
+          lettered: lettered && hasPlaceholder,
+        });
       } else {
-        units.push({ kind: 'styled', id: t.id, text, lettered });
+        units.push({ kind: 'styled', id: t.id, text, raw, lettered, inlined });
       }
     }
   }
   return units;
 }
 
-function textPiece(
-  text: string,
-  inner: InnerTag[],
-  sentenceStart: boolean,
-  wrap?: string,
-  punctOutside = false,
-): Piece {
-  const lead = /^\s*/.exec(text)![0];
-  const core = text.slice(lead.length).trimEnd();
-  const trail = text.slice(lead.length + core.length);
-  if (!LETTER.test(core)) {
-    // Nothing to translate: put the stripped tags back where they were.
-    let raw = '';
-    let rest = text;
-    for (const t of inner) {
-      const at = rest.indexOf(t.text);
-      raw += `${rest.slice(0, at)}<${t.id}>${t.text}</${t.id}>`;
-      rest = rest.slice(at + t.text.length);
-    }
-    return { kind: 'keep', raw: raw + rest };
-  }
+interface Chunk {
+  text: string;
+  /** The same content as tagged text (used when there is nothing to translate). */
+  raw: string;
+  inner: InnerTag[];
+  inlined: InnerTag[];
+  start: boolean;
+}
+
+function chunkPiece(c: Chunk): Piece {
+  const lead = /^\s*/.exec(c.text)![0];
+  const core = c.text.slice(lead.length).trimEnd();
+  if (!LETTER.test(core)) return { kind: 'keep', raw: c.raw };
   return {
     kind: 'text',
     text: core,
     lead,
-    trail,
-    inner,
-    sentenceStart,
-    ...(wrap ? { wrap } : {}),
-    ...(punctOutside ? { punctOutside } : {}),
+    trail: c.text.slice(lead.length + core.length),
+    inner: c.inner,
+    inlined: c.inlined,
+    sentenceStart: c.start,
   };
 }
 
-export function planPieces(tagged: string): PiecePlan {
-  const units = toUnits(tagged);
+/**
+ * `verbatim` maps ⟦U⟧ placeholders to their text: single-word ones (identifiers, URLs) are sent
+ * inline so sentences stay whole, and are put back after translation.
+ */
+export function planPieces(tagged: string, verbatim?: Record<string, string>): PiecePlan {
+  const units = toUnits(tagged, verbatim);
   const plainAfter: string[] = [];
   let suffix = '';
   for (let i = units.length - 1; i >= 0; i--) {
@@ -131,17 +163,19 @@ export function planPieces(tagged: string): PiecePlan {
   let keptVerbatim = false;
   let before = '';
   let afterCell = false;
-  let current: { text: string; inner: InnerTag[]; start: boolean } | null = null;
+  let current: Chunk | null = null;
   const atSentenceStart = () =>
     afterCell || before.trim() === '' || SENTENCE_END.test(before.trimEnd());
   const flush = () => {
-    if (current) pieces.push(textPiece(current.text, current.inner, current.start));
+    if (current) pieces.push(chunkPiece(current));
     current = null;
   };
   const keep = (raw: string) => {
     flush();
     pieces.push({ kind: 'keep', raw });
   };
+  const chunk = () =>
+    (current ??= { text: '', raw: '', inner: [], inlined: [], start: atSentenceStart() });
 
   for (let i = 0; i < units.length; i++) {
     const u = units[i]!;
@@ -151,6 +185,15 @@ export function planPieces(tagged: string): PiecePlan {
       afterCell = u.cell;
       continue;
     }
+    if (u.kind === 'inline') {
+      const c = chunk();
+      c.text += u.text;
+      c.raw += `⟦${u.id}⟧`;
+      c.inlined.push({ id: u.id, text: u.text });
+      before += u.text;
+      afterCell = false;
+      continue;
+    }
     // Marks without letters stay where they are at the edges; inside the text they travel with
     // it ("Samaana¹, Costa²", "[³⁵]") and are put back around the same characters.
     if (
@@ -158,7 +201,7 @@ export function planPieces(tagged: string): PiecePlan {
       !u.lettered &&
       (before.trim() === '' || plainAfter[i]!.trim() === '')
     ) {
-      keep(`<${u.id}>${u.text}</${u.id}>`);
+      keep(`<${u.id}>${u.raw}</${u.id}>`);
       before += u.text;
       continue;
     }
@@ -169,16 +212,36 @@ export function planPieces(tagged: string): PiecePlan {
       u.lettered &&
       atSentenceStart() &&
       (SENTENCE_END.test(u.text.trimEnd()) || plainAfter[i]!.trim() === '' || punct !== undefined);
-    if (sentence) {
+    if (u.kind === 'styled' && sentence) {
       flush();
-      const outside = !SENTENCE_END.test(u.text.trimEnd()) && punct !== undefined;
+      const core = u.text.trimEnd();
+      const outside = !SENTENCE_END.test(core) && punct !== undefined;
       if (outside && next?.kind === 'text') next.text = next.text.slice(1);
-      pieces.push(textPiece(outside ? u.text + punct : u.text, [], true, u.id, outside));
-      before += outside ? u.text + punct : u.text;
+      const inside = outside ? '' : (/[.:;!?]$/.exec(core)?.[0] ?? '');
+      const sent = inside ? core.slice(0, -1) + u.text.slice(core.length) : u.text;
+      const lead = /^\s*/.exec(sent)![0];
+      const text = sent.trim();
+      pieces.push({
+        kind: 'text',
+        text,
+        lead,
+        trail: sent.slice(lead.length + text.length),
+        wrap: u.id,
+        ...(outside ? { punct } : inside ? { punct: inside, punctInside: true } : {}),
+        inner: [],
+        inlined: u.inlined,
+        sentenceStart: true,
+      });
+      before += u.text + (outside ? punct : '');
     } else {
-      current ??= { text: '', inner: [], start: atSentenceStart() };
-      if (u.kind === 'styled') current.inner.push({ id: u.id, text: u.text });
-      current.text += u.text;
+      const c = chunk();
+      if (u.kind === 'styled') {
+        // The needle is the tag's content as it reads after inlined identifiers are restored.
+        c.inner.push({ id: u.id, text: u.raw });
+        c.inlined.push(...u.inlined);
+        c.raw += `<${u.id}>${u.raw}</${u.id}>`;
+      } else c.raw += u.text;
+      c.text += u.text;
       before += u.text;
     }
     afterCell = false;
@@ -273,8 +336,12 @@ export function placeTags(translated: string, tags: InnerTag[]): { text: string;
   const spans: { at: number; end: number; id: string }[] = [];
   const lost: string[] = [];
   let cursor = 0;
+  const placeholders = [...translated.matchAll(/⟦[A-Z]\d+⟧/gu)].map((m): [number, number] => [
+    m.index,
+    m.index + m[0].length,
+  ]);
   for (const tag of tags) {
-    const taken = spans.map((s): [number, number] => [s.at, s.end]);
+    const taken = [...placeholders, ...spans.map((s): [number, number] => [s.at, s.end])];
     // Punctuation inside the tag may move or change ("1," → "1'de"); retry without it.
     let needle = tag.text.trim();
     let at = needle ? findFree(translated, needle, cursor, taken) : -1;
@@ -309,25 +376,60 @@ const OPENING = String.raw`\s"'“‘«(\[¿¡`;
  * left alone.
  */
 export function matchInitialCase(source: string, target: string, lang: string): string {
-  const src = plainText(source).trimStart();
-  const s = src[0];
+  // Section numbers and list marks before the first word ("2 Background", "(a) Results") are
+  // skipped when the translation starts with the same ones.
+  const plain = plainText(source).trimStart();
+  const numbering = /^[\d.()[\]•\-–—:]+\s+/u.exec(plain)?.[0] ?? '';
+  const s = plain[numbering.length];
   if (!s || !/\p{L}/u.test(s) || s === s.toLowerCase()) return target;
-  const m = new RegExp(String.raw`^((?:<\/?t\d+>|[${OPENING}])*)(\p{L})`, 'u').exec(target);
-  if (!m) return target;
-  const c = m[2]!;
+  const m = new RegExp(String.raw`^((?:<\/?t\d+>|[${OPENING}])*)`, 'u').exec(target)!;
+  let at = m[0].length;
+  if (numbering) {
+    if (!target.slice(at).startsWith(numbering.trim())) return target;
+    at += numbering.trim().length;
+    at += /^\s*/.exec(target.slice(at))![0].length;
+  }
+  const c = target[at];
+  if (!c || !/\p{L}/u.test(c)) return target;
   const upper = c.toLocaleUpperCase(lang);
   if (c === upper || c !== c.toLocaleLowerCase(lang)) return target;
-  return m[1]! + upper + target.slice(m[0].length);
+  return target.slice(0, at) + upper + target.slice(at + 1);
 }
 
 /**
  * Rebuilds the tagged translation from the engine's answers (one per text piece). Returns null
  * when a piece came back empty, so the pipeline retries instead of dropping text.
  */
+/** Puts inlined placeholders back where their text survived (any letter case), or null. */
+function restoreInline(t: string, inlined: InnerTag[]): string | null {
+  const spans: { at: number; end: number; id: string }[] = [];
+  let cursor = 0;
+  for (const it of inlined) {
+    const at = findFree(
+      t,
+      it.text,
+      cursor,
+      spans.map((s) => [s.at, s.end]),
+    );
+    if (at < 0) return null;
+    spans.push({ at, end: at + it.text.length, id: it.id });
+    cursor = at + it.text.length;
+  }
+  spans.sort((a, b) => a.at - b.at);
+  let out = '';
+  let pos = 0;
+  for (const s of spans) {
+    out += `${t.slice(pos, s.at)}⟦${s.id}⟧`;
+    pos = s.end;
+  }
+  return out + t.slice(pos);
+}
+
 export function assemblePieces(
   plan: PiecePlan,
   answers: string[],
   lang: string,
+  sourceLang?: string,
 ): { text: string; lostTags: string[] } | null {
   let k = 0;
   let out = '';
@@ -339,15 +441,23 @@ export function assemblePieces(
     }
     let t = (answers[k++] ?? '').trim();
     if (!t) return null;
+    if (p.wrap && p.punct) t = t.replace(/[.:;!?]+$/u, '');
+    // Run-in headings of structured abstracts ("Background.", "Results.") from the table.
+    const term = p.wrap && sourceLang ? academicTerm(p.text, sourceLang, lang) : null;
+    if (term) t = term;
     if (p.sentenceStart) t = matchInitialCase(p.text, t, lang);
+    if (p.inlined.length) {
+      const restored = restoreInline(t, p.inlined);
+      if (restored === null) return null; // an identifier was translated: retry
+      t = restored;
+    }
     const placed = placeTags(t, p.inner);
     lostTags.push(...placed.lost);
     let body = placed.text;
     if (p.wrap) {
-      const m = p.punctOutside ? /[.:;!?]$/.exec(body) : null;
-      body = m
-        ? `<${p.wrap}>${body.slice(0, -1)}</${p.wrap}>${m[0]}`
-        : `<${p.wrap}>${body}</${p.wrap}>`;
+      body = p.punctInside
+        ? `<${p.wrap}>${body}${p.punct}</${p.wrap}>`
+        : `<${p.wrap}>${body}</${p.wrap}>${p.punct ?? ''}`;
     }
     out += p.lead + body + p.trail;
   }

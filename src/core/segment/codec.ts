@@ -22,11 +22,14 @@ const TOKEN_RE = /<(\/?)(t\d+)>|⟦([A-Z]\d+)⟧/g;
 /** Text that would be mistaken for markup; escaped as ⟦L…⟧ placeholders. */
 const LITERAL_RE = /<\/?t\d+>|[⟦⟧]/g;
 /**
- * URLs, DOIs, arXiv ids, e-mail addresses and snake_case identifiers (`has_long_str`,
- * `n_estimators`) are never translated (⟦U…⟧).
+ * URLs, DOIs, arXiv ids, e-mail addresses and identifiers are never translated (⟦U…⟧):
+ * snake_case (`has_long_str`), versioned package names (`requests-3.0.0`), names with digits
+ * (`bandit4mal`, `urllib2`) and names with inner capitals (`MalOSS`, `PyPI`, `OSSGadget`) —
+ * machine translation turns them into words ("Kötülük", "haydut4mal"). Plurals of acronyms
+ * ("PDFs", "APIs") stay translatable.
  */
 const URL_RE =
-  /\b(?:https?:\/\/|www\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b/gi;
+  /\b(?:[Hh][Tt][Tt][Pp][Ss]?:\/\/|[Ww][Ww][Ww]\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z0-9][\w.-]*-\d+(?:\.\d+)+\b|\b[A-Za-z]+\d+[A-Za-z\d]*\b|\b[A-Za-z]*[a-z][A-Z][A-Za-z]*\b|\b[A-Z]{2,}[a-z]{2,}[A-Za-z]*\b/g;
 
 /** Splits tagged text into tokens. Unknown-looking markup stays as plain text. */
 export function tokenize(tagged: string): Token[] {
@@ -98,10 +101,13 @@ export function encode<S>(runs: InlineRun<S>[], styleKey: (s: S) => string): Enc
     placeholders.push(def);
     return `⟦${def.id}⟧`;
   };
+  // Literals first; URLs and identifiers only outside the placeholders just made ("⟦L1⟧").
   const protect = (text: string) =>
     text
       .replace(LITERAL_RE, (lit) => addPlaceholder('L', lit))
-      .replace(URL_RE, (url) => addPlaceholder('U', url));
+      .split(/(⟦[A-Z]\d+⟧)/)
+      .map((part, i) => (i % 2 ? part : part.replace(URL_RE, (url) => addPlaceholder('U', url))))
+      .join('');
 
   let source = '';
   for (const run of merged) {
@@ -116,6 +122,32 @@ export function encode<S>(runs: InlineRun<S>[], styleKey: (s: S) => string): Enc
     }
   }
   return { source, baseStyle: base?.style as S, tags, placeholders };
+}
+
+/**
+ * Tagged text as a person reads it (quality report): tags dropped, placeholders shown as their
+ * content (URLs, identifiers, formulas, code, note marks), tabs and breaks as spaces.
+ */
+export function readableText(tagged: string, placeholders: PlaceholderDef[] = []): string {
+  const byId = new Map(placeholders.map((p) => [p.id, p]));
+  return tokenize(tagged)
+    .map((t) => {
+      if (t.type === 'text') return t.text;
+      if (t.type !== 'ph') return '';
+      const p = byId.get(t.id);
+      if (!p || p.kind === 'T' || p.kind === 'B') return ' ';
+      // Fields, deleted revisions and drawings are not text a reader sees inline.
+      return p.kind === 'R' || p.kind === 'I' ? '' : p.text;
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Text of the ⟦U⟧ placeholders by id (for SegmentRequest.verbatim), or nothing. */
+export function verbatimOf(placeholders: PlaceholderDef[]): { verbatim?: Record<string, string> } {
+  const entries = placeholders.filter((p) => p.kind === 'U').map((p) => [p.id, p.text] as const);
+  return entries.length ? { verbatim: Object.fromEntries(entries) } : {};
 }
 
 export interface DecodedRun<S> {

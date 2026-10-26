@@ -187,6 +187,7 @@ export function TranslateTest() {
       <div
         ref={sheet}
         lang="tr"
+        translate="yes"
         className="rounded-xl border border-slate-200 bg-white p-4 font-serif"
         data-testid="tt-sheet"
       />

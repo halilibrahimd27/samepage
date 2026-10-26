@@ -18,6 +18,7 @@ export interface PdfStyle {
   /** Original font name (size compensation is computed per source font). */
   fontName: string;
   linkUri?: string;
+  underline?: boolean;
 }
 
 /** One translation unit: a paragraph chain (or a single block) and its tagged text. */
@@ -29,7 +30,7 @@ export interface PdfUnit {
 }
 
 const styleKey = (s: PdfStyle) =>
-  `${s.family}|${s.bold ? 'b' : ''}${s.italic ? 'i' : ''}|${s.color.map((c) => Math.round(c * 50)).join(',')}|${Math.round(s.size * 2)}|${s.linkUri ?? ''}`;
+  `${s.family}|${s.bold ? 'b' : ''}${s.italic ? 'i' : ''}${s.underline ? 'u' : ''}|${s.color.map((c) => Math.round(c * 50)).join(',')}|${Math.round(s.size * 2)}|${s.linkUri ?? ''}`;
 
 function styleOf(span: SpanIR): PdfStyle {
   const style: PdfStyle = {
@@ -41,6 +42,7 @@ function styleOf(span: SpanIR): PdfStyle {
     fontName: span.font.name,
   };
   if (span.linkUri) style.linkUri = span.linkUri;
+  if (span.underline) style.underline = true;
   return style;
 }
 

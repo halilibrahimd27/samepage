@@ -5,9 +5,11 @@ import { blockText, buildBlocks } from './blocks';
 import { cluster, detectTables, type TableRegion } from './tables';
 
 const CAPTION =
-  /^(şekil|figure|fig\.|tablo|table|tab\.|рис\.|рисунок|таблица|abb\.|abbildung|resim|grafik)\s*\d/i;
+  /^(şekil|figure|fig\.|tablo|table|tab\.|listing|algorithm|algoritma|liste|рис\.|рисунок|таблица|листинг|abb\.|abbildung|resim|grafik)\s*\d/i;
 const REFERENCES =
   /^\s*(\d+[.)]?\s*)?(kaynak(ça|lar)|references|bibliography|literatur(verzeichnis)?|literatür|литература|список литературы|bibliographie|références)\s*$/i;
+/** Share of the page height searched for running heads, feet and page numbers. */
+const BAND = 0.2;
 const PAGE_NUMBER = /^\s*[-–—]?\s*(\d{1,4}|[ivxlcdm]{1,7})\s*[-–—]?\s*$/i;
 /** Sentence-final punctuation, optionally followed by closing quotes/brackets. */
 const TERMINAL = /[.!?…]["”»’)\]]*$/;
@@ -58,8 +60,16 @@ const allBold = (b: BlockIR) =>
   b.lines.every((l) => l.spans.every((s) => s.font.bold || !s.text.trim() || s.font.isMath));
 const allMono = (b: BlockIR) =>
   b.lines.every((l) => l.spans.every((s) => s.font.family === 'mono' || !s.text.trim()));
+/**
+ * Running heads/feet compared by their letters only: page numbers differ per page, and fonts
+ * with a broken text mapping turn them into a different invisible character on every page.
+ */
 const normalizeRepeat = (t: string) =>
-  t.replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().toLowerCase();
+  t
+    .normalize('NFKC')
+    .replace(/[^\p{L}]+/gu, ' ')
+    .trim()
+    .toLowerCase();
 
 /** Groups vectors and images into figure regions (tables excluded). */
 function figureRegions(page: RawPage, tables: TableRegion[]): Rect[] {
@@ -153,29 +163,39 @@ function classify(
   pages: { raw: RawPage; blocks: BlockIR[]; tables: TableRegion[] }[],
   stats: Stats,
 ): void {
-  // Running headers/footers: the same text (digits normalised) in the top/bottom band on ≥ 50% of pages.
+  // Running headers/footers: the same text (digits normalised) in the top/bottom 20 % of the
+  // page (books have wide margins) on enough pages.
   const bandCounts = new Map<string, number>();
   for (const { raw, blocks } of pages) {
     const seen = new Set<string>();
     for (const b of blocks) {
-      if (b.bbox.y1 < raw.height * 0.1 || b.bbox.y0 > raw.height * 0.9)
+      if (b.bbox.y1 < raw.height * BAND || b.bbox.y0 > raw.height * (1 - BAND))
         seen.add(normalizeRepeat(blockText(b)));
     }
+    seen.delete('');
     seen.forEach((k) => bandCounts.set(k, (bandCounts.get(k) ?? 0) + 1));
   }
   const repeated = (k: string) =>
-    pages.length >= 2 && (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.5);
+    // Books alternate running heads/feet between left and right pages: 30 % is enough.
+    pages.length >= 2 && (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3);
 
   let inReferences = false;
   for (const { raw, blocks, tables } of pages) {
     for (const t of tables) assignTableCells(blocks, t);
     const figures = figureRegions(raw, tables);
     for (const b of blocks) {
-      if (b.role === 'table-cell') continue;
+      if (b.role === 'table-cell') {
+        // Code listings framed by rules are not tables to translate.
+        if (allMono(b)) {
+          b.role = 'code';
+          b.translatable = false;
+        }
+        continue;
+      }
       const text = blockText(b);
       const size = avgSize(b);
-      const inTopBand = b.bbox.y1 < raw.height * 0.1;
-      const inBottomBand = b.bbox.y0 > raw.height * 0.9;
+      const inTopBand = b.bbox.y1 < raw.height * BAND;
+      const inBottomBand = b.bbox.y0 > raw.height * (1 - BAND);
       let role: Role = 'body';
       if ((inTopBand || inBottomBand) && PAGE_NUMBER.test(text)) role = 'page-number';
       else if ((inTopBand || inBottomBand) && repeated(normalizeRepeat(text)))
@@ -222,9 +242,12 @@ function classify(
       else if (size <= stats.bodySize * 0.92 && b.bbox.y0 > raw.height * 0.6) role = 'footnote';
 
       if (role === 'heading') inReferences = REFERENCES.test(text.replace(/^\d+(\.\d+)*\s*/, ''));
-      else if (inReferences && role === 'body') role = 'reference';
+      // Reference entries low on the page look like footnotes (small type); they are references.
+      else if (inReferences && (role === 'body' || role === 'footnote')) role = 'reference';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);
+      // Headings are never justified: a translated heading with fewer words would gape.
+      if (role === 'heading' && b.align === 'justify') b.align = 'left';
     }
   }
 }
@@ -236,22 +259,31 @@ function orderPage(blocks: BlockIR[], width: number): Rect[] {
   const contentX0 = Math.min(...flow.map((b) => b.bbox.x0));
   const contentX1 = Math.max(...flow.map((b) => b.bbox.x1));
   const contentWidth = Math.max(contentX1 - contentX0, width * 0.3);
-  // Column starts come from running text: multi-line paragraphs that are not centred (a
-  // centred affiliation line would invent a column boundary inside the left column).
-  const narrow = flow.filter(
-    (b) =>
-      b.bbox.x1 - b.bbox.x0 < contentWidth * 0.6 &&
-      b.role === 'body' &&
-      b.align !== 'center' &&
-      b.lines.length >= 2,
-  );
-  const starts = cluster(
-    narrow.map((b) => b.bbox.x0),
-    15,
-  );
-  const columns: Rect[] = starts.map((x0, i) => ({
+  // Columns are the horizontal extents of the running text: the x-intervals of multi-line,
+  // non-centred paragraphs, merged where they overlap (an indented list stays in its column).
+  const intervals = flow
+    .filter(
+      (b) =>
+        b.bbox.x1 - b.bbox.x0 < contentWidth * 0.6 &&
+        (b.role === 'body' || b.role === 'reference') &&
+        b.align !== 'center' &&
+        b.lines.length >= 2,
+    )
+    .map((b) => [b.bbox.x0, b.bbox.x1] as [number, number])
+    .sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  // Merge only real overlaps (an indented list inside its column), not a block that just
+  // reaches into the gutter (a two-line affiliation under the title).
+  for (const [x0, x1] of intervals) {
+    const last = merged[merged.length - 1];
+    const overlap = last ? last[1] - x0 : 0;
+    if (last && overlap > 0.3 * Math.min(last[1] - last[0], x1 - x0)) {
+      last[1] = Math.max(last[1], x1);
+    } else merged.push([x0, x1]);
+  }
+  const columns: Rect[] = merged.map(([x0, x1], i) => ({
     x0,
-    x1: i + 1 < starts.length ? starts[i + 1]! - 1 : contentX1,
+    x1: i + 1 < merged.length ? x1 : Math.max(x1, contentX1),
     y0: 0,
     y1: Number.POSITIVE_INFINITY,
   }));
@@ -378,6 +410,19 @@ function linkChains(pages: BlockIR[][]): void {
   // Paragraphs continued in the next column or on the next page. Full-width blocks on
   // multi-column pages (table descriptions, author lists) are not part of the column flow.
   const sequence = ordered.filter((b) => b.role === 'body' && b.columnIndex !== -1);
+  // A paragraph that continues fills its last line: a short last line ("R. Walton", an
+  // address) ends it, whatever its punctuation. The text edge comes from the column's
+  // multi-line paragraphs.
+  const rightEdge = new Map<string, number>();
+  for (const b of sequence) {
+    if (b.lines.length < 2) continue;
+    const key = `${pageOf(b)}:${b.columnIndex}`;
+    rightEdge.set(key, Math.max(rightEdge.get(key) ?? 0, b.bbox.x1));
+  }
+  const lastLineFull = (a: BlockIR) => {
+    const edge = rightEdge.get(`${pageOf(a)}:${a.columnIndex}`) ?? a.bbox.x1;
+    return a.lines[a.lines.length - 1]!.bbox.x1 >= edge - 0.04 * (edge - a.bbox.x0);
+  };
   for (let i = 0; i + 1 < sequence.length; i++) {
     const a = sequence[i]!;
     const b = sequence[i + 1]!;
@@ -388,8 +433,53 @@ function linkChains(pages: BlockIR[][]): void {
       .trim();
     const sizeB = avgSize(b);
     const notIndented = b.lines[0]!.bbox.x0 - b.bbox.x0 < 0.5 * sizeB;
-    if (!TERMINAL.test(lastText) && notIndented && Math.abs(avgSize(a) - sizeB) < 0.3) link(a, b);
+    if (
+      !TERMINAL.test(lastText) &&
+      lastLineFull(a) &&
+      notIndented &&
+      Math.abs(avgSize(a) - sizeB) < 0.3
+    )
+      link(a, b);
   }
+}
+
+/**
+ * Drop caps — a large initial letter beside the first lines of a paragraph — join their
+ * paragraph so the first word is whole for translation ("W" + "hen I" → "When I", "I" + "am"
+ * → "I am": the document's own words decide whether the letter starts the word). The letter's
+ * area is removed with the paragraph; the translation starts with an ordinary capital.
+ */
+function absorbDropCaps(blocks: BlockIR[], bodySize: number, words: Set<string>): BlockIR[] {
+  const absorbed = new Set<BlockIR>();
+  for (const cap of blocks) {
+    const letter = blockText(cap);
+    if (!/^\p{Lu}$/u.test(letter) || avgSize(cap) < 1.8 * bodySize) continue;
+    const capHeight = cap.bbox.y1 - cap.bbox.y0;
+    const para = blocks.find(
+      (b) =>
+        b !== cap &&
+        b.lines.length >= 2 &&
+        /^\p{L}/u.test(blockText(b)) &&
+        b.bbox.y0 >= cap.bbox.y0 - bodySize &&
+        b.bbox.y0 <= cap.bbox.y0 + capHeight / 2 &&
+        // The first lines are indented beside the letter (its font box is wider than its ink).
+        b.lines[0]!.bbox.x0 > cap.bbox.x0 + 2 &&
+        b.lines[0]!.bbox.x0 - b.bbox.x0 > 3 &&
+        b.lines[0]!.bbox.x0 - cap.bbox.x1 < 3 * bodySize,
+    );
+    if (!para) continue;
+    const firstWord = /^\p{L}+/u.exec(blockText(para))![0];
+    const joined = words.has((letter + firstWord).toLowerCase());
+    const line = para.lines[0]!;
+    const first = line.spans[0]!;
+    para.lines[0] = {
+      ...line,
+      spans: [{ ...first, text: joined ? letter : `${letter} `, bbox: cap.bbox }, ...line.spans],
+    };
+    para.extraRedact = [...(para.extraRedact ?? []), cap.bbox];
+    absorbed.add(cap);
+  }
+  return blocks.filter((b) => !absorbed.has(b));
 }
 
 /** Full analysis: raw MuPDF pages → IR pages with roles, columns, reading order, chains and tables. */
@@ -399,6 +489,17 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
     return { raw: r, tables, blocks: buildBlocks(r, tables) };
   });
   const stats = documentStats(pages.map((p) => p.blocks));
+  const words = new Set(
+    pages.flatMap((p) =>
+      p.blocks.flatMap(
+        (b) =>
+          blockText(b)
+            .toLowerCase()
+            .match(/\p{L}+/gu) ?? [],
+      ),
+    ),
+  );
+  for (const p of pages) p.blocks = absorbDropCaps(p.blocks, stats.bodySize, words);
   classify(pages, stats);
   const result = pages.map(({ raw: r, blocks }) => {
     const columns = orderPage(blocks, r.width);

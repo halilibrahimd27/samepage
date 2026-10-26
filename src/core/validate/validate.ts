@@ -147,7 +147,15 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     );
   }
 
-  const nums = compareNumbers(srcPlain, tgtPlain);
+  // Placeholders separate numbers ("2048⟦F1⟧2448" is two numbers, not "2048 2448"), and
+  // bracketed citations are left to the citation check: engines write "[3,5]" as "[3, 5]",
+  // which would otherwise read as the decimal 3,5 against two numbers.
+  const forNumbers = (t: string) =>
+    tokenize(t)
+      .map((tok) => (tok.type === 'text' ? tok.text : tok.type === 'ph' ? ' | ' : ''))
+      .join('')
+      .replace(CITATION_RE, ' ');
+  const nums = compareNumbers(forNumbers(source), forNumbers(target));
   if (nums.missing.length || nums.extra.length) {
     err(
       'NUMBER_MISMATCH',

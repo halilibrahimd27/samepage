@@ -9,6 +9,8 @@ export const en = {
   'file.change': 'Choose another file',
   'file.reading': 'Reading document…',
   'file.pages': '{count} pages',
+  'error.chromeTranslator':
+    'Chrome could not prepare its on-device translator for this language pair (the language download may have failed). Try again in a moment, or choose “Browser translation”.',
   'file.detected': 'Detected language: {lang}',
   'file.thumbnail': 'First page of {name}',
 

@@ -8,6 +8,7 @@ import { chromeTranslatorBridge, prepareChromeTranslator } from '../bridges/chro
 import { downloadBlob } from '../download';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
+import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { useGlossary } from '../useGlossary';
@@ -90,7 +91,11 @@ export function DocxTranslator({
         setApplied(edits);
       } else setError(jobErrorText(res));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      // Chrome refuses to create the translator when its language download failed.
+      setError(
+        /Unable to create translator/i.test(message) ? t('error.chromeTranslator') : message,
+      );
     } finally {
       setRunning(null);
       setDownload(null);
@@ -197,6 +202,7 @@ export function DocxTranslator({
             {error}
           </p>
         )}
+        <TranslationSheet />
       </div>
 
       {result && outBlob && (

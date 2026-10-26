@@ -34,6 +34,8 @@ export interface SpanIR {
   linkUri?: string;
   /** Mean baseline (y) of the span's characters; differs from the line's for sub/superscripts. */
   baseline?: number;
+  /** Underlined (a thin rule drawn under the text in the source). */
+  underline?: boolean;
 }
 
 export interface LineIR {
@@ -54,6 +56,10 @@ export interface BlockIR {
   readingOrder: number;
   chain?: { paragraphId: string; index: number; next?: string };
   tableCell?: { tableId: string; row: number; col: number; cellRect: Rect };
+  /** Underline rules drawn under this block's text (removed with it when translated). */
+  underlines?: Rect[];
+  /** Extra areas removed with this block's text (a drop cap absorbed into the paragraph). */
+  extraRedact?: Rect[];
 }
 
 export interface PageIR {

@@ -2,7 +2,7 @@ import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom'
 import type { TranslationCache } from '../core/cache/cache';
 import type { Role } from '../core/ir/types';
 import { translateSegments } from '../core/pipeline/translate';
-import { decode, plainText } from '../core/segment/codec';
+import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import {
   validateTranslation,
   type GlossaryEntry,
@@ -233,6 +233,7 @@ export async function translateDocx(
         id: `s${uniqueBySource.size + 1}`,
         text: u.source,
         role: u.role,
+        ...(u.p ? verbatimOf(u.p.encoded.placeholders) : {}),
       });
   }
   const requests = [...uniqueBySource.values()];
@@ -259,7 +260,7 @@ export async function translateDocx(
         id: u.id,
         part: u.part,
         role: u.role,
-        source: plainText(u.source),
+        source: readableText(u.source, u.p?.encoded.placeholders),
         target: '',
         status: 'skipped',
         cached: false,
@@ -287,8 +288,8 @@ export async function translateDocx(
       id: u.id,
       part: u.part,
       role: u.role,
-      source: plainText(u.source),
-      target: o.untranslated ? '' : plainText(o.text),
+      source: readableText(u.source, u.p?.encoded.placeholders),
+      target: o.untranslated ? '' : readableText(o.text, u.p?.encoded.placeholders),
       status,
       cached: o.cached,
       manual: manualText !== undefined,

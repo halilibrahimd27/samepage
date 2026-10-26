@@ -12,6 +12,7 @@ import { EngineConfigPanel } from '../components/EngineConfigPanel';
 import { GlossaryPanel } from '../components/GlossaryPanel';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
+import { TranslationSheet } from '../components/TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { TURKISH_SAMPLE } from './playgroundSample';
@@ -300,6 +301,7 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
             {error}
           </p>
         )}
+        <TranslationSheet />
       </div>
 
       {result && summary && (

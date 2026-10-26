@@ -95,25 +95,39 @@ export function createChromeEngine(bridge: ChromeTranslatorBridge): TranslationE
         }
       });
       if (retry.length) {
-        const plans = retry.map((i) => planPieces(batch[i]!.text));
-        const parts = plans.map((p) => pieceTexts(p).map(split));
-        const answers = await bridge.translate(ctx.pair, parts.flat(2));
-        signal.throwIfAborted();
-        let k = 0;
-        retry.forEach((i, n) => {
-          const plan = plans[n]!;
-          const joined = parts[n]!.map((sentences) => {
-            const out = answers.slice(k, k + sentences.length);
-            k += sentences.length;
-            return out.some((a) => !a.trim()) ? '' : out.map((a) => a.trim()).join(' ');
+        // Identifiers travel inline first; a segment whose identifier the engine changed is
+        // translated again with the text cut at its placeholders.
+        const run = async (indices: number[], soft: boolean) => {
+          const plans = indices.map((i) =>
+            planPieces(batch[i]!.text, soft ? batch[i]!.verbatim : undefined),
+          );
+          const parts = plans.map((p) => pieceTexts(p).map(split));
+          const answers = await bridge.translate(ctx.pair, parts.flat(2));
+          signal.throwIfAborted();
+          let k = 0;
+          const lost: number[] = [];
+          indices.forEach((i, n) => {
+            const plan = plans[n]!;
+            const joined = parts[n]!.map((sentences) => {
+              const out = answers.slice(k, k + sentences.length);
+              k += sentences.length;
+              return out.some((a) => !a.trim()) ? '' : out.map((a) => a.trim()).join(' ');
+            });
+            const built = assemblePieces(plan, joined, lang, ctx.pair.source);
+            if (!built && soft && batch[i]!.verbatim) {
+              lost.push(i);
+              return;
+            }
+            const notes = ['pieces'];
+            if (parts[n]!.some((p) => p.length > 1)) notes.push(clauses ? 'clauses' : 'sentences');
+            if (built?.lostTags.length) notes.push('style-approximated');
+            if (plan.keptVerbatim) notes.push('kept-verbatim');
+            results[i] = { id: batch[i]!.id, text: built?.text ?? '', notes };
           });
-          const built = assemblePieces(plan, joined, lang);
-          const notes = ['pieces'];
-          if (parts[n]!.some((p) => p.length > 1)) notes.push(clauses ? 'clauses' : 'sentences');
-          if (built?.lostTags.length) notes.push('style-approximated');
-          if (plan.keptVerbatim) notes.push('kept-verbatim');
-          results[i] = { id: batch[i]!.id, text: built?.text ?? '', notes };
-        });
+          return lost;
+        };
+        const lost = await run(retry, true);
+        if (lost.length) await run(lost, false);
       }
       return results;
     },

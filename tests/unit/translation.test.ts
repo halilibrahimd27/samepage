@@ -145,6 +145,7 @@ describe('helpers', () => {
     expect(matchInitialCase('<t1>Aims.</t1>', '<t1>amaçlar.</t1>', 'tr')).toBe('<t1>Amaçlar.</t1>');
     expect(matchInitialCase('The classifiers', '5.193 iyi huylu', 'tr')).toBe('5.193 iyi huylu');
     expect(matchInitialCase('[22] have been', 'bildirilmiştir', 'tr')).toBe('bildirilmiştir');
+    expect(matchInitialCase('2 Background', '2 arka plan', 'tr')).toBe('2 Arka plan');
   });
 
   it('splits sentences but not after abbreviations or initials', () => {
@@ -179,6 +180,8 @@ describe('helpers', () => {
     expect(academicHeading('⟦I1⟧Abstract', 'en', 'tr')).toBe('⟦I1⟧Özet');
     expect(academicHeading('<t1>ABSTRACT:</t1>', 'en', 'de')).toBe('<t1>ZUSAMMENFASSUNG:</t1>');
     expect(academicHeading('Abstract algebra', 'en', 'tr')).toBeNull();
+    expect(academicHeading('A B S T R A C T', 'en', 'tr')).toBe('ÖZET');
+    expect(academicHeading('A R T I C L E  I N F O', 'en', 'tr')).toBe('MAKALE BİLGİSİ');
   });
 
   it('accepts identical output for names and code, not for sentences', () => {
@@ -203,6 +206,37 @@ describe('helpers', () => {
     expect(fix('A state-of-the-art machine-learning model; Mal-OSS; ma-licious.')).toBe(
       'A state-of-the-art machine-learning model; Mal-OSS; malicious.',
     );
+  });
+
+  it('Chrome engine: sends identifiers inline and run-in headings without their full stop', async () => {
+    const sent: string[] = [];
+    const engine = createChromeEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(
+          texts.map((t) =>
+            t === 'Test dataset'
+              ? 'Test veri kümesi'
+              : t.replace(/<\/?t\d+>|⟦[A-Z]\d+⟧/g, '').replace('PyPI', 'PyPi'),
+          ),
+        );
+      },
+    });
+    const [r] = await engine.translate(
+      [
+        {
+          id: 'a',
+          text: '<t1>Test dataset</t1>. Packages on ⟦U1⟧ are scanned.',
+          role: 'body',
+          verbatim: { U1: 'PyPI' },
+        },
+      ],
+      ctx,
+      new AbortController().signal,
+    );
+    expect(sent).toContain('Test dataset');
+    expect(r!.text).toBe('<t1>Test veri kümesi</t1>. Packages on ⟦U1⟧ are scanned.');
   });
 
   it('Chrome engine: keeps every tag and placeholder even when the API drops them', async () => {

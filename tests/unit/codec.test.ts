@@ -11,13 +11,13 @@ describe('tag/placeholder codec', () => {
   it('uses the dominant style as base and tags the others', () => {
     const runs: InlineRun<Style>[] = [
       { type: 'text', text: 'We use ', style: plain },
-      { type: 'text', text: 'MuPDF', style: bold },
+      { type: 'text', text: 'Python', style: bold },
       { type: 'text', text: ' for ', style: plain },
       { type: 'text', text: 'parsing', style: italic },
       { type: 'text', text: ' PDFs.', style: plain },
     ];
     const enc = encode(runs, key);
-    expect(enc.source).toBe('We use <t1>MuPDF</t1> for <t2>parsing</t2> PDFs.');
+    expect(enc.source).toBe('We use <t1>Python</t1> for <t2>parsing</t2> PDFs.');
     expect(enc.baseStyle).toBe(plain);
     expect(enc.tags.map((t) => t.style)).toEqual([bold, italic]);
   });

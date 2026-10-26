@@ -10,7 +10,7 @@ import {
 } from '../core/cache/idb';
 import { buildGlossarySample } from '../core/glossary/glossary';
 import { estimateCost, translateSegments } from '../core/pipeline/translate';
-import { plainText } from '../core/segment/codec';
+import { plainText, verbatimOf } from '../core/segment/codec';
 import { parsePlaygroundMarkup } from '../core/segment/markup';
 import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
@@ -113,6 +113,7 @@ const api: PipelineApi = {
         id: e.id,
         text: e.source,
         role: 'body',
+        ...verbatimOf(e.placeholders),
       }));
       const outcomes = await translateSegments({
         engine,
