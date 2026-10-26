@@ -1,6 +1,6 @@
 import type { TranslationCache } from '../core/cache/cache';
 import type { BlockIR, LineIR, Rect, Role } from '../core/ir/types';
-import { translateSegments } from '../core/pipeline/translate';
+import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
@@ -41,7 +41,7 @@ export interface PdfOptions {
   translateReferences?: boolean;
   cache?: TranslationCache;
   signal: AbortSignal;
-  onProgress?: (done: number, total: number) => void;
+  onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
   /** Review-step corrections: tagged source → tagged target. */
   overrides?: Record<string, string>;
   /** Layout repair strategies (all by default). */
@@ -99,6 +99,9 @@ export interface PdfReport {
   issues: Issue[];
 }
 
+/** "ℒ (U+2112)": invisible and private-use characters stay identifiable in the report. */
+export const glyphLabel = (ch: string) =>
+  `${ch} (U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`;
 const pageOf = (b: BlockIR) => Number(b.id.split('-')[0]!.slice(1));
 
 /** Text comparison for post-apply verification: whitespace, dashes and accents ignored. */
@@ -519,12 +522,12 @@ export async function translatePdf(
       message: 'verification failed; original text kept',
     });
   }
-  if (written!.missingGlyphs.length) {
+  for (const { pageIndex, chars } of written!.missingByPage) {
     issues.push({
       code: 'MISSING_GLYPH',
       severity: 'error',
-      pageIndex: 0,
-      message: `no glyph for: ${written!.missingGlyphs.join(' ')}`,
+      pageIndex,
+      message: `no glyph for: ${chars.map(glyphLabel).join(' ')}`,
     });
   }
   for (const r of repaired.units) {
@@ -564,7 +567,7 @@ export async function translatePdf(
         scaled: all.filter((r) => r.scale < 1).length,
         score: scored.score,
         status: scored.status,
-        missingGlyphs: written!.missingGlyphs,
+        missingGlyphs: written!.missingGlyphs.map(glyphLabel),
         linksMoved: written!.linksAdded,
         issues: issueCounts,
         repairs: repairCounts,

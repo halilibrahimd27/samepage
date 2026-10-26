@@ -11,6 +11,8 @@ export interface Settings {
   showTestEngine: boolean;
   saveHistory: boolean;
   showAdvancedEngines: boolean;
+  /** `browser` engine: Google's website translator does it automatically (ADR-021). */
+  autoTranslate: boolean;
 }
 
 const STORAGE_KEY = 'samepage.settings';
@@ -25,6 +27,7 @@ export function defaultSettings(languages: readonly string[]): Settings {
     showTestEngine: false,
     saveHistory: true,
     showAdvancedEngines: false,
+    autoTranslate: true,
   };
 }
 
@@ -51,6 +54,7 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
     'showTestEngine',
     'saveHistory',
     'showAdvancedEngines',
+    'autoTranslate',
   ] as const) {
     if (typeof s[key] === 'boolean') result[key] = s[key];
   }

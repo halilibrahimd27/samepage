@@ -57,4 +57,18 @@ export const chromeTranslatorBridge: ChromeTranslatorBridge = {
     for (const text of texts) out.push(text.trim() ? await translator.translate(text) : text);
     return out;
   },
+  // Only a reverse model that is already installed: a download would need a user gesture.
+  async backTranslate(pair: LangPair, texts: string[]): Promise<string[] | null> {
+    const T = api();
+    if (!T) return null;
+    if (!translators.has(keyOf(pair))) {
+      const a = await T.availability({ sourceLanguage: pair.source, targetLanguage: pair.target });
+      if (a !== 'available') return null;
+      translators.set(
+        keyOf(pair),
+        await T.create({ sourceLanguage: pair.source, targetLanguage: pair.target }),
+      );
+    }
+    return chromeTranslatorBridge.translate(pair, texts).catch(() => null);
+  },
 };

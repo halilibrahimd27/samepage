@@ -1,6 +1,6 @@
 import { proxy } from 'comlink';
 import { useEffect, useState } from 'react';
-import type { CostEstimate } from '../../core/pipeline/translate';
+import type { CostEstimate, ProgressPhase } from '../../core/pipeline/translate';
 import { decode, type DecodedRun } from '../../core/segment/codec';
 import type { InlineStyle } from '../../core/segment/markup';
 import type { GlossaryEntry } from '../../core/validate/validate';
@@ -53,7 +53,11 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
   const [numberLocalization, setNumberLocalization] = useState(false);
   const [useCache, setUseCache] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+    phase?: ProgressPhase | undefined;
+  } | null>(null);
   const [download, setDownload] = useState<number | null>(null);
   const [result, setResult] = useState<(TextJobResult & { ok: true }) | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +154,9 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
         (api) =>
           api.translateText(
             job(jobId, paragraphs),
-            proxy((done: number, total: number) => setProgress({ done, total })),
+            proxy((done: number, total: number, phase?: ProgressPhase) =>
+              setProgress({ done, total, phase }),
+            ),
             bridge,
           ),
         LONG_JOB_MS,
@@ -292,7 +298,10 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
             <span className="text-sm text-slate-600" aria-live="polite">
               {download !== null
                 ? t('playground.downloading', { percent: download })
-                : t('playground.progress', progress)}
+                : t(
+                    progress.phase === 'check' ? 'workspace.checking' : 'playground.progress',
+                    progress,
+                  )}
             </span>
           )}
         </div>

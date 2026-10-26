@@ -9,7 +9,7 @@ import {
   saveGlossary,
 } from '../core/cache/idb';
 import { buildGlossarySample } from '../core/glossary/glossary';
-import { estimateCost, translateSegments } from '../core/pipeline/translate';
+import { estimateCost, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { plainText, verbatimOf } from '../core/segment/codec';
 import { parsePlaygroundMarkup } from '../core/segment/markup';
 import { createBrowserPageEngine } from '../engines/browserPage';
@@ -122,7 +122,9 @@ const api: PipelineApi = {
         signal: controller.signal,
         ...(job.useCache ? { cache } : {}),
         fidelityCheck: job.fidelityCheck,
-        ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
+        ...(onProgress
+          ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
+          : {}),
       });
       let survived = 0;
       let total = 0;
@@ -210,7 +212,9 @@ const api: PipelineApi = {
         ...(job.overrides ? { overrides: job.overrides } : {}),
         cache,
         signal: controller.signal,
-        ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
+        ...(onProgress
+          ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
+          : {}),
       });
       if (job.saveHistory) {
         const name = job.file instanceof File ? job.file.name : 'document.docx';
@@ -265,7 +269,9 @@ const api: PipelineApi = {
           dual: job.dual,
           cache,
           signal: controller.signal,
-          ...(onProgress ? { onProgress: (d: number, t: number) => void onProgress(d, t) } : {}),
+          ...(onProgress
+            ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
+            : {}),
         },
       );
       if (job.saveHistory) {

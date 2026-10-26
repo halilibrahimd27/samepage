@@ -1,7 +1,7 @@
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
 import type { Role } from '../core/ir/types';
-import { translateSegments } from '../core/pipeline/translate';
+import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import {
   validateTranslation,
@@ -25,7 +25,7 @@ export interface DocxOptions {
   translateMetadata: boolean;
   cache?: TranslationCache;
   signal: AbortSignal;
-  onProgress?: (done: number, total: number) => void;
+  onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
   /** Manual corrections from the review step: tagged source → tagged target (reported as manual). */
   overrides?: Record<string, string>;
 }

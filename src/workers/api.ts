@@ -1,4 +1,4 @@
-import type { SegmentOutcome, CostEstimate } from '../core/pipeline/translate';
+import type { SegmentOutcome, CostEstimate, ProgressPhase } from '../core/pipeline/translate';
 import type { HistoryMeta } from '../core/cache/idb';
 import type { BilingualRow } from '../docx/bilingual';
 import type { DocxReport } from '../docx/pipeline';
@@ -100,7 +100,7 @@ export interface PipelineApi {
   sampleDocx(file: Blob): Promise<string>;
   translateText(
     job: TextJob,
-    onProgress?: (done: number, total: number) => void,
+    onProgress?: (done: number, total: number, phase?: ProgressPhase) => void,
     chrome?: ChromeTranslatorBridge,
   ): Promise<TextJobResult>;
   cancel(jobId: string): void;
@@ -111,7 +111,7 @@ export interface PipelineApi {
   clearCache(): Promise<void>;
   translateDocx(
     job: DocxJob,
-    onProgress?: (done: number, total: number) => void,
+    onProgress?: (done: number, total: number, phase?: ProgressPhase) => void,
     chrome?: ChromeTranslatorBridge,
   ): Promise<DocxJobResult>;
   /** Bilingual review DOCX (source | translation | notes); the buffer is transferred. */
@@ -130,7 +130,7 @@ export interface PipelineApi {
   deleteHistory(id: string | null): Promise<void>;
   translatePdf(
     job: PdfJob,
-    onProgress?: (done: number, total: number) => void,
+    onProgress?: (done: number, total: number, phase?: ProgressPhase) => void,
     chrome?: ChromeTranslatorBridge,
   ): Promise<PdfJobResult>;
   /** Glossary suggestions from a DOCX file's paragraphs. */

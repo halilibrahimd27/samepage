@@ -12,10 +12,8 @@ import type { Settings } from './settings';
 export function useEngineConfig(settings: Settings) {
   const [source, setSource] = useState<LanguageCode>('tr');
   const [target, setTarget] = useState<LanguageCode>('en');
-  // Chrome's on-device translator runs on its own; where it exists it is the better default.
-  const [engine, setEngine] = useState<EngineId>(() =>
-    'Translator' in globalThis ? 'chrome-builtin' : 'browser',
-  );
+  // Google (automatic, ADR-021) translates better than the on-device model: it is the default.
+  const [engine, setEngine] = useState<EngineId>('browser');
   const [anthropicModel, setAnthropicModel] = useState<string>(DEFAULT_ANTHROPIC_MODEL);
   const [baseUrl, setBaseUrl] = useState(DEFAULT_LOCAL_BASE_URL);
   const [localModel, setLocalModel] = useState('');

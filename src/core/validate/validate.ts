@@ -74,7 +74,7 @@ const citations = (text: string) =>
   [...text.matchAll(CITATION_RE)].map((m) => m[0].replace(/\s+/g, '').replace('–', '-'));
 
 const CHATTER_RE =
-  /^\s*(?:here(?:'s| is) (?:the|your) translation|translation\s*:|sure[,!]|certainly[,!]|of course[,!]|i (?:have )?translated|aşağıda|işte çeviri|çeviri\s*:|hier ist die übersetzung|übersetzung\s*:|вот перевод|перевод\s*:)/i;
+  /^\s*(?:here(?:'s| is) (?:the|your) translation|translation\s*:|sure[,!]|certainly[,!]|of course[,!]|i (?:have )?translated|aşağıda(?:ki)? (?:metnin )?çeviri|işte çeviri|çeviri\s*:|hier ist die übersetzung|übersetzung\s*:|вот перевод|перевод\s*:)/i;
 
 const SCRIPT_RE = {
   cyrillic: /\p{Script=Cyrillic}/gu,
@@ -87,8 +87,10 @@ const scriptOf = (lang: string): keyof typeof SCRIPT_RE =>
     : lang === 'el'
       ? 'greek'
       : 'latin';
+/** Letters outside Mathematical Alphanumeric Symbols ("𝑝", "𝐱" belong to no language). */
+const NON_MATH_LETTER = /(?![\u{1d400}-\u{1d7ff}])\p{L}/gu;
 function scriptRatio(text: string, script: keyof typeof SCRIPT_RE): number {
-  const letters = text.match(/\p{L}/gu)?.length ?? 0;
+  const letters = text.match(NON_MATH_LETTER)?.length ?? 0;
   if (letters === 0) return 1;
   return (text.match(SCRIPT_RE[script])?.length ?? 0) / letters;
 }

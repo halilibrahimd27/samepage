@@ -108,6 +108,11 @@ export function TranslationSheet() {
     >
       <div translate="no" className="notranslate flex flex-col gap-2 text-sm">
         <h3 className="text-lg font-semibold">{t('sheet.title')}</h3>
+        {batch.notice === 'auto-failed' && (
+          <p role="alert" className="text-amber-800" data-testid="sheet-auto-failed">
+            {t('sheet.autoFailed')}
+          </p>
+        )}
         <p>{t('sheet.intro')}</p>
         <p className="font-medium">{t(`sheet.step.${detectBrowser()}`, { target })}</p>
         <p className="text-slate-600">{t('sheet.privacy')}</p>

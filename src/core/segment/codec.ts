@@ -25,11 +25,12 @@ const LITERAL_RE = /<\/?t\d+>|[⟦⟧]/g;
  * URLs, DOIs, arXiv ids, e-mail addresses and identifiers are never translated (⟦U…⟧):
  * snake_case (`has_long_str`), versioned package names (`requests-3.0.0`), names with digits
  * (`bandit4mal`, `urllib2`) and names with inner capitals (`MalOSS`, `PyPI`, `OSSGadget`) —
- * machine translation turns them into words ("Kötülük", "haydut4mal"). Plurals of acronyms
- * ("PDFs", "APIs") stay translatable.
+ * machine translation turns them into words ("Kötülük", "haydut4mal"). Slash-joined
+ * abbreviations (`M/B`, `TP/FP`) too: their meaning is defined by the paper, not the dictionary
+ * ("M/B" became "Erkek/Kadın"). Plurals of acronyms ("PDFs", "APIs") stay translatable.
  */
 const URL_RE =
-  /\b(?:[Hh][Tt][Tt][Pp][Ss]?:\/\/|[Ww][Ww][Ww]\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z0-9][\w.-]*-\d+(?:\.\d+)+\b|\b[A-Za-z]+\d+[A-Za-z\d]*\b|\b[A-Za-z]*[a-z][A-Z][A-Za-z]*\b|\b[A-Z]{2,}[a-z]{2,}[A-Za-z]*\b/g;
+  /\b(?:[Hh][Tt][Tt][Pp][Ss]?:\/\/|[Ww][Ww][Ww]\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z0-9][\w.-]*-\d+(?:\.\d+)+\b|\b[A-Za-z]+\d+[A-Za-z\d]*\b|\b[A-Za-z]*[a-z][A-Z][A-Za-z]*\b|\b[A-Z]{2,}[a-z]{2,}[A-Za-z]*\b|\b[A-Z]{1,4}(?:\/[A-Z]{1,4})+\b/g;
 
 /** Splits tagged text into tokens. Unknown-looking markup stays as plain text. */
 export function tokenize(tagged: string): Token[] {

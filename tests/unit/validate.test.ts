@@ -78,6 +78,23 @@ describe('validateTranslation', () => {
     ).not.toContain('NUMBER_MISMATCH');
   });
 
+  it('accepts sentences that start with "below" and formulas in math letters', () => {
+    const codes = (source: string, target: string, sourceLang = 'en', targetLang = 'tr') =>
+      validateTranslation({ source, target, sourceLang, targetLang }).map((i) => i.code);
+    expect(
+      codes(
+        'The pseudo-code of the random graph generator is given below.',
+        'Aşağıda rastgele grafik üretecinin sözde kodu verilmiştir.',
+      ),
+    ).toEqual([]);
+    expect(codes('Some text here to translate.', 'Aşağıdaki çeviri: Bir metin.')).toContain(
+      'CHATTER',
+    );
+    expect(codes('𝑝(𝑔) log 𝑝(𝑔) where 𝑔 ∈ 𝒢 (2.1)', '𝑝(𝑔) log 𝑝(𝑔) burada 𝑔 ∈ 𝒢 (2.1)')).toEqual(
+      [],
+    );
+  });
+
   it('warns when a glossary term is not used', () => {
     const issues = validateTranslation({
       source: 'Derin öğrenme modelleri incelenmiştir.',

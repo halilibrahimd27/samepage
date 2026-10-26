@@ -4,8 +4,11 @@ import { coverage } from '../../core/ir/geometry';
 import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
 import type { TableRegion } from './tables';
 
+/** TeX math fonts (Computer/Latin Modern, AMS, txfonts/pxfonts, newtx/newpx, MathTime) and OpenType math. */
 const MATH_FONT =
-  /^(CM(MI|SY|EX|BSY)|LMMath|MSAM|MSBM|Symbol|STIX.*Math|Cambria\s*Math|Euclid|rsfs|eufm|.*Math)/i;
+  /^(CM(MI|SY|EX|BSY)|LMMath|MSAM|MSBM|Symbol|STIX.*Math|Cambria\s*Math|Euclid|rsfs|eufm|eus[mb]|stmary|bbm|dsrom|esint|mathabx|mathx|NewTXB?MI|NewPXB?MI|ntx(mi|sy|exx|sym)|r?(tx|px)(mi|sy|ex|ms)|zplm[rb]7[mty]|MT(MI|SY|EX)|.*Math)/i;
+/** Mathematical Alphanumeric Symbols ("𝐻", "𝑛"): math whatever the font is called. */
+const MATH_LETTER = /[\u{1d400}-\u{1d7ff}]/u;
 const MONO_FONT =
   /(Mono|Courier|CMTT|LMMono|Consolas|Inconsolata|Menlo|Monaco|Typewriter|SFTT|TXTT|SourceCode|FiraCode|LucidaConsole|Cursor)/i;
 const SANS_FONT = /(Sans|Arial|Helvetica|CMSS|LMSans|Calibri|Verdana|Segoe|Roboto)/i;
@@ -50,6 +53,9 @@ function toLine(chars: RawChar[], page: RawPage): LineIR {
       color: first.color,
       baseline: cur.reduce((sum, c) => sum + c.y, 0) / cur.length,
     };
+    const letters = cur.filter((c) => /\p{L}/u.test(c.c));
+    if (letters.length && letters.filter((c) => MATH_LETTER.test(c.c)).length * 2 >= letters.length)
+      span.font = { ...span.font, isMath: true, italic: false };
     const uri = linkAt(bbox, page.links);
     if (uri) span.linkUri = uri;
     spans.push(span);

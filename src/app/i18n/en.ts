@@ -9,6 +9,11 @@ export const en = {
   'file.change': 'Choose another file',
   'file.reading': 'Reading document…',
   'file.pages': '{count} pages',
+  'settings.autoTranslate': 'Translate automatically with Google',
+  'settings.autoTranslateHint':
+    'Off: you switch on your browser’s own page translation and pick the language yourself.',
+  'sheet.autoFailed':
+    'Automatic translation could not start (Google Translate did not load). Translate with your browser instead:',
   'error.chromeTranslator':
     'Chrome could not prepare its on-device translator for this language pair (the language download may have failed). Try again in a moment, or choose “Browser translation”.',
   'file.detected': 'Detected language: {lang}',
@@ -60,9 +65,9 @@ export const en = {
 
   'settings.title': 'Settings',
   'settings.close': 'Close',
-  'settings.fidelityCheck': 'Fidelity check (Claude)',
+  'settings.fidelityCheck': 'Meaning check',
   'settings.fidelityCheckHint':
-    'A second pass compares source and translation and flags possible meaning differences. Adds roughly 30–50% to the cost.',
+    'Flags paragraphs whose meaning may have shifted: a lost or added negation, a claim made stronger or weaker (may, suggests), a changed quantifier (most → all). Google and Chrome: the translation is translated back and compared (takes about as long again). Claude: a second review pass (adds roughly 30–50% to the cost).',
   'settings.translateReferences': 'Translate the reference list',
   'settings.translateComments': 'Translate DOCX comments',
   'settings.translateMetadata': 'Translate the document title (metadata)',
@@ -136,6 +141,7 @@ export const en = {
   'jobError.internal': 'Unexpected error.',
   'jobError.rejected': 'The document was rejected by the safety checks.',
   'workspace.translating': 'Translating… {done} / {total} paragraphs',
+  'workspace.checking': 'Checking meaning… {done} / {total} paragraphs',
   'workspace.pdfSoon':
     'PDF translation arrives in an upcoming release. DOCX translation works today.',
   'report.title': 'Quality report',
@@ -179,10 +185,10 @@ export const en = {
   'history.summary':
     '{translated}/{segments} translated · {warnings} warnings · {untranslated} untranslated',
   'history.back': '← Back',
-  'engine.browser.label': 'Browser translation (free)',
+  'engine.browser.label': 'Google Translate (free)',
   'engine.browser.description':
-    'Uses your browser’s page translation — Google in Chrome, Microsoft in Edge, Apple in Safari; also on phones. You switch it on in the browser and pick the language to translate into.',
-  'privacy.browser-vendor': 'Text sent to your browser’s translation service',
+    'Translates automatically into the language you choose — also on phones. Uses Google’s website translator, loaded only while you translate.',
+  'privacy.browser-vendor': 'Text sent to Google',
   'settings.showAdvancedEngines': 'Show advanced engines (Claude API, local LLM)',
   'sheet.title': 'Translate with your browser',
   'sheet.intro':

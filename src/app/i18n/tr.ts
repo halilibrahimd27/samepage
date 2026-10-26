@@ -11,6 +11,11 @@ export const tr: Record<MessageKey, string> = {
   'file.change': 'Başka dosya seç',
   'file.reading': 'Belge okunuyor…',
   'file.pages': '{count} sayfa',
+  'settings.autoTranslate': 'Google ile otomatik çevir',
+  'settings.autoTranslateHint':
+    'Kapalıyken tarayıcınızın kendi sayfa çevirisini açar ve dili kendiniz seçersiniz.',
+  'sheet.autoFailed':
+    'Otomatik çeviri başlatılamadı (Google Çeviri yüklenemedi). Tarayıcınızla çevirin:',
   'error.chromeTranslator':
     'Chrome bu dil çifti için cihaz içi çevirmeni hazırlayamadı (dil paketi indirilemedi olabilir). Biraz sonra tekrar deneyin ya da “Tarayıcı çevirisi”ni seçin.',
   'file.detected': 'Algılanan dil: {lang}',
@@ -63,9 +68,9 @@ export const tr: Record<MessageKey, string> = {
 
   'settings.title': 'Ayarlar',
   'settings.close': 'Kapat',
-  'settings.fidelityCheck': 'Sadakat kontrolü (Claude)',
+  'settings.fidelityCheck': 'Anlam kontrolü',
   'settings.fidelityCheckHint':
-    'İkinci bir geçiş kaynak ile çeviriyi karşılaştırır ve olası anlam farklarını işaretler. Maliyete yaklaşık %30–50 ekler.',
+    'Anlamı kaymış olabilecek paragrafları işaretler: kaybolan ya da eklenen olumsuzluk, güçlenen ya da zayıflayan iddia (olabilir, düşündürmektedir), değişen niceleyici (çoğu → tümü). Google ve Chrome: çeviri kaynak dile geri çevrilip karşılaştırılır (yaklaşık bir çeviri süresi kadar sürer). Claude: ikinci bir inceleme geçişi (maliyete yaklaşık %30–50 ekler).',
   'settings.translateReferences': 'Kaynakçayı çevir',
   'settings.translateComments': 'DOCX yorumlarını çevir',
   'settings.translateMetadata': 'Belge başlığını (meta veri) çevir',
@@ -138,6 +143,7 @@ export const tr: Record<MessageKey, string> = {
   'jobError.internal': 'Beklenmeyen hata.',
   'jobError.rejected': 'Belge güvenlik kontrollerinden geçemedi.',
   'workspace.translating': 'Çevriliyor… {done} / {total} paragraf',
+  'workspace.checking': 'Anlam kontrol ediliyor… {done} / {total} paragraf',
   'workspace.pdfSoon':
     'PDF çevirisi yakında gelecek bir sürümde. DOCX çevirisi şimdiden çalışıyor.',
   'report.title': 'Kalite raporu',
@@ -181,10 +187,10 @@ export const tr: Record<MessageKey, string> = {
   'history.summary':
     '{translated}/{segments} çevrildi · {warnings} uyarı · {untranslated} çevrilemedi',
   'history.back': '← Geri',
-  'engine.browser.label': 'Tarayıcı çevirisi (ücretsiz)',
+  'engine.browser.label': 'Google Çeviri (ücretsiz)',
   'engine.browser.description':
-    'Tarayıcınızın sayfa çevirisini kullanır — Chrome’da Google, Edge’de Microsoft, Safari’de Apple; telefonda da çalışır. Çeviriyi tarayıcıda açar ve hedef dili orada seçersiniz.',
-  'privacy.browser-vendor': 'Metin tarayıcınızın çeviri servisine gider',
+    'Seçtiğiniz dile kendiliğinden çevirir — telefonda da. Google’ın web sitesi çevirmenini kullanır; yalnızca çeviri sırasında yüklenir.',
+  'privacy.browser-vendor': 'Metin Google’a gider',
   'settings.showAdvancedEngines': 'Gelişmiş motorları göster (Claude API, yerel LLM)',
   'sheet.title': 'Tarayıcınızla çevirin',
   'sheet.intro':

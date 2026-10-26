@@ -22,6 +22,36 @@ const rgb = (c: number[]): [number, number, number] =>
 /** "ABCDEF+CMR10" → "CMR10" */
 export const stripSubset = (name: string) => name.replace(/^[A-Z]{6}\+/, '');
 
+/** Script capitals A–Z; the gaps of the math block are filled by Letterlike Symbols. */
+const SCRIPT_CAPITALS: Record<string, number> = {
+  B: 0x212c,
+  E: 0x2130,
+  F: 0x2131,
+  H: 0x210b,
+  I: 0x2110,
+  L: 0x2112,
+  M: 0x2133,
+  R: 0x211b,
+};
+
+/**
+ * Repairs characters MuPDF.js reports wrongly:
+ * - MuPDF.js 1.28 builds each character with String.fromCharCode, which drops the bits above
+ *   U+FFFF: Mathematical Alphanumeric Symbols (U+1D400–U+1D7FF, "𝑁", "𝐲") arrive as
+ *   U+D400–U+D7FF. That range is Hangul, which v1 does not support, so it is mapped back to plane 1.
+ * - STIX 1.x math fonts (common in Elsevier papers) map calligraphic capitals to the private use
+ *   area U+E22D–U+E246; they become the standard script capitals ("ℒ").
+ */
+export function restoreChar(c: string, fontName: string): string {
+  const u = c.length === 1 ? c.charCodeAt(0) : 0;
+  if (u >= 0xd400 && u <= 0xd7ff) return String.fromCodePoint(0x10000 + u);
+  if (u >= 0xe22d && u <= 0xe246 && /^STIX/i.test(fontName)) {
+    const letter = String.fromCharCode(0x41 + u - 0xe22d);
+    return String.fromCodePoint(SCRIPT_CAPITALS[letter] ?? 0x1d49c + u - 0xe22d);
+  }
+  return c;
+}
+
 export interface OpenedPdf {
   pageCount: number;
   extractPage(index: number): RawPage;
@@ -64,7 +94,7 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
               mono: font.isMono(),
             };
             const ch: RawChar = {
-              c,
+              c: restoreChar(c, name),
               x: round(origin[0]),
               y: round(origin[1]),
               bbox: quadToRect(quad),

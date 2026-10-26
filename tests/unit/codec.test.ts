@@ -52,6 +52,20 @@ describe('tag/placeholder codec', () => {
     expect(decoded.find((r) => r.placeholder?.kind === 'F')?.placeholder?.ref).toBe('m1');
   });
 
+  it('protects identifiers and slash-joined abbreviations, not ordinary words', () => {
+    const enc = encode(
+      [
+        {
+          type: 'text',
+          text: 'Per-class (M/B) scores of MalOSS and has_long_str, TP/FP and/or more',
+          style: plain,
+        },
+      ],
+      key,
+    );
+    expect(enc.source).toBe('Per-class (⟦U1⟧) scores of ⟦U2⟧ and ⟦U3⟧, ⟦U4⟧ and/or more');
+  });
+
   it('decodes reordered tags with their styles', () => {
     const enc = encode<Style>(
       [

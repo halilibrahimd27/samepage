@@ -12,15 +12,17 @@ looks like the original, without uploading the paper anywhere and without paying
 ## How it works
 
 1. Drop a **DOCX** or a text-based **PDF**, choose the source and target language.
-2. Press **Translate**. With the default engine, a blue _translation sheet_ appears: turn on your
-   browser's translation once (Chrome: the translate icon in the address bar, or ⋮ →
-   _Translate…_ on Android). samepage collects the result automatically.
-3. Review the **quality report**: anything suspicious is listed; you can correct any paragraph
-   in place and rebuild without translating again.
+2. Press **Translate**. With the default engine the text is translated automatically by Google
+   Translate into the language you chose — whatever your browser's own language is. If Google
+   cannot be reached, a _translation sheet_ lets you use your browser's built-in page
+   translation instead.
+3. Review the **quality report**: anything suspicious is listed — including paragraphs whose
+   meaning may have shifted (see _Meaning check_ below); you can correct any paragraph in place
+   and rebuild without translating again.
 4. Download the translated document — for PDFs also a side-by-side (original | translation)
    version — the JSON report, and for DOCX a **bilingual review document** for proofreading.
 
-Works in desktop browsers and on phones (Chrome for Android). Finished translations are kept in
+Works in desktop browsers and on phones. Finished translations are kept in
 **History** on your device.
 
 ## Privacy and engines
@@ -29,16 +31,19 @@ Works in desktop browsers and on phones (Chrome for Android). Finished translati
   rebuilt entirely inside your browser; the file itself never leaves your device.
 - **Translation is free.** No account and no API key are needed:
 
-  | Engine                            | Where your text goes                                                                                  |
-  | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-  | **Browser translation** (default) | Your browser's translation service (Chrome: Google, Edge: Microsoft, Safari: Apple). Works on phones. |
-  | Chrome built-in translator        | Nowhere — translated on your device (desktop Chrome and Edge)                                         |
-  | Advanced: Claude API / local LLM  | Anthropic under your own key, or your own computer (`localhost`)                                      |
+  | Engine                                | Where your text goes                                             |
+  | ------------------------------------- | ---------------------------------------------------------------- |
+  | **Google Translate (free)** (default) | Google, through Google's website translator. Works on phones.    |
+  | Chrome built-in translator            | Nowhere — translated on your device (desktop Chrome and Edge)    |
+  | Advanced: Claude API / local LLM      | Anthropic under your own key, or your own computer (`localhost`) |
 
   Only the text that needs translating is sent, and only to the engine you choose.
 
-- **No analytics, no telemetry, no cookies, no third-party scripts.** Fonts and WebAssembly are
-  self-hosted. A Content Security Policy limits the app's own network connections.
+- **No analytics, no telemetry and no third-party scripts in the app.** Fonts and WebAssembly
+  are self-hosted, and a Content Security Policy limits the app's own network connections.
+  The one exception is the Google engine: Google's translator script runs in a separate,
+  invisible helper page (`translate.html`, same site, its own stricter policy) that is loaded
+  only when you translate with Google. That script may set Google's own `googtrans` cookie.
 - **History, glossary and the translation cache** are stored only in this browser (IndexedDB) and
   can be cleared in Settings. API keys (advanced engines) are kept in memory unless you choose
   to remember them on this device.
@@ -46,10 +51,16 @@ Works in desktop browsers and on phones (Chrome for Android). Finished translati
 ## Quality contract
 
 1. **Meaning first.** Academic text must not drift in meaning. Every translation is checked for
-   preserved numbers, units, citations, formulas and formatting; glossary terms are enforced (also
-   with engines that have no glossary support); anything suspicious is listed for review. You can
-   correct any paragraph before downloading and export a bilingual review document.
-   samepage never shortens or paraphrases body text to make it fit the page.
+   preserved numbers, units, citations, formulas and formatting; identifiers, abbreviations
+   (`M/B`) and glossary terms are kept (also with engines that have no glossary support); a
+   number the engine changed is retried with the numbers locked. The **meaning check** (on by
+   default) then flags paragraphs whose claim may have shifted — a lost or added negation, a
+   hedge that disappeared ("may improve" → "improves"), a changed quantifier ("most" → "all"):
+   with Google and Chrome the translation is translated back and compared, and the
+   back-translation is shown next to the finding; with Claude a second review pass does it.
+   Anything suspicious is listed for review. You can correct any paragraph before downloading and
+   export a bilingual review document. samepage never shortens or paraphrases body text to make
+   it fit the page.
 2. **DOCX — structure-perfect.** Word reflows text, so samepage only swaps the text and keeps
    everything else: styles, tables, equations, charts, text boxes, footnotes, comments, tracked
    changes. Fixed-size containers are repaired (rows may grow, text boxes fit their text) and

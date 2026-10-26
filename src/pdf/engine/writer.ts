@@ -31,6 +31,8 @@ export interface WriteResult {
   linksAdded: number;
   /** Characters without a glyph in the chosen face (reported as MISSING_GLYPH). */
   missingGlyphs: string[];
+  /** The same characters by output page. */
+  missingByPage: { pageIndex: number; chars: string[] }[];
   /** Active content removed by sanitisation (P6.4). */
   sanitized: string[];
 }
@@ -59,7 +61,7 @@ export async function writePdf(
   const doc = mupdf.Document.openDocument(source, 'application/pdf').asPDF();
   if (!doc) throw new Error('Not a PDF');
   const fontRefs = new Map<string, { name: string; ref: ReturnType<typeof doc.addFont> }>();
-  const missing = new Set<string>();
+  const missing = new Map<number, Set<string>>();
   let linksRemoved = 0;
   let linksAdded = 0;
 
@@ -68,6 +70,7 @@ export async function writePdf(
     lines: LayoutLine[],
     fontDict: ReturnType<typeof doc.newDictionary>,
     inv: [number, number, number, number, number, number],
+    pageIndex: number,
   ): string => {
     let ops = 'q\n';
     for (const line of lines) {
@@ -86,7 +89,8 @@ export async function writePdf(
           if (cp === 0x200b || cp === 0xad) continue;
           const gid = font.encodeCharacter(cp);
           if (gid === 0) {
-            missing.add(ch);
+            if (!missing.has(pageIndex)) missing.set(pageIndex, new Set());
+            missing.get(pageIndex)!.add(ch);
             continue;
           }
           hex += gid.toString(16).padStart(4, '0');
@@ -206,7 +210,7 @@ export async function writePdf(
             fontDict = doc.newDictionary();
             resources.put('Font', fontDict);
           }
-          const ops = buildOps(pw.lines, fontDict, inv);
+          const ops = buildOps(pw.lines, fontDict, inv, pw.index);
           const contents = pageObj.get('Contents');
           const arr = doc.newArray();
           arr.push(doc.addStream('q\n', null));
@@ -233,7 +237,7 @@ export async function writePdf(
       const resources = doc.newDictionary();
       const fontDict = doc.newDictionary();
       resources.put('Font', fontDict);
-      const ops = buildOps(extra.lines, fontDict, [1, 0, 0, -1, 0, extra.height]);
+      const ops = buildOps(extra.lines, fontDict, [1, 0, 0, -1, 0, extra.height], doc.countPages());
       const pageObj = doc.addPage([0, 0, extra.width, extra.height], 0, resources, ops);
       doc.insertPage(doc.countPages(), pageObj);
     }
@@ -243,7 +247,11 @@ export async function writePdf(
     doc.subsetFonts();
     const mono = doc.saveToBuffer('compress,garbage=compact').asUint8Array().slice();
     const dual = opts.dual ? await sideBySide(source, mono) : null;
-    return { mono, dual, linksRemoved, linksAdded, missingGlyphs: [...missing].sort(), sanitized };
+    const missingByPage = [...missing]
+      .sort(([a], [b]) => a - b)
+      .map(([pageIndex, chars]) => ({ pageIndex, chars: [...chars].sort() }));
+    const missingGlyphs = [...new Set(missingByPage.flatMap((m) => m.chars))].sort();
+    return { mono, dual, linksRemoved, linksAdded, missingGlyphs, missingByPage, sanitized };
   } finally {
     doc.destroy();
   }

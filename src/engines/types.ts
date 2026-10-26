@@ -53,12 +53,16 @@ export interface FidelityFinding {
   /** Short description of the meaning difference, in the UI language of the report (English). */
   issue: string;
   severity: 'minor' | 'major';
+  /** The translation translated back into the source language (back-translation check). */
+  backTranslation?: string;
 }
 
 export interface FidelityPair {
   id: string;
   source: string;
   target: string;
+  /** Text of the ⟦U⟧ placeholders (identifiers, URLs), as in SegmentRequest.verbatim. */
+  verbatim?: Record<string, string>;
 }
 
 export type Availability = 'available' | 'downloadable' | 'unavailable';

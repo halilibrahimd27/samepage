@@ -10,6 +10,7 @@ import { PdfDebug } from './screens/PdfDebug';
 import { Playground } from './screens/Playground';
 import { TranslateTest } from './screens/TranslateTest';
 import { Workspace } from './screens/Workspace';
+import { setAutomaticTranslation } from './bridges/browserTranslator';
 import { useSettings, type Settings } from './settings';
 
 const REPO_URL = 'https://github.com/halilibrahimd27/samepage';
@@ -19,6 +20,7 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = settings.uiLang;
   }, [settings.uiLang]);
+  useEffect(() => setAutomaticTranslation(settings.autoTranslate), [settings.autoTranslate]);
 
   return (
     <I18nProvider lang={settings.uiLang}>

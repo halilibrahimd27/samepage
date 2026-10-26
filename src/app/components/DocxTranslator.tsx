@@ -2,6 +2,7 @@ import { proxy } from 'comlink';
 import { useState } from 'react';
 import { languageName } from '../../core/languages';
 import type { ChromeTranslatorBridge } from '../../engines/chromeBuiltin';
+import type { ProgressPhase } from '../../core/pipeline/translate';
 import type { DocxJob, DocxJobResult, JobError, PipelineApi } from '../../workers/api';
 import { browserTranslationBridge, sheetStore } from '../bridges/browserTranslator';
 import { chromeTranslatorBridge, prepareChromeTranslator } from '../bridges/chromeTranslator';
@@ -32,7 +33,11 @@ export function DocxTranslator({
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
   const [running, setRunning] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+    phase?: ProgressPhase | undefined;
+  } | null>(null);
   const [download, setDownload] = useState<number | null>(null);
   const [result, setResult] = useState<(DocxJobResult & { ok: true }) | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +86,9 @@ export function DocxTranslator({
         (api) =>
           api.translateDocx(
             job(jobId),
-            proxy((done: number, total: number) => setProgress({ done, total })),
+            proxy((done: number, total: number, phase?: ProgressPhase) =>
+              setProgress({ done, total, phase }),
+            ),
             bridge,
           ),
         LONG_JOB_MS,
@@ -192,7 +199,10 @@ export function DocxTranslator({
               {download !== null
                 ? t('playground.downloading', { percent: download })
                 : progress
-                  ? t('workspace.translating', progress)
+                  ? t(
+                      progress.phase === 'check' ? 'workspace.checking' : 'workspace.translating',
+                      progress,
+                    )
                   : t('file.reading')}
             </span>
           )}

@@ -4,6 +4,7 @@ import { useI18n, UI_LANGS, type UiLang } from '../i18n';
 import type { Settings } from '../settings';
 
 const TOGGLES = [
+  ['autoTranslate', 'settings.autoTranslate', 'settings.autoTranslateHint'],
   ['fidelityCheck', 'settings.fidelityCheck', 'settings.fidelityCheckHint'],
   ['translateReferences', 'settings.translateReferences', null],
   ['translateComments', 'settings.translateComments', null],

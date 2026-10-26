@@ -1,0 +1,227 @@
+import type { FidelityFinding, FidelityPair } from '../../engines/types';
+import { tokenize } from '../segment/codec';
+
+/**
+ * Back-translation meaning check for machine translators (ADR-022). The translation is
+ * translated back into the source language and compared with the source for the cues that
+ * change what a sentence claims: negation, hedging (a claim made stronger or weaker) and
+ * quantifier scope ("most" → "all"). Back-translation paraphrases, so wording is never compared,
+ * only whether a class of cue is present on both sides.
+ */
+
+/** A pattern that matches whole words only (JS \b does not know non-ASCII letters). */
+const words = (alternatives: string[]) =>
+  new RegExp(`(?<!\\p{L})(?:${alternatives.join('|')})(?!\\p{L})`, 'giu');
+
+interface Cues {
+  /** Syntactic negation ("not", "never", Turkish "-me-"): its loss or gain reverses a claim. */
+  negation: RegExp;
+  /**
+   * Lexical negation ("missing", "impossible", "unable"): a paraphrase may turn it into syntactic
+   * negation and back, so either side having it suppresses a negation finding.
+   */
+  softNegation?: RegExp;
+  /** Hedges whose loss makes a claim stronger. */
+  hedge?: RegExp;
+  /** Hedges plus weaker modal forms; accepted as a match for `hedge` on the other side. */
+  weakHedge?: RegExp;
+  quantifiers?: Record<string, RegExp>;
+}
+
+const EN_HEDGE = [
+  'may',
+  'might',
+  'could',
+  'possibly',
+  'probably',
+  'likely',
+  'unlikely',
+  'perhaps',
+  'potentially',
+  'presumably',
+  'plausibl[ey]',
+  // "suggest" hedges a finding ("results suggest that"), not a proposal ("was suggested by").
+  'suggest(?:s|ed|ing)? that',
+  '(?:results|findings|data|evidence|analys[ie]s|study|studies|this|these|which|it) suggests?',
+  'appear(?:s|ed)? to',
+  'seem(?:s|ed)?',
+  'tend(?:s|ed)? to',
+];
+const TR_HEDGE = [
+  'muhtemel\\p{L}*',
+  'olası\\p{L}*',
+  'belki',
+  'ihtimal\\p{L}*',
+  'gibi görün\\p{L}*',
+  'düşündür\\p{L}*',
+  '\\p{L}+[ae]bil(?:ir|ecek|eceğ|mekte|iyor|en)\\p{L}*',
+];
+
+const CUES: Record<string, Cues> = {
+  en: {
+    negation: words([
+      'not',
+      'no(?!\\.\\s*\\d)',
+      'never',
+      'none',
+      'nor',
+      'neither',
+      'nothing',
+      'nobody',
+      'nowhere',
+      'without',
+      'cannot',
+      "\\p{L}+n[’']t",
+    ]),
+    softNegation: words([
+      'fail(?:s|ed|ing|ure)?',
+      'lack(?:s|ed|ing)?',
+      'absen(?:ce|t)',
+      'missing',
+      'unable',
+      'impossible',
+      'in(?:feasible|complete|correct|sufficient|valid|accurate|capable)',
+      'im(?:practical|proper|probable)',
+      'un(?:clear|known|certain|stable|necessary|expected|available|related|successful|reliable|changed|realistic|suitable|affected|solved|seen|labell?ed|supervised|biased)',
+      'non-?\\p{L}{3,}',
+    ]),
+    hedge: words(EN_HEDGE),
+    weakHedge: words([...EN_HEDGE, 'can', 'possible', 'possibility', 'probable', 'maybe']),
+    quantifiers: {
+      'all/every': words(['all', 'every', 'each', 'always', 'entire(?:ly)?', 'whole']),
+      most: words(['most', 'majority', 'mostly', 'largely']),
+      some: words(['some', 'several', 'a few', 'partly', 'partially', 'sometimes']),
+      few: words(['(?<!a )few', 'rarely', 'seldom', 'minority']),
+    },
+  },
+  tr: {
+    // Verb negation is a suffix: only lower-case words count, so names ("Yılmaz") do not.
+    negation: new RegExp(
+      `(?<!\\p{L})(?:değil\\p{L}*|yok(?:tur|tu)?|hiç\\p{L}*|asla|\\p{Ll}{2,}(?:m[ae]z|m[ae]d[ıi]|m[ae]m[ıi]ş|m[ae]y[ae]n|m[ae]m[ae]k|m[ıiuü]yor|m[ae]m[ae]l[ıi]|m[ae]y[ae]c[ae]k|m[ae]y[ae]bil)\\p{L}*)(?!\\p{L})`,
+      'gu',
+    ),
+    softNegation: words([
+      'eksik\\p{L}*',
+      '\\p{Ll}{2,}s[ıiuü]z\\p{L}*',
+      'imkânsız\\p{L}*',
+      'olanaksız\\p{L}*',
+    ]),
+    hedge: words(TR_HEDGE),
+    weakHedge: words([...TR_HEDGE, 'mümkün\\p{L}*', 'olasılık\\p{L}*']),
+    quantifiers: {
+      'all/every': words([
+        'tüm\\p{L}*',
+        'bütün\\p{L}*',
+        'her',
+        'hepsi\\p{L}*',
+        'daima',
+        'tamam\\p{L}*',
+      ]),
+      most: words(['çoğu\\p{L}*', 'çoğunluk\\p{L}*', 'büyük ölçüde', 'büyük kısm\\p{L}*']),
+      some: words(['bazı\\p{L}*', 'bazen', 'kısmen', 'birkaç']),
+      few: words(['az sayıda', 'nadiren']),
+    },
+  },
+  de: {
+    negation: words([
+      'nicht',
+      'kein\\p{L}*',
+      'nie',
+      'niemals',
+      'nichts',
+      'niemand',
+      'ohne',
+      'weder',
+    ]),
+  },
+  fr: { negation: words(['ne', "n[’']", 'pas', 'jamais', 'aucun\\p{L}*', 'sans', 'ni', 'rien']) },
+  es: {
+    negation: words([
+      'no',
+      'nunca',
+      'ningun\\p{L}*',
+      'ningún',
+      'nada',
+      'nadie',
+      'sin',
+      'ni',
+      'jamás',
+      'tampoco',
+    ]),
+  },
+  it: { negation: words(['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né']) },
+  pt: {
+    negation: words(['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais']),
+  },
+  ru: { negation: words(['не', 'нет', 'ни', 'никогда', 'ничего', 'никто', 'без', 'нельзя']) },
+};
+
+const has = (re: RegExp, text: string) => {
+  re.lastIndex = 0;
+  return re.test(text);
+};
+
+/** Plain words of tagged text: identifiers as written, other placeholders (formulas) as spaces. */
+export function cueText(tagged: string, verbatim?: Record<string, string>): string {
+  return tokenize(tagged)
+    .map((t) => (t.type === 'text' ? t.text : t.type === 'ph' ? (verbatim?.[t.id] ?? ' ') : ''))
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Meaning differences between a source text and the back-translation of its translation. */
+export function compareMeaning(
+  source: string,
+  back: string,
+  lang: string,
+): { issue: string; severity: 'minor' | 'major' }[] {
+  const cues = CUES[lang];
+  // Headings and table cells are too short for a reliable comparison.
+  if (!cues || !back.trim() || source.split(/\s+/).length < 5) return [];
+  const out: { issue: string; severity: 'minor' | 'major' }[] = [];
+  const negSource = has(cues.negation, source);
+  const negBack = has(cues.negation, back);
+  const soft =
+    !!cues.softNegation && (has(cues.softNegation, source) || has(cues.softNegation, back));
+  if (negSource && !negBack && !soft) out.push({ issue: 'negation lost', severity: 'major' });
+  if (!negSource && negBack && !soft) out.push({ issue: 'negation added', severity: 'major' });
+  if (cues.hedge && cues.weakHedge) {
+    if (has(cues.hedge, source) && !has(cues.weakHedge, back))
+      out.push({
+        issue: 'hedging lost: the claim may read stronger than in the source',
+        severity: 'major',
+      });
+    else if (has(cues.hedge, back) && !has(cues.weakHedge, source))
+      out.push({
+        issue: 'hedging added: the claim may read weaker than in the source',
+        severity: 'minor',
+      });
+  }
+  if (cues.quantifiers) {
+    const classes = Object.entries(cues.quantifiers);
+    const lost = classes.filter(([, re]) => has(re, source) && !has(re, back)).map(([k]) => k);
+    const added = classes.filter(([, re]) => !has(re, source) && has(re, back)).map(([k]) => k);
+    if (lost.length && added.length)
+      out.push({
+        issue: `quantifier changed: ${lost.join(', ')} → ${added.join(', ')}`,
+        severity: 'major',
+      });
+  }
+  return out;
+}
+
+/** Findings for translated pairs, given the back-translation of each target. */
+export function backTranslationFindings(
+  pairs: FidelityPair[],
+  back: string[],
+  lang: string,
+): FidelityFinding[] {
+  return pairs.flatMap((p, i) =>
+    compareMeaning(cueText(p.source, p.verbatim), back[i] ?? '', lang).map((f) => ({
+      id: p.id,
+      ...f,
+      backTranslation: back[i]!,
+    })),
+  );
+}

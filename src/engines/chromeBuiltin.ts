@@ -1,4 +1,5 @@
 import { tokenize } from '../core/segment/codec';
+import { backTranslationFindings, cueText } from '../core/validate/meaning';
 import {
   assemblePieces,
   matchInitialCase,
@@ -7,7 +8,15 @@ import {
   splitClauses,
   splitSentences,
 } from './plainText';
-import type { Availability, LangPair, SegmentResult, TranslationEngine } from './types';
+import type {
+  Availability,
+  FidelityFinding,
+  FidelityPair,
+  LangPair,
+  SegmentResult,
+  TranslateContext,
+  TranslationEngine,
+} from './types';
 
 /**
  * Chrome's Translator API exists only on the main thread, so the worker talks to it through
@@ -16,6 +25,28 @@ import type { Availability, LangPair, SegmentResult, TranslationEngine } from '.
 export interface ChromeTranslatorBridge {
   availability(pair: LangPair): Promise<Availability>;
   translate(pair: LangPair, texts: string[]): Promise<string[]>;
+  /**
+   * Translation for the back-translation check, only when it needs no user action (no model
+   * download, no manual sheet); null otherwise.
+   */
+  backTranslate?(pair: LangPair, texts: string[]): Promise<string[] | null>;
+}
+
+/** Back-translation meaning check (ADR-022) shared by the machine-translation engines. */
+export async function checkByBackTranslation(
+  bridge: ChromeTranslatorBridge,
+  pairs: FidelityPair[],
+  ctx: TranslateContext,
+  signal: AbortSignal,
+): Promise<FidelityFinding[]> {
+  const back = await bridge
+    .backTranslate?.(
+      { source: ctx.pair.target, target: ctx.pair.source },
+      pairs.map((p) => cueText(p.target, p.verbatim)),
+    )
+    .catch(() => null);
+  signal.throwIfAborted();
+  return back ? backTranslationFindings(pairs, back, ctx.pair.source) : [];
 }
 
 const tagIds = (t: string) =>
@@ -53,11 +84,12 @@ export function createChromeEngine(bridge: ChromeTranslatorBridge): TranslationE
       tagsReliable: false,
       condense: false,
       vision: false,
-      fidelityCheck: false,
+      fidelityCheck: true,
     },
     model: 'chrome-translator',
     maxBatchChars: 4000,
     isAvailable: (pair) => bridge.availability(pair),
+    checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
 
     /**
      * First the tagged text as is; segments whose tags or placeholders did not survive are

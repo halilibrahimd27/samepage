@@ -3,6 +3,7 @@ import { MemoryCache } from '../../src/core/cache/cache';
 import { glossaryToCsv, mergeGlossaries, parseGlossaryCsv } from '../../src/core/glossary/glossary';
 import { translateSegments } from '../../src/core/pipeline/translate';
 import { createDehyphenator } from '../../src/core/segment/dehyphenate';
+import { respacePlaceholders } from '../../src/engines/browserPage';
 import { createChromeEngine } from '../../src/engines/chromeBuiltin';
 import { parseJsonLoose } from '../../src/engines/openaiCompatible';
 import {
@@ -11,7 +12,7 @@ import {
   splitClauses,
   splitSentences,
 } from '../../src/engines/plainText';
-import { academicHeading } from '../../src/core/glossary/academic';
+import { academicHeading, usesMetrics } from '../../src/core/glossary/academic';
 import { validateTranslation } from '../../src/core/validate/validate';
 import { createPseudoEngine } from '../../src/engines/pseudo';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../../src/engines/types';
@@ -77,6 +78,58 @@ describe('translateSegments', () => {
     });
     expect(out[1]).toMatchObject({ text: segments[1]!.text, untranslated: true, attempts: 3 });
     expect(out[1]!.issues.map((i) => i.code)).toContain('CITATION_MISMATCH');
+  });
+
+  it('puts back the spaces Google drops around placeholders', () => {
+    expect(
+      respacePlaceholders(
+        'methods such as malware-check [35], ⟦U1⟧ [40], and <t1>Packj</t1> ⟦U2⟧ tools',
+        'malware-check [35] gibi yöntemler,⟦U1⟧[40] ve <t1>Packj</t1>⟦U2⟧araçları',
+      ),
+    ).toBe('malware-check [35] gibi yöntemler, ⟦U1⟧ [40] ve <t1>Packj</t1> ⟦U2⟧ araçları');
+    // Suffixes, punctuation and marks without spaces in the source stay as they are.
+    expect(respacePlaceholders('we use ⟦U1⟧ here.', "⟦U1⟧'de kullanıyoruz.")).toBe(
+      "⟦U1⟧'de kullanıyoruz.",
+    );
+    expect(respacePlaceholders('word⟦N1⟧ next', 'kelime⟦N1⟧ sonraki')).toBe('kelime⟦N1⟧ sonraki');
+  });
+
+  it('freezes tagged citations whole and restores them exactly', async () => {
+    const { protectNumbers, restoreTerms } = await import('../../src/core/glossary/protect');
+    const p = protectNumbers(
+      'Scikit-learn [<t4>42</t4>] and [<t8>38</t8>, <t9>58</t9>] on 90% of 1,000',
+    );
+    expect(p.text).toBe('Scikit-learn ⟦D1⟧ and ⟦D2⟧ on ⟦D3⟧% of ⟦D4⟧');
+    expect(restoreTerms('Scikit-learn ⟦D1⟧ ve ⟦D2⟧, ⟦D4⟧ öğenin %⟦D3⟧', p.targets, 'D')).toBe(
+      'Scikit-learn [<t4>42</t4>] ve [<t8>38</t8>, <t9>58</t9>], 1,000 öğenin %90',
+    );
+  });
+
+  it('freezes numbers when a machine translator changed one', async () => {
+    const sent: string[] = [];
+    const engine: TranslationEngine = {
+      ...createPseudoEngine(),
+      id: 'browser',
+      capabilities: { ...createPseudoEngine().capabilities, glossary: false },
+      translate(batch) {
+        sent.push(...batch.map((b) => b.text));
+        // A website translator reads the elided year "17—" as 2017.
+        return Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text: b.text.replace('Geneva', 'Cenevre').replace(/\b17—/, '2017—'),
+          })),
+        );
+      },
+    };
+    const out = await translateSegments({
+      engine,
+      segments: [seg('d', 'Geneva, March 18th, 17—')],
+      ctx: { ...ctx, pair: { source: 'en', target: 'tr' } },
+      signal: new AbortController().signal,
+    });
+    expect(sent).toEqual(['Geneva, March 18th, 17—', 'Geneva, March ⟦D1⟧th, ⟦D2⟧—']);
+    expect(out[0]).toMatchObject({ text: 'Cenevre, March 18th, 17—', untranslated: false });
   });
 
   it('splits truncated batches, caches results and runs the fidelity check', async () => {
@@ -182,6 +235,11 @@ describe('helpers', () => {
     expect(academicHeading('Abstract algebra', 'en', 'tr')).toBeNull();
     expect(academicHeading('A B S T R A C T', 'en', 'tr')).toBe('ÖZET');
     expect(academicHeading('A R T I C L E  I N F O', 'en', 'tr')).toBe('MAKALE BİLGİSİ');
+    // Metrics only in documents that name both precision and recall.
+    expect(academicHeading('Recall (%)', 'en', 'tr', true)).toBe('Duyarlılık (%)');
+    expect(academicHeading('Recall', 'en', 'tr')).toBeNull();
+    expect(usesMetrics(['Precision and recall of the classifier'], 'en')).toBe(true);
+    expect(usesMetrics(['Free recall of word lists'], 'en')).toBe(false);
   });
 
   it('accepts identical output for names and code, not for sentences', () => {

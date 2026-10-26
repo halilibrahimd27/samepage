@@ -12,9 +12,9 @@ import {
   type TranslationEngine,
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
-import { academicHeading } from '../glossary/academic';
+import { academicHeading, usesMetrics } from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
-import { protectTerms, restoreTerms } from '../glossary/protect';
+import { protectNumbers, protectTerms, restoreTerms } from '../glossary/protect';
 import { plainText } from '../segment/codec';
 import { createDehyphenator } from '../segment/dehyphenate';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
@@ -39,8 +39,12 @@ export interface TranslateJob {
   cache?: TranslationCache;
   concurrency?: number;
   fidelityCheck?: boolean;
-  onProgress?: (done: number, total: number) => void;
+  /** Progress of the translation, then (phase 'check') of the meaning check. */
+  onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
 }
+
+/** 'check': the meaning check after translation (back-translation or Claude review). */
+export type ProgressPhase = 'check';
 
 const MAX_SEGMENTS_PER_BATCH = 40;
 const FIDELITY_BATCH_CHARS = 8000;
@@ -166,9 +170,17 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
 
   const pending: SegmentRequest[] = [];
   const headings = !engine.capabilities.glossary && engine.id !== 'pseudo';
+  const metrics =
+    headings &&
+    usesMetrics(
+      segments.map((s) => plainText(s.text)),
+      ctx.pair.source,
+    );
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
-    const heading = headings ? academicHeading(s.text, ctx.pair.source, ctx.pair.target) : null;
+    const heading = headings
+      ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics)
+      : null;
     if (heading !== null) {
       outcomes.set(s.id, {
         id: s.id,
@@ -204,10 +216,14 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     return i > 0 ? plainText(segments[i - 1]!.text).slice(-600) : undefined;
   };
 
-  /** One engine call; splits the batch when the output was truncated. */
+  /**
+   * One engine call; splits the batch when the output was truncated. Segments in `freeze` get
+   * their numbers frozen as placeholders (a retry after an engine changed a number).
+   */
   async function call(
     batch: SegmentRequest[],
     feedback?: string,
+    freeze?: Set<string>,
   ): Promise<Map<string, SegmentResult>> {
     signal.throwIfAborted();
     const prev = previousSource(batch[0]!.id);
@@ -217,32 +233,40 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       ...(feedback ? { retryFeedback: feedback } : {}),
     };
     try {
-      if (!protecting) {
+      if (!protecting && !freeze?.size) {
         const results = await engine.translate(batch, callCtx, signal);
         return new Map(results.map((r) => [r.id, r]));
       }
-      const protectedBatch = batch.map((s) => ({
-        req: s,
-        p: protectTerms(s.text, ctx.glossary, ctx.pair.source),
-      }));
+      const prepared = batch.map((s) => {
+        const terms = protecting
+          ? protectTerms(s.text, ctx.glossary, ctx.pair.source)
+          : { text: s.text, targets: [] };
+        const numbers = freeze?.has(s.id)
+          ? protectNumbers(terms.text)
+          : { text: terms.text, targets: [] };
+        return { req: s, text: numbers.text, terms: terms.targets, numbers: numbers.targets };
+      });
       const results = await engine.translate(
-        protectedBatch.map(({ req, p }) => ({
+        prepared.map(({ req, text, terms, numbers }) => ({
           ...req,
-          text: p.text,
+          text,
           // Plain-text engines may send the protected terms inline (as their target wording).
           verbatim: {
             ...req.verbatim,
-            ...Object.fromEntries(p.targets.map((t, i) => [`G${i + 1}`, t])),
+            ...Object.fromEntries(terms.map((t, i) => [`G${i + 1}`, t])),
+            ...Object.fromEntries(numbers.map((t, i) => [`D${i + 1}`, t])),
           },
         })),
         callCtx,
         signal,
       );
-      const targetsById = new Map(protectedBatch.map(({ req, p }) => [req.id, p.targets]));
+      const byId = new Map(prepared.map((p) => [p.req.id, p]));
       return new Map(
         results.map((r) => {
-          const restored = restoreTerms(r.text, targetsById.get(r.id) ?? []);
-          // A lost protected term fails validation (empty text → retry path).
+          const p = byId.get(r.id);
+          const numbers = restoreTerms(r.text, p?.numbers ?? [], 'D');
+          const restored = numbers === null ? null : restoreTerms(numbers, p?.terms ?? []);
+          // A lost protected term or number fails validation (empty text → retry path).
           return [r.id, restored === null ? { ...r, text: '' } : { ...r, text: restored }];
         }),
       );
@@ -250,8 +274,8 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       if (error instanceof EngineError && error.code === 'truncated' && batch.length > 1) {
         const mid = Math.ceil(batch.length / 2);
         const [a, b] = [
-          await call(batch.slice(0, mid), feedback),
-          await call(batch.slice(mid), feedback),
+          await call(batch.slice(0, mid), feedback, freeze),
+          await call(batch.slice(mid), feedback, freeze),
         ];
         return new Map([...a, ...b]);
       }
@@ -284,7 +308,19 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       fresh.push([keyOf.get(req.id)!, notes.length ? { text: r.text, notes } : { text: r.text }]);
     };
     const round = async (reqs: SegmentRequest[], feedback?: string) => {
-      const results = await call(reqs, feedback);
+      // Machine translators answer a retry the same way; numbers they changed are frozen.
+      const freeze = new Set(
+        engine.capabilities.glossary
+          ? []
+          : reqs
+              .filter((r) =>
+                lastIssues
+                  .get(r.id)
+                  ?.some((i) => i.code === 'NUMBER_MISMATCH' || i.code === 'CITATION_MISMATCH'),
+              )
+              .map((r) => r.id),
+      );
+      const results = await call(reqs, feedback, freeze);
       const stillFailing: SegmentRequest[] = [];
       for (const req of reqs) {
         attempts.set(req.id, (attempts.get(req.id) ?? 0) + 1);
@@ -358,11 +394,16 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       source: s.text,
       target: o.text,
       text: s.text + o.text,
+      ...(s.verbatim ? { verbatim: s.verbatim } : {}),
     }));
-    await pool(makeBatches(pairs, FIDELITY_BATCH_CHARS), job.concurrency ?? 2, async (batch) => {
+    const size = Math.min(FIDELITY_BATCH_CHARS, engine.maxBatchChars);
+    let checked = 0;
+    job.onProgress?.(0, pairs.length, 'check');
+    const workers = engine.runsOn === 'main' ? 1 : (job.concurrency ?? 2);
+    await pool(makeBatches(pairs, size), workers, async (batch) => {
       signal.throwIfAborted();
       const findings = await engine.checkFidelity!(
-        batch.map(({ id, source, target }) => ({ id, source, target })),
+        batch.map(({ text: _, ...pair }) => pair),
         ctx,
         signal,
       );
@@ -374,13 +415,15 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
           { text: o.text, ...(o.notes.length ? { notes: o.notes } : {}), findings: o.findings },
         ]);
       }
+      checked += batch.length;
+      job.onProgress?.(checked, pairs.length, 'check');
     });
     for (const o of outcomes.values()) {
       for (const f of o.findings) {
         o.issues.push({
           code: 'MEANING_DRIFT',
           severity: 'warning',
-          detail: `${f.severity}: ${f.issue}`,
+          detail: `${f.severity}: ${f.issue}${f.backTranslation ? ` — back-translation: “${f.backTranslation}”` : ''}`,
         });
       }
     }

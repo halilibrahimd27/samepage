@@ -145,14 +145,55 @@ const TERMS: Langs[] = [
 ];
 
 /**
+ * Evaluation metrics that machine translation reads in their everyday sense when a table cell
+ * holds the word alone ("Recall" → "Hatırlamak" instead of "Duyarlılık"). Only used when the
+ * document names both metrics (see usesMetrics), so a psychology paper's "Recall" stays memory.
+ */
+const RECALL: Langs = {
+  en: 'Recall',
+  tr: 'Duyarlılık',
+  de: 'Recall',
+  fr: 'Rappel',
+  es: 'Exhaustividad',
+  it: 'Recall',
+  pt: 'Revocação',
+  ru: 'Полнота',
+};
+const PRECISION: Langs = {
+  en: 'Precision',
+  tr: 'Kesinlik',
+  de: 'Präzision',
+  fr: 'Précision',
+  es: 'Precisión',
+  it: 'Precisione',
+  pt: 'Precisão',
+  ru: 'Точность',
+};
+const METRICS: Langs[] = [RECALL, PRECISION];
+
+/** True when the document names both precision and recall in the source language. */
+export function usesMetrics(texts: string[], source: string): boolean {
+  const named = (t: Langs) => {
+    const word = t[source]?.toLocaleLowerCase(source);
+    return !!word && texts.some((x) => x.toLocaleLowerCase(source).includes(word));
+  };
+  return METRICS.every(named);
+}
+
+/**
  * A known heading term in the target language (letter case as in the source), or null. The
  * text must be the term alone, optionally followed by "." or ":" (kept by the caller). Letter-
  * spaced headings ("A B S T R A C T", "A R T I C L E  I N F O") match without their spaces.
  */
-export function academicTerm(text: string, source: string, target: string): string | null {
+export function academicTerm(
+  text: string,
+  source: string,
+  target: string,
+  metrics = false,
+): string | null {
   const word = text.trim().replace(/[.:]$/u, '');
   const key = (w: string, lang: string) => w.replace(/\s+/gu, '').toLocaleLowerCase(lang);
-  for (const t of TERMS) {
+  for (const t of metrics ? [...TERMS, ...METRICS] : TERMS) {
     const from = t[source];
     const to = t[target];
     if (!from || !to || key(word, source) !== key(from, source)) continue;
@@ -163,14 +204,24 @@ export function academicTerm(text: string, source: string, target: string): stri
   return null;
 }
 
-/** The translated heading (any term above) with the source's markup and letter case, or null. */
-export function academicHeading(tagged: string, source: string, target: string): string | null {
+/**
+ * The translated heading (any term above) with the source's markup and letter case, or null.
+ * A unit in brackets may follow the term ("Recall (%)").
+ */
+export function academicHeading(
+  tagged: string,
+  source: string,
+  target: string,
+  metrics = false,
+): string | null {
   const tokens = tokenize(tagged);
   const texts = tokens.filter((t) => t.type === 'text' && t.text.trim());
   if (texts.length !== 1) return null;
-  const m = /^(\s*)(\p{L}[\p{L} ]*?)(\s*[:.]?\s*)$/u.exec((texts[0] as { text: string }).text);
+  const m = /^(\s*)(\p{L}[\p{L} ]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$/u.exec(
+    (texts[0] as { text: string }).text,
+  );
   if (!m) return null;
-  const term = academicTerm(m[2]!, source, target);
+  const term = academicTerm(m[2]!, source, target, metrics);
   if (!term) return null;
   return tokens
     .map((t) => {

@@ -25,6 +25,8 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // The translation helper page is never cached (and must not replace the app shell).
+  if (url.pathname.endsWith('/translate.html')) return;
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)

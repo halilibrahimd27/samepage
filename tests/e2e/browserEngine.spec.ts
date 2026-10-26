@@ -57,9 +57,14 @@ async function installFakeBrowserTranslation(page: Page) {
   });
 }
 
-test('browser engine: translation sheet is harvested into a translated DOCX', async ({ page }) => {
+test('browser engine (manual): translation sheet is harvested into a translated DOCX', async ({
+  page,
+}) => {
   await page.goto('./');
-  await page.getByRole('radio', { name: /Browser translation/ }).check();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByLabel('Translate automatically with Google').uncheck();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('radio', { name: /Google Translate/ }).check();
   await page.getByTestId('file-input').setInputFiles('tests/corpus/docx/academic.docx');
   await page.getByRole('button', { name: 'Translate', exact: true }).click();
 
@@ -88,4 +93,54 @@ test('browser engine: translation sheet is harvested into a translated DOCX', as
   expect(xml).toContain('Giris');
   expect(xml).not.toContain('Giriş');
   expect(xml).toContain('<m:oMath');
+});
+
+/**
+ * Stand-in for Google's website translator (translate.google.com/translate_a/element.js): a
+ * language select that, once set, rewrites the helper page's text like Google does.
+ */
+const FAKE_ELEMENT_JS = `
+window.google = { translate: { TranslateElement: function (opts, id) {
+  var select = document.createElement('select');
+  select.className = 'goog-te-combo';
+  ['', 'en', 'de', 'tr'].forEach(function (v) { var o = document.createElement('option'); o.value = v; select.append(o); });
+  document.getElementById(id).append(select);
+  select.addEventListener('change', function () {
+    var map = { 'ğ': 'g', 'ı': 'i', 'ş': 's', 'ç': 'c', 'ö': 'o', 'ü': 'u', 'İ': 'I', 'Ş': 'S', 'Ç': 'C', 'Ö': 'O', 'Ü': 'U', 'Ğ': 'G' };
+    var run = function (root) {
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      var nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function (n) {
+        var parent = n.parentElement;
+        if (!parent || parent.closest('font') || (parent.closest('[translate]') || {}).getAttribute && parent.closest('[translate]').getAttribute('translate') === 'no') return;
+        var outer = document.createElement('font'); var inner = document.createElement('font');
+        inner.textContent = n.textContent.replace(/[ğıışçöüİŞÇÖÜĞ]/g, function (c) { return map[c] || c; });
+        outer.append(inner); n.replaceWith(outer);
+      });
+    };
+    new MutationObserver(function (records) {
+      records.forEach(function (r) { r.addedNodes.forEach(function (node) { setTimeout(function () { run(node.nodeType === 1 ? node : node.parentElement); }, 20); }); });
+    }).observe(document.getElementById('sheet'), { childList: true, subtree: false });
+  });
+} } };
+setTimeout(function () { window.gtInit(); }, 10);
+`;
+
+test.describe('browser engine (automatic)', () => {
+  test.use({ allowedOrigins: ['https://translate.google.com'] });
+
+  test('translates through the helper page without any browser menu', async ({ page }) => {
+    await page.route('https://translate.google.com/**', (route) =>
+      route.fulfill({ contentType: 'text/javascript', body: FAKE_ELEMENT_JS }),
+    );
+    await page.goto('./');
+    await expect(page.getByRole('radio', { name: /Google Translate/ })).toBeChecked();
+    await page.getByTestId('file-input').setInputFiles('tests/corpus/docx/academic.docx');
+    await page.getByRole('button', { name: 'Translate', exact: true }).click();
+    await expect(page.getByTestId('report-summary')).toContainText('0 untranslated', {
+      timeout: 60_000,
+    });
+    // No manual sheet was needed.
+    await expect(page.getByTestId('translation-sheet')).toHaveCount(0);
+  });
 });
