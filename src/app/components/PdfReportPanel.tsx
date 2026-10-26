@@ -33,7 +33,9 @@ export function PdfReportPanel({
       u.manual ||
       u.sourceTagged in edits ||
       u.status !== 'translated' ||
-      u.scale < 1 ||
+      // A uniform document-wide reduction (R3) is summarised above, not listed per paragraph.
+      u.scale < 0.85 ||
+      u.repairs.some((r) => r.code === 'R4_BLOCK_SCALE') ||
       u.layoutIssues.length > 0 ||
       u.fallback,
   );

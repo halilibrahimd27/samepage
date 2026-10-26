@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { detectLanguage } from '../../core/detectLanguage';
+import { languageName, type LanguageCode } from '../../core/languages';
 import { WorkerFailedError } from '../../core/pipeline/workerClient';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
@@ -17,7 +19,14 @@ type Thumb = { url: string; width: number; height: number };
 
 type DocState =
   | { status: 'reading'; file: File }
-  | { status: 'ready'; file: File; kind: DocKind; pageCount?: number; thumb?: Thumb }
+  | {
+      status: 'ready';
+      file: File;
+      kind: DocKind;
+      pageCount?: number;
+      thumb?: Thumb;
+      detected?: LanguageCode;
+    }
   | { status: 'error'; file: File; message: string; workerFailed?: boolean };
 
 function rejectionMessage(r: FileRejection, t: Translate, lang: string): string {
@@ -48,6 +57,19 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     };
   }, [thumbUrl]);
 
+  /** Sets the source language from a text sample; keeps the pair valid. */
+  function applyDetected(sample: string): LanguageCode | undefined {
+    const found = detectLanguage(sample);
+    if (!found) return undefined;
+    if (found.lang === config.target) {
+      config.setTarget(
+        config.source !== found.lang ? config.source : found.lang === 'en' ? 'tr' : 'en',
+      );
+    }
+    config.setSource(found.lang);
+    return found.lang;
+  }
+
   async function openFile(file: File) {
     const id = ++request.current;
     const current = () => id === request.current;
@@ -61,6 +83,12 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     }
     if (check.kind === 'docx') {
       setDoc({ status: 'ready', file, kind: 'docx' });
+      const sample = await pipelineClient
+        .call<string>((api) => api.sampleDocx(file), 60_000)
+        .catch(() => '');
+      if (!current()) return;
+      const detected = applyDetected(sample);
+      if (detected) setDoc({ status: 'ready', file, kind: 'docx', detected });
       return;
     }
 
@@ -73,12 +101,14 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
       if (result.ok) {
         const { png, width, height } = result.thumbnail;
         const url = URL.createObjectURL(new Blob([png.slice()], { type: 'image/png' }));
+        const detected = applyDetected(result.sample);
         setDoc({
           status: 'ready',
           file,
           kind: 'pdf',
           pageCount: result.pageCount,
           thumb: { url, width, height },
+          ...(detected ? { detected } : {}),
         });
       } else {
         const message =
@@ -129,6 +159,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
                 <span data-testid="page-count"> · {t('file.pages', { count: doc.pageCount })}</span>
               )}
             </p>
+            {doc.status === 'ready' && doc.detected && (
+              <p className="text-sm text-slate-600" data-testid="detected-language">
+                {t('file.detected', { lang: languageName(doc.detected, lang) })}
+              </p>
+            )}
             {doc.status === 'reading' && (
               <p className="text-sm text-slate-600">{t('file.reading')}</p>
             )}

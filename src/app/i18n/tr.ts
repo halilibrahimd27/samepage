@@ -11,6 +11,7 @@ export const tr: Record<MessageKey, string> = {
   'file.change': 'Başka dosya seç',
   'file.reading': 'Belge okunuyor…',
   'file.pages': '{count} sayfa',
+  'file.detected': 'Algılanan dil: {lang}',
   'file.thumbnail': '{name} belgesinin ilk sayfası',
 
   'error.empty': 'Bu dosya boş.',

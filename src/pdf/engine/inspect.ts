@@ -1,4 +1,6 @@
-import { loadMupdf } from './mupdf';
+import { loadMupdf, type MupdfModule } from './mupdf';
+
+type Document = InstanceType<MupdfModule['Document']>;
 
 export interface Thumbnail {
   png: Uint8Array;
@@ -7,11 +9,37 @@ export interface Thumbnail {
 }
 
 export type PdfInspection =
-  | { ok: true; pageCount: number; thumbnail: Thumbnail }
+  | { ok: true; pageCount: number; thumbnail: Thumbnail; sample: string }
   | { ok: false; reason: 'encrypted' | 'corrupt' }
   | { ok: false; reason: 'too-many-pages'; pageCount: number };
 
-/** Opens a PDF, returns its page count and a PNG thumbnail of page 1. Frees all WASM objects. */
+/**
+ * Opens a PDF, returns its page count, a PNG thumbnail of page 1 and a text sample of the first
+ * pages (for language detection). Frees all WASM objects.
+ */
+const SAMPLE_PAGES = 3;
+const SAMPLE_CHARS = 8000;
+
+function textSample(doc: Document, pages: number): string {
+  let text = '';
+  for (let i = 0; i < pages && text.length < SAMPLE_CHARS; i++) {
+    const page = doc.loadPage(i);
+    try {
+      const stext = page.toStructuredText('preserve-whitespace');
+      try {
+        text += `${stext.asText()}\n`;
+      } finally {
+        stext.destroy();
+      }
+    } catch {
+      // A page that cannot be read only makes the sample shorter.
+    } finally {
+      page.destroy();
+    }
+  }
+  return text.slice(0, SAMPLE_CHARS);
+}
+
 export async function inspectPdf(
   bytes: Uint8Array,
   options: { maxPages: number; thumbnailWidth: number },
@@ -43,6 +71,7 @@ export async function inspectPdf(
         return {
           ok: true,
           pageCount,
+          sample: textSample(doc, Math.min(pageCount, SAMPLE_PAGES)),
           thumbnail: {
             png: pixmap.asPNG().slice(),
             width: pixmap.getWidth(),

@@ -2,7 +2,7 @@ import type { Rect } from '../../core/ir/types';
 import type { LayoutLine } from '../typeset/layout';
 import { FACE_FILES } from '../typeset/types';
 import type { LoadedFaces } from './fonts';
-import { loadMupdf } from './mupdf';
+import { loadMupdf, type MupdfModule } from './mupdf';
 import { applyOutlineTitles } from './outline';
 import { sanitizePdf } from './sanitize';
 
@@ -229,31 +229,106 @@ export async function writePdf(
   }
 }
 
-/** Dual output: each page = original (left) + translation (right). */
+type PDFDoc = NonNullable<ReturnType<InstanceType<MupdfModule['Document']>['asPDF']>>;
+type PDFObj = ReturnType<PDFDoc['newDictionary']>;
+
+/**
+ * A page as a Form XObject in `out`: its content streams, resources and visible box, plus the
+ * matrix that draws it upright at the origin (honours /Rotate and the crop box).
+ */
+function pageAsXObject(
+  mupdf: MupdfModule,
+  out: PDFDoc,
+  map: ReturnType<PDFDoc['newGraftMap']>,
+  src: PDFDoc,
+  index: number,
+): { xobject: PDFObj; matrix: number[]; width: number; height: number } {
+  const page = src.loadPage(index) as InstanceType<MupdfModule['PDFPage']>;
+  try {
+    const obj = page.getObject();
+    const [x0, y0, x1, y1] = page.getBounds();
+    const width = x1 - x0;
+    const height = y1 - y0;
+    // Page space → fitz space (y down, rotated) → PDF space of the new page (y up).
+    const matrix = mupdf.Matrix.concat(
+      mupdf.Matrix.concat(page.getTransform(), mupdf.Matrix.translate(-x0, -y0)),
+      [1, 0, 0, -1, 0, height],
+    );
+    const parts: Uint8Array[] = [];
+    const contents = obj.get('Contents');
+    const streams = contents.isArray()
+      ? Array.from({ length: contents.length }, (_, i) => contents.get(i))
+      : contents.isNull()
+        ? []
+        : [contents];
+    for (const stream of streams) {
+      if (!stream.isStream()) continue;
+      const buf = stream.readStream();
+      parts.push(buf.asUint8Array().slice(), new Uint8Array([10]));
+      buf.destroy();
+    }
+    const bytes = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) {
+      bytes.set(p, at);
+      at += p.length;
+    }
+    const box = obj.getInheritable('CropBox');
+    const dict = out.newDictionary();
+    dict.put('Type', out.newName('XObject'));
+    dict.put('Subtype', out.newName('Form'));
+    dict.put('BBox', map.graftObject(box.isNull() ? obj.getInheritable('MediaBox') : box));
+    const resources = obj.getInheritable('Resources');
+    dict.put('Resources', resources.isNull() ? out.newDictionary() : map.graftObject(resources));
+    return { xobject: out.addStream(bytes, dict), matrix, width, height };
+  } finally {
+    page.destroy();
+  }
+}
+
+/**
+ * Dual output: each page = original (left) + translation (right). Built at the PDF object level
+ * (pages become Form XObjects), so every font type — including Type 3 — and every vector is
+ * kept exactly. Annotations (links, notes) live in the single translated PDF.
+ */
 async function sideBySide(original: Uint8Array, translated: Uint8Array): Promise<Uint8Array> {
   const mupdf = await loadMupdf();
-  const a = mupdf.Document.openDocument(original, 'application/pdf');
-  const b = mupdf.Document.openDocument(translated, 'application/pdf');
-  const buf = new mupdf.Buffer();
-  const writer = new mupdf.DocumentWriter(buf, 'pdf', 'compress');
+  const a = mupdf.Document.openDocument(original, 'application/pdf').asPDF()!;
+  const b = mupdf.Document.openDocument(translated, 'application/pdf').asPDF()!;
+  const out = new mupdf.PDFDocument();
+  const mapA = out.newGraftMap();
+  const mapB = out.newGraftMap();
   try {
     for (let i = 0; i < a.countPages(); i++) {
-      const pa = a.loadPage(i);
-      const pb = b.loadPage(i);
-      const [x0, y0, x1, y1] = pa.getBounds();
-      const w = x1 - x0;
-      const dev = writer.beginPage([0, 0, 2 * w, y1 - y0]);
-      pa.run(dev, mupdf.Matrix.translate(-x0, -y0));
-      pb.run(dev, mupdf.Matrix.translate(w - x0, -y0));
-      writer.endPage();
-      pa.destroy();
-      pb.destroy();
+      const left = pageAsXObject(mupdf, out, mapA, a, i);
+      const right = pageAsXObject(mupdf, out, mapB, b, i);
+      const xobjects = out.newDictionary();
+      xobjects.put('L', left.xobject);
+      xobjects.put('R', right.xobject);
+      const resources = out.newDictionary();
+      resources.put('XObject', xobjects);
+      const cm = (m: number[], dx: number) =>
+        `q ${[m[0], m[1], m[2], m[3], m[4]! + dx, m[5]].map((v) => +v!.toFixed(4)).join(' ')} cm`;
+      const contents = `${cm(left.matrix, 0)} /L Do Q\n${cm(right.matrix, left.width)} /R Do Q\n`;
+      const page = out.addPage(
+        [0, 0, left.width + right.width, Math.max(left.height, right.height)],
+        0,
+        resources,
+        contents,
+      );
+      out.insertPage(-1, page);
     }
-    writer.close();
-    return buf.asUint8Array().slice();
+    const buf = out.saveToBuffer('compress,garbage=compact');
+    try {
+      return buf.asUint8Array().slice();
+    } finally {
+      buf.destroy();
+    }
   } finally {
+    mapA.destroy();
+    mapB.destroy();
+    out.destroy();
     a.destroy();
     b.destroy();
-    buf.destroy();
   }
 }

@@ -21,9 +21,9 @@ export type Token =
 const TOKEN_RE = /<(\/?)(t\d+)>|⟦([A-Z]\d+)⟧/g;
 /** Text that would be mistaken for markup; escaped as ⟦L…⟧ placeholders. */
 const LITERAL_RE = /<\/?t\d+>|[⟦⟧]/g;
-/** URLs, DOIs and e-mail addresses are never translated (⟦U…⟧). */
+/** URLs, DOIs, arXiv ids and e-mail addresses are never translated (⟦U…⟧). */
 const URL_RE =
-  /\b(?:https?:\/\/|www\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g;
+  /\b(?:https?:\/\/|www\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/gi;
 
 /** Splits tagged text into tokens. Unknown-looking markup stays as plain text. */
 export function tokenize(tagged: string): Token[] {
@@ -53,19 +53,23 @@ export function plainText(tagged: string): string {
  * compared with `styleKey`. URLs/DOIs/e-mails and markup-looking literals become placeholders.
  */
 export function encode<S>(runs: InlineRun<S>[], styleKey: (s: S) => string): Encoded<S> {
-  // Merge adjacent text runs with the same style.
+  // Merge adjacent text runs with the same style. Whitespace-only runs have no visible style of
+  // their own: they join the text before them (or adopt the style of the text after them).
+  const blank = (t: string) => /^\s*$/.test(t);
   const merged: InlineRun<S>[] = [];
   for (const run of runs) {
     const prev = merged[merged.length - 1];
-    if (
-      run.type === 'text' &&
-      prev?.type === 'text' &&
-      styleKey(prev.style) === styleKey(run.style)
-    ) {
-      merged[merged.length - 1] = { ...prev, text: prev.text + run.text };
-    } else if (run.type !== 'text' || run.text.length > 0) {
-      merged.push(run);
+    if (run.type === 'text' && prev?.type === 'text') {
+      if (styleKey(prev.style) === styleKey(run.style) || blank(run.text)) {
+        merged[merged.length - 1] = { ...prev, text: prev.text + run.text };
+        continue;
+      }
+      if (blank(prev.text)) {
+        merged[merged.length - 1] = { ...run, text: prev.text + run.text };
+        continue;
+      }
     }
+    if (run.type !== 'text' || run.text.length > 0) merged.push(run);
   }
 
   const weight = new Map<string, { style: S; chars: number; first: number }>();

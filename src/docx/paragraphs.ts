@@ -50,8 +50,22 @@ const elementChildren = (el: XElement): XElement[] => {
 const is = (el: XElement, ns: string, local: string) =>
   el.namespaceURI === ns && el.localName === local;
 
-/** rPr children that do not change appearance (ignored when comparing styles). */
-const IGNORED_RPR = new Set(['lang', 'noProof', 'rPrChange', 'webHidden', 'specVanish']);
+/**
+ * rPr children ignored when comparing styles: no visible effect, or per-run justification
+ * tweaks (character spacing, kerning, width scale) that PDF converters put on every word and
+ * space — they carry no meaning once the text is translated and would shred each sentence
+ * into dozens of tags. Merged runs keep the properties of their first run.
+ */
+const IGNORED_RPR = new Set([
+  'lang',
+  'noProof',
+  'rPrChange',
+  'webHidden',
+  'specVanish',
+  'spacing',
+  'kern',
+  'w',
+]);
 
 function rPrKey(rPr: XElement | null): string {
   if (!rPr) return '';

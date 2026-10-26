@@ -9,6 +9,7 @@ export const en = {
   'file.change': 'Choose another file',
   'file.reading': 'Reading document…',
   'file.pages': '{count} pages',
+  'file.detected': 'Detected language: {lang}',
   'file.thumbnail': 'First page of {name}',
 
   'error.empty': 'This file is empty.',

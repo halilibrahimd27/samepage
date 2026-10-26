@@ -1,3 +1,4 @@
+import { functionWords } from '../detectLanguage';
 import { plainText, tokenize } from '../segment/codec';
 import { compareNumbers } from './numbers';
 
@@ -14,6 +15,8 @@ export type ValidationCode =
   | 'LENGTH_RATIO'
   | 'MEANING_DRIFT'
   | 'STYLE_APPROXIMATED'
+  | 'PARTLY_UNTRANSLATED'
+  | 'REVIEW_SUGGESTED'
   | 'REFUSED';
 
 export interface ValidationIssue {
@@ -170,7 +173,14 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
   }
 
   if (input.checkLanguage !== false && sourceLang !== targetLang && srcPlain.length >= 20) {
-    if (tgtPlain === srcPlain) err('UNTRANSLATED', 'translation is identical to the source');
+    if (tgtPlain === srcPlain) {
+      // Names, identifiers and figures legitimately stay the same.
+      if (functionWords(srcPlain, sourceLang) > 0) {
+        err('UNTRANSLATED', 'translation is identical to the source');
+      } else {
+        warn('UNTRANSLATED', 'kept as is (names, code or figures)');
+      }
+    }
     const script = scriptOf(targetLang);
     if (scriptRatio(tgtPlain, script) < 0.6) {
       err('WRONG_LANGUAGE', `expected ${script} script for ${targetLang}`);

@@ -1,4 +1,12 @@
 import { tokenize } from '../core/segment/codec';
+import {
+  assemblePieces,
+  matchInitialCase,
+  pieceTexts,
+  planPieces,
+  splitClauses,
+  splitSentences,
+} from './plainText';
 import type { Availability, LangPair, SegmentResult, TranslationEngine } from './types';
 
 /**
@@ -33,38 +41,6 @@ function structureKept(source: string, target: string): boolean {
   );
 }
 
-/** Removes <tN> tags but keeps placeholders. */
-const stripTags = (t: string) => t.replace(/<\/?t\d+>/g, '');
-
-/**
- * Re-applies inline styles after a tag-free translation (TRANSLATION.md §2.2): a tag is
- * restored around its source text only when that text survived verbatim (names, numbers);
- * the rest become empty tags so the structure stays valid, and the result is reported.
- */
-export function reapplyTags(source: string, translated: string): string {
-  let result = translated;
-  const tokens = tokenize(source);
-  let unplaced = '';
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i]!;
-    if (t.type !== 'open') continue;
-    let inner = '';
-    for (let j = i + 1; j < tokens.length; j++) {
-      const u = tokens[j]!;
-      if (u.type === 'close' && u.id === t.id) break;
-      if (u.type === 'text') inner += u.text;
-    }
-    const needle = inner.trim();
-    const at = needle ? result.indexOf(needle) : -1;
-    if (at >= 0) {
-      result = `${result.slice(0, at)}<${t.id}>${needle}</${t.id}>${result.slice(at + needle.length)}`;
-    } else {
-      unplaced += `<${t.id}></${t.id}>`;
-    }
-  }
-  return result + unplaced;
-}
-
 export function createChromeEngine(bridge: ChromeTranslatorBridge): TranslationEngine {
   return {
     id: 'chrome-builtin',
@@ -83,36 +59,60 @@ export function createChromeEngine(bridge: ChromeTranslatorBridge): TranslationE
     maxBatchChars: 4000,
     isAvailable: (pair) => bridge.availability(pair),
 
+    /**
+     * First the tagged text as is; segments whose tags or placeholders did not survive are
+     * translated again piece by piece (plainText.ts), which keeps every placeholder. When the
+     * pipeline retries a segment that failed validation (a dropped citation or number), each
+     * piece is translated sentence by sentence, and on the last retry clause by clause — the
+     * on-device model drops content from long inputs, shorter ones come back complete.
+     */
     async translate(batch, ctx, signal): Promise<SegmentResult[]> {
-      const first = await bridge.translate(
-        ctx.pair,
-        batch.map((s) => s.text),
-      );
+      const lang = ctx.pair.target;
+      const retrying = ctx.retryFeedback !== undefined;
+      // The last retry (one segment alone) goes down to clauses.
+      const clauses = retrying && batch.length === 1;
+      const split = (t: string) =>
+        !retrying ? [t] : splitSentences(t).flatMap((x) => (clauses ? splitClauses(x) : [x]));
+      const first = retrying
+        ? []
+        : await bridge.translate(
+            ctx.pair,
+            batch.map((s) => s.text),
+          );
       signal.throwIfAborted();
       const results: SegmentResult[] = [];
       const retry: number[] = [];
       batch.forEach((s, i) => {
         const text = first[i] ?? '';
-        const hasTags = tagIds(s.text).length > 0;
-        if (structureKept(s.text, text)) {
-          results[i] = { id: s.id, text, notes: hasTags ? ['tags-survived'] : [] };
+        if (text.trim() && structureKept(s.text, text)) {
+          results[i] = {
+            id: s.id,
+            text: matchInitialCase(s.text, text, lang),
+            notes: tagIds(s.text).length > 0 ? ['tags-survived'] : [],
+          };
         } else {
           retry.push(i);
         }
       });
       if (retry.length) {
-        const second = await bridge.translate(
-          ctx.pair,
-          retry.map((i) => stripTags(batch[i]!.text)),
-        );
+        const plans = retry.map((i) => planPieces(batch[i]!.text));
+        const parts = plans.map((p) => pieceTexts(p).map(split));
+        const answers = await bridge.translate(ctx.pair, parts.flat(2));
         signal.throwIfAborted();
-        retry.forEach((i, k) => {
-          const s = batch[i]!;
-          results[i] = {
-            id: s.id,
-            text: reapplyTags(s.text, second[k] ?? ''),
-            notes: ['tags-lost', 'style-approximated'],
-          };
+        let k = 0;
+        retry.forEach((i, n) => {
+          const plan = plans[n]!;
+          const joined = parts[n]!.map((sentences) => {
+            const out = answers.slice(k, k + sentences.length);
+            k += sentences.length;
+            return out.some((a) => !a.trim()) ? '' : out.map((a) => a.trim()).join(' ');
+          });
+          const built = assemblePieces(plan, joined, lang);
+          const notes = ['pieces'];
+          if (parts[n]!.some((p) => p.length > 1)) notes.push(clauses ? 'clauses' : 'sentences');
+          if (built?.lostTags.length) notes.push('style-approximated');
+          if (plan.keptVerbatim) notes.push('kept-verbatim');
+          results[i] = { id: batch[i]!.id, text: built?.text ?? '', notes };
         });
       }
       return results;

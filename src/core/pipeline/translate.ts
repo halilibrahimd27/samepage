@@ -12,9 +12,11 @@ import {
   type TranslationEngine,
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
+import { academicHeading } from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
 import { protectTerms, restoreTerms } from '../glossary/protect';
 import { plainText } from '../segment/codec';
+import { createDehyphenator } from '../segment/dehyphenate';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
 
 export interface SegmentOutcome {
@@ -98,7 +100,11 @@ const FATAL: EngineError['code'][] = [
  * fidelity check (ADR-008) on accepted translations.
  */
 export async function translateSegments(job: TranslateJob): Promise<SegmentOutcome[]> {
-  const { engine, segments, signal } = job;
+  const { engine, signal } = job;
+  // Line-end hyphens left inside words by PDF converters are joined before translating.
+  const dehyphenate = createDehyphenator(job.segments.map((s) => s.text));
+  const segments = job.segments.map((s) => ({ ...s, text: dehyphenate(s.text) }));
+  const originalText = new Map(job.segments.map((s) => [s.id, s.text]));
   const ctx: TranslateContext = { ...job.ctx };
   const checkLanguage = engine.id !== 'pseudo';
   // Engines without glossary support get terms protected as placeholders (ADR-015).
@@ -137,16 +143,44 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       issues.push({
         code: 'STYLE_APPROXIMATED',
         severity: 'warning',
-        detail: 'inline styles re-applied approximately',
+        detail: 'some inline formatting (bold, italic, …) could not be placed in the translation',
+      });
+    }
+    if (notes.includes('clauses')) {
+      issues.push({
+        code: 'REVIEW_SUGGESTED',
+        severity: 'warning',
+        detail:
+          'translated clause by clause because the engine dropped content from the full sentence; please review the wording',
+      });
+    }
+    if (notes.includes('kept-verbatim')) {
+      issues.push({
+        code: 'PARTLY_UNTRANSLATED',
+        severity: 'warning',
+        detail: 'a formatted part containing a link was kept in the original language',
       });
     }
     return issues;
   };
 
   const pending: SegmentRequest[] = [];
+  const headings = !engine.capabilities.glossary && engine.id !== 'pseudo';
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
-    if (hit) {
+    const heading = headings ? academicHeading(s.text, ctx.pair.source, ctx.pair.target) : null;
+    if (heading !== null) {
+      outcomes.set(s.id, {
+        id: s.id,
+        text: heading,
+        untranslated: false,
+        cached: false,
+        attempts: 0,
+        issues: [],
+        notes: ['academic-heading'],
+        findings: [],
+      });
+    } else if (hit) {
       outcomes.set(s.id, {
         id: s.id,
         text: hit.text,
@@ -291,7 +325,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       if (outcomes.has(req.id)) continue;
       outcomes.set(req.id, {
         id: req.id,
-        text: req.text,
+        text: originalText.get(req.id) ?? req.text,
         untranslated: true,
         cached: false,
         attempts: attempts.get(req.id) ?? 0,

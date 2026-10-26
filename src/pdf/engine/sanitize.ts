@@ -12,8 +12,11 @@ const DANGEROUS = new Set([
   'GoToE',
 ]);
 
+/** `PDFObject.Null` (an absent key) has no document, so `resolve()` on it throws. */
+const resolved = (o: PDFObj): PDFObj => (o.isNull() ? o : o.resolve());
+
 function actionType(action: PDFObj): string {
-  const a = action.resolve();
+  const a = resolved(action);
   if (!a.isDictionary()) return '';
   const s = a.get('S');
   return s.isNull() ? '' : s.asName();
@@ -25,7 +28,7 @@ function actionType(action: PDFObj): string {
  */
 export function sanitizePdf(doc: PDFDoc): string[] {
   const removed: string[] = [];
-  const root = doc.getTrailer().get('Root').resolve();
+  const root = resolved(doc.getTrailer().get('Root'));
   if (root.isDictionary()) {
     const open = root.get('OpenAction');
     if (!open.isNull() && DANGEROUS.has(actionType(open))) {
@@ -36,7 +39,7 @@ export function sanitizePdf(doc: PDFDoc): string[] {
       root.delete('AA');
       removed.push('document additional actions');
     }
-    const names = root.get('Names').resolve();
+    const names = resolved(root.get('Names'));
     if (names.isDictionary() && !names.get('JavaScript').isNull()) {
       names.delete('JavaScript');
       removed.push('document-level JavaScript');
@@ -49,10 +52,10 @@ export function sanitizePdf(doc: PDFDoc): string[] {
       pageObj.delete('AA');
       removed.push(`page ${i + 1} additional actions`);
     }
-    const annots = pageObj.get('Annots').resolve();
+    const annots = resolved(pageObj.get('Annots'));
     if (!annots.isArray()) continue;
     for (let k = 0; k < annots.length; k++) {
-      const annot = annots.get(k).resolve();
+      const annot = resolved(annots.get(k));
       if (!annot.isDictionary()) continue;
       const a = annot.get('A');
       if (!a.isNull() && DANGEROUS.has(actionType(a))) {

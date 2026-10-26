@@ -89,6 +89,20 @@ const api: PipelineApi = {
     return result.ok ? transfer(result, [result.thumbnail.png.buffer]) : result;
   },
 
+  async sampleDocx(file) {
+    try {
+      const paragraphs = await docxParagraphs(new Uint8Array(await file.arrayBuffer()));
+      let text = '';
+      for (const p of paragraphs) {
+        if (text.length > 8000) break;
+        text += `${plainText(p.text)}\n`;
+      }
+      return text;
+    } catch {
+      return '';
+    }
+  },
+
   async translateText(job, onProgress, chrome) {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);

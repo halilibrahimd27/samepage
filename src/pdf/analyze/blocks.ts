@@ -208,8 +208,10 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
 
 /**
  * MuPDF sometimes ends a block in the middle of a paragraph. Adjacent blocks are merged when the
- * first ends mid-sentence, the second starts in lower case at the same left edge without a
- * paragraph indent, with normal line spacing and the same font size.
+ * first ends mid-sentence, with normal line spacing and the same font size, and the second
+ * either starts in lower case at the same left edge without a paragraph indent, or continues a
+ * centred heading (same centre, same font: "A Machine Learning-Based Approach For Detecting
+ * Malicious" + "PyPI Packages" is one title and must be translated as one).
  */
 function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
   const out: BlockIR[] = [];
@@ -228,11 +230,21 @@ function mergeSplitParagraphs(blocks: BlockIR[]): BlockIR[] {
         .join('')
         .trim();
       const gap = bFirst.bbox.y0 - aLast.bbox.y1;
-      if (
-        !/[.!?…:]["”»’)\]]*$/.test(aText) &&
+      const centre = (r: Rect) => (r.x0 + r.x1) / 2;
+      const fontA = aLast.spans[0]!.font;
+      const fontB = bFirst.spans[0]!.font;
+      const continuesLeft =
         /^\p{Ll}/u.test(bText) &&
         bFirst.bbox.x0 <= a.bbox.x0 + 2 &&
-        bFirst.bbox.x0 >= a.bbox.x0 - 3 * size &&
+        bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
+      const continuesCentred =
+        Math.abs(centre(aLast.bbox) - centre(bFirst.bbox)) < 3 &&
+        Math.abs(aLast.bbox.x0 - bFirst.bbox.x0) > 6 &&
+        fontA.name === fontB.name &&
+        fontA.bold === fontB.bold;
+      if (
+        !/[.!?…:]["”»’)\]]*$/.test(aText) &&
+        (continuesLeft || continuesCentred) &&
         gap >= -1 &&
         gap < 0.6 * size &&
         Math.abs(aLast.spans[0]!.size - size) < 0.3

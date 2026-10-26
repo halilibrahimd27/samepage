@@ -96,6 +96,8 @@ export interface PipelineApi {
   ping(): 'pong';
   /** Page count and page-1 thumbnail. The PNG buffer is transferred, not copied. */
   inspectPdf(file: Blob): Promise<PdfInspection>;
+  /** Plain text of the first paragraphs of a DOCX (for language detection); '' on failure. */
+  sampleDocx(file: Blob): Promise<string>;
   translateText(
     job: TextJob,
     onProgress?: (done: number, total: number) => void,
