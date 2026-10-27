@@ -82,6 +82,16 @@ Works in desktop browsers and on phones. Finished translations are kept in
 - Inline math in PDFs is re-set in the Noto font (display formulas are left untouched).
 - Very long PDFs (hundreds of pages) need a lot of memory; translate them in page ranges.
 - Translation quality depends on the engine. Always review academic text before publishing.
+- PDFs with unusual internal glyph encodings or private-use symbols without a Unicode meaning
+  can lose a symbol or show a small change outside the text; both are reported per page.
+
+## How it is tested
+
+Besides unit, golden and end-to-end tests, samepage is checked against real open-access papers:
+86 papers in 17 languages (engineering, mathematics, physics, chemistry, medicine, nursing,
+public health, computer science, biology, economics, law), translated with Google Translate,
+plus round trips (a paper translated into another language and back) to measure meaning drift.
+The papers are not part of the repository.
 
 ## Development
 
