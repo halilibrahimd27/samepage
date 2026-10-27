@@ -1,3 +1,4 @@
+import { REFERENCES_HEADING } from '../core/references';
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
 import type { Role } from '../core/ir/types';
@@ -79,9 +80,6 @@ function discoverParts(
   }
   return out;
 }
-
-const REFERENCES_HEADING =
-  /^\s*(\d+[.)]?\s*)?(kaynak(ça|lar)|references|bibliography|literatur(verzeichnis)?|literatür|литература|список литературы|bibliographie|références|bibliografía|riferimenti)\s*$/i;
 
 function wRole(para: XElement, part: string): Role {
   if (/header/.test(part)) return 'header';

@@ -32,8 +32,8 @@ const post = (message: object) => parent.postMessage({ ...message, ch: channel }
 
 /** Quiet period after the last change before a batch counts as done. */
 const SETTLE_MS = 2500;
-/** A batch where nothing changes in this time failed. */
-const NOTHING_MS = 20_000;
+/** A batch where nothing changes in this time is checked (see translate). */
+const NOTHING_MS = 12_000;
 /** Upper bound for one batch. */
 const MAX_MS = 60_000;
 
@@ -131,7 +131,10 @@ async function translate(texts: string[]): Promise<string[]> {
           resolve();
         } else if (!first && now - start > NOTHING_MS) {
           clearInterval(timer);
-          reject(new Error('nothing was translated'));
+          // Google marks the page as translated even when nothing needed a change (a batch of
+          // names and figures): the texts come back as they are. Otherwise it is not working.
+          if (document.documentElement.classList.contains('translated-ltr')) resolve();
+          else reject(new Error('nothing was translated'));
         }
       }, 100);
     });

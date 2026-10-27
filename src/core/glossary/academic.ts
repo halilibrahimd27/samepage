@@ -144,6 +144,19 @@ const TERMS: Langs[] = [
     ru: 'Ключевые слова',
   },
   {
+    // The running-number column of Slavic tables ("№ з/п" became "No. of the company").
+    en: 'No.',
+    tr: 'Sıra No.',
+    de: 'Nr.',
+    fr: 'N°',
+    es: 'N.º',
+    it: 'N.',
+    pt: 'N.º',
+    ru: '№ п/п',
+    uk: '№ з/п',
+    bg: '№ по ред',
+  },
+  {
     // A table's column group ("Overall" | "Per-class") became "Etraflı" (detailed).
     en: 'Overall',
     tr: 'Genel',
@@ -266,7 +279,7 @@ export function academicHeading(
   const tokens = tokenize(tagged);
   const texts = tokens.filter((t) => t.type === 'text' && t.text.trim());
   if (texts.length !== 1) return null;
-  const m = /^(\s*)(\p{L}[\p{L}\d -]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$/u.exec(
+  const m = /^(\s*)([\p{L}№][\p{L}\d /-]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$/u.exec(
     (texts[0] as { text: string }).text,
   );
   if (!m) return null;

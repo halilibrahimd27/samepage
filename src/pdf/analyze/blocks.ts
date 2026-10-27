@@ -1,4 +1,4 @@
-import { union, unionAll } from '../../core/ir/geometry';
+import { iou, union, unionAll } from '../../core/ir/geometry';
 import type { BlockIR, LineIR, Rect, SpanIR } from '../../core/ir/types';
 import { coverage } from '../../core/ir/geometry';
 import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
@@ -78,7 +78,11 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
     const first = cur[0]!;
     const bbox = unionAll(cur.map((c) => c.bbox));
     const span: SpanIR = {
-      text: cur.map((c) => c.c).join(''),
+      // Some PDFs store accents as combining marks ("e" + U+0301): composed text reads as words.
+      text: cur
+        .map((c) => c.c)
+        .join('')
+        .normalize('NFC'),
       bbox,
       font: fontInfo(first.font, page.fonts[first.font]),
       size: first.size,
@@ -190,7 +194,7 @@ function splitParagraphs(
     if (prev && cur.length) {
       const size = dominantSize(line);
       const prevSize = dominantSize(prev);
-      const lineGap = line.bbox.y0 - prev.bbox.y1;
+      const step = baselineOf(line) - baselineOf(prev);
       const em = Math.max(size, 1);
       const indented = line.bbox.x0 - blockBox.x0 > 0.6 * em && line.bbox.x0 - blockBox.x0 < 4 * em;
       const prevShort = blockBox.x1 - prev.bbox.x1 > 0.08 * blockWidth;
@@ -219,12 +223,12 @@ function splitParagraphs(
       // than the spacing around it (a double-spaced section on a page of tighter text).
       const next = lines[i + 1];
       const around = [
-        lines[i - 2] ? prev.bbox.y0 - lines[i - 2]!.bbox.y1 : undefined,
-        next ? next.bbox.y0 - line.bbox.y1 : undefined,
+        lines[i - 2] ? baselineOf(prev) - baselineOf(lines[i - 2]!) : undefined,
+        next ? baselineOf(next) - baselineOf(line) : undefined,
       ];
-      const regular = around.some((g) => g !== undefined && Math.abs(g - lineGap) < 0.15 * em);
+      const regular = around.some((g) => g !== undefined && Math.abs(g - step) < 0.15 * em);
       const bigGap =
-        lineGap > Math.max(0.8, layout.lineGapEm + 0.5) * em && !(regular && lineGap < 2 * em);
+        step > Math.max(1.75, layout.lineStepEm + 0.5) * em && !(regular && step < 3 * em);
       // Text on a coloured box and text outside it are different paragraphs.
       const backgroundChange = backgroundOf(line.bbox) !== backgroundOf(prev.bbox);
       if (
@@ -305,10 +309,10 @@ interface PageLayout {
   /** Most lines end at a common text edge (justified setting). */
   justified: boolean;
   /**
-   * Usual white space between consecutive lines of running text, in em (≈ 0.2 single-spaced,
-   * ≈ 0.8 in a one-and-a-half-spaced thesis). Paragraph gaps are measured against it.
+   * Usual baseline-to-baseline distance of running text, in em (≈ 1.2 single-spaced, ≈ 1.8 in
+   * a one-and-a-half-spaced thesis). Paragraph gaps are measured against it.
    */
-  lineGapEm: number;
+  lineStepEm: number;
   /** The text edge a block's lines run to (a column's right margin). */
   edgeFor: (block: Rect) => number;
 }
@@ -333,31 +337,44 @@ function pageLayout(page: RawPage): PageLayout {
   return {
     justified: ends.length >= 6 && onEdge >= 0.5 * ends.length,
     edgeFor: (r) => edges.find((e) => e >= r.x1 - 3) ?? r.x1,
-    lineGapEm: usualLineGap(page),
+    lineStepEm: usualLineStep(page),
   };
 }
 
-/** Median gap (in em) between each long line and the next long line below it in its column. */
-function usualLineGap(page: RawPage): number {
+/** Baseline of a raw line: the median of its glyph origins. */
+function baselineOf(line: RawLine): number {
+  const ys = line.chars
+    .filter((c) => c.c.trim())
+    .map((c) => c.y)
+    .sort((a, b) => a - b);
+  return ys.length ? ys[Math.floor(ys.length / 2)]! : line.bbox.y1;
+}
+
+/**
+ * Median distance (in em) between the baselines of each long line and the next long line below
+ * it in its column. Baselines, not line boxes: some fonts give boxes that overlap.
+ */
+function usualLineStep(page: RawPage): number {
   const lines = page.blocks
     .flatMap((b) => b.lines)
     .filter((l) => l.chars.length > 20 && l.dir[1] === 0)
     .sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
-  const gaps: number[] = [];
+  const steps: number[] = [];
   lines.forEach((line, i) => {
     const size = dominantSize(line);
     const width = line.bbox.x1 - line.bbox.x0;
+    const base = baselineOf(line);
     const next = lines.slice(i + 1).find((n) => {
       const overlap = Math.min(n.bbox.x1, line.bbox.x1) - Math.max(n.bbox.x0, line.bbox.x0);
-      return n.bbox.y0 > line.bbox.y0 + 0.5 * size && overlap > 0.5 * width;
+      return baselineOf(n) > base + 0.5 * size && overlap > 0.5 * width;
     });
     if (!next || Math.abs(dominantSize(next) - size) > 0.5 || size <= 0) return;
-    const gap = (next.bbox.y0 - line.bbox.y1) / size;
-    if (gap > -0.5 && gap < 2.5) gaps.push(gap);
+    const step = (baselineOf(next) - base) / size;
+    if (step > 0.8 && step < 3.5) steps.push(step);
   });
-  if (gaps.length < 4) return 0;
-  gaps.sort((a, b) => a - b);
-  return Math.max(0, gaps[Math.floor(gaps.length / 2)]!);
+  if (steps.length < 4) return 1.2;
+  steps.sort((a, b) => a - b);
+  return steps[Math.floor(steps.length / 2)]!;
 }
 
 /**
@@ -441,7 +458,21 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
       blocks.push(block);
     }
   }
-  return mergeSplitParagraphs(blocks, layout, cells);
+  return dropDuplicates(mergeSplitParagraphs(blocks, layout, cells));
+}
+
+/**
+ * The same text drawn twice at the same place (a fake bold, a shadow) is one block: translated
+ * once and redacted once (the redaction removes both copies).
+ */
+function dropDuplicates(blocks: BlockIR[]): BlockIR[] {
+  const out: BlockIR[] = [];
+  for (const b of blocks) {
+    const text = blockText(b);
+    const twin = out.find((o) => blockText(o) === text && iou(o.bbox, b.bbox) > 0.7);
+    if (!twin) out.push(b);
+  }
+  return out.map((b, i) => ({ ...b, id: b.id.replace(/-b\d+$/, `-b${i}`) }));
 }
 
 /**
@@ -457,7 +488,7 @@ function mergeSplitParagraphs(
   cells: Set<BlockIR>,
 ): BlockIR[] {
   const out: BlockIR[] = [];
-  const gapOf = (x: LineIR, y: LineIR) => y.bbox.y0 - x.bbox.y1;
+  const stepOf = (x: LineIR, y: LineIR) => y.baseline - x.baseline;
   blocks.forEach((b, k) => {
     const a = out[out.length - 1];
     if (a) {
@@ -472,18 +503,18 @@ function mergeSplitParagraphs(
         .map((s) => s.text)
         .join('')
         .trim();
-      const gap = gapOf(aLast, bFirst);
+      const step = stepOf(aLast, bFirst);
       // Spacing like that of the lines around it: one paragraph, however wide the spacing.
       const nextBlock = blocks[k + 1];
       const around = [
-        a.lines.length > 1 ? gapOf(a.lines[a.lines.length - 2]!, aLast) : undefined,
+        a.lines.length > 1 ? stepOf(a.lines[a.lines.length - 2]!, aLast) : undefined,
         b.lines.length > 1
-          ? gapOf(bFirst, b.lines[1]!)
+          ? stepOf(bFirst, b.lines[1]!)
           : nextBlock
-            ? gapOf(bFirst, nextBlock.lines[0]!)
+            ? stepOf(bFirst, nextBlock.lines[0]!)
             : undefined,
       ];
-      const regular = around.some((g) => g !== undefined && Math.abs(g - gap) < 0.15 * size);
+      const regular = around.some((g) => g !== undefined && Math.abs(g - step) < 0.15 * size);
       const centre = (r: Rect) => (r.x0 + r.x1) / 2;
       const fontA = aLast.spans[0]!.font;
       const fontB = bFirst.spans[0]!.font;
@@ -516,8 +547,8 @@ function mergeSplitParagraphs(
         !/[.!?…:]["”»’)\]]*$/.test(aText) &&
         !opensWithMark &&
         (continuesLeft || continuesFull || continuesCentred) &&
-        gap >= -1 &&
-        (gap < Math.max(0.6, layout.lineGapEm + 0.3) * size || (regular && gap < 2 * size)) &&
+        step > 0.5 * size &&
+        (step < Math.max(1.6, layout.lineStepEm + 0.3) * size || (regular && step < 3 * size)) &&
         Math.abs(aLast.spans[0]!.size - size) < 0.3
       ) {
         const lines = [...a.lines, ...b.lines];

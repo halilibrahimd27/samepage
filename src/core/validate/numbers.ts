@@ -5,7 +5,9 @@
  */
 /** Decimal/thousands separators: dot, comma, space, no-break space, narrow no-break space. */
 const SEP = '[.,\\u0020\\u00a0\\u202f]';
-const NUMBER_RE = new RegExp(`\\d+(?:${SEP}\\d+)*`, 'g');
+// A space separates thousands only before exactly three digits ("12 500"); "3-9 5" (a page
+// number after a page range) is two numbers.
+const NUMBER_RE = /\d+(?:[.,]\d+|[\u0020\u00a0\u202f]\d{3}(?!\d))*/g;
 const SEP_RE = new RegExp(SEP);
 const SEP_RE_G = new RegExp(SEP, 'g');
 
@@ -42,7 +44,22 @@ export function candidateValues(token: string): number[] {
 }
 
 export function extractNumbers(text: string): string[] {
-  return [...text.matchAll(NUMBER_RE)].map((m) => m[0].trim());
+  // "425 ,0": a decimal split by extraction (glyphs drawn out of order) is one number.
+  const joined = text.replace(/(\d)\s+([.,])(\d)/g, '$1$2$3');
+  return [...joined.matchAll(NUMBER_RE)].map((m) => m[0].trim());
+}
+
+const ROMAN_RE =
+  /\b(?=[MDCLXVI]{2,}\b)M{0,3}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})\b/g;
+const ROMAN: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+function romanValue(r: string): number {
+  let v = 0;
+  for (let i = 0; i < r.length; i++) {
+    const cur = ROMAN[r[i]!]!;
+    const next = ROMAN[r[i + 1] ?? ''] ?? 0;
+    v += cur < next ? -cur : cur;
+  }
+  return v;
 }
 
 /** Returns source tokens that have no matching target token, and vice versa. */
@@ -50,7 +67,15 @@ export function compareNumbers(
   source: string,
   target: string,
 ): { missing: string[]; extra: string[] } {
-  const src = extractNumbers(source).map((t) => ({ t, v: candidateValues(t) }));
+  // A Roman numeral may become digits ("siglo XX" → "20th century"); one the target keeps as
+  // is needs no match.
+  const romans = [...source.matchAll(ROMAN_RE)]
+    .map((m) => m[0])
+    .filter((r) => r && !new RegExp(`\\b${r}\\b`).test(target));
+  const src = [
+    ...extractNumbers(source).map((t) => ({ t, v: candidateValues(t), optional: false })),
+    ...romans.map((t) => ({ t, v: [romanValue(t)], optional: true })),
+  ];
   const tgt = extractNumbers(target).map((t) => ({ t, v: candidateValues(t) }));
   const matchOf = new Array<number>(tgt.length).fill(-1);
   const compatible = (i: number, j: number) => src[i]!.v.some((x) => tgt[j]!.v.includes(x));
@@ -67,7 +92,7 @@ export function compareNumbers(
   };
   const missing: string[] = [];
   src.forEach((s, i) => {
-    if (!augment(i, new Array<boolean>(tgt.length).fill(false))) missing.push(s.t);
+    if (!augment(i, new Array<boolean>(tgt.length).fill(false)) && !s.optional) missing.push(s.t);
   });
   const extra = tgt.filter((_, j) => matchOf[j] === -1).map((x) => x.t);
   return { missing, extra };

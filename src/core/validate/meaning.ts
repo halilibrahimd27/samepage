@@ -13,7 +13,7 @@ import { tokenize } from '../segment/codec';
 
 /** A pattern that matches whole words only (JS \b does not know non-ASCII letters). */
 const words = (alternatives: string[]) =>
-  new RegExp(`(?<!\\p{L})(?:${alternatives.join('|')})(?!\\p{L})`, 'giu');
+  new RegExp(`(?<![\\p{L}\\p{M}])(?:${alternatives.join('|')})(?![\\p{L}\\p{M}])`, 'giu');
 
 interface Cues {
   /** Phrases that look like negation but are not ("whether … or not", "not only … but"). */

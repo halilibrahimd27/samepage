@@ -71,6 +71,7 @@ describe.each(FIXTURES)('PDF identity check: %s', (name) => {
       faces,
       maxPages: 50,
       dual: false,
+      resetIdentical: true,
       signal: new AbortController().signal,
     });
     faces.destroy();

@@ -1,4 +1,4 @@
-import { functionWords } from '../detectLanguage';
+import { functionWords, languageScore } from '../detectLanguage';
 import { plainText, tokenize } from '../segment/codec';
 import { compareNumbers } from './numbers';
 
@@ -184,11 +184,23 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
 
   if (input.checkLanguage !== false && sourceLang !== targetLang && srcPlain.length >= 20) {
     if (tgtPlain === srcPlain) {
-      // Names, identifiers and figures legitimately stay the same.
-      if (functionWords(srcPlain, sourceLang) > 0) {
-        err('UNTRANSLATED', 'translation is identical to the source');
-      } else {
-        warn('UNTRANSLATED', 'kept as is (names, code or figures)');
+      // Names, identifiers and figures legitimately stay the same, and so does a passage that is
+      // already in the target language (the English abstract of a Czech paper).
+      const already = languageScore(srcPlain, targetLang) > languageScore(srcPlain, sourceLang);
+      if (!already) {
+        // Lower-case words only: particles of names ("Del Perugia", "van den Akker") are no sign
+        // of an untranslated sentence.
+        const lower = srcPlain
+          .replace(/\bet al\.?/gi, ' ')
+          .split(/\s+/)
+          .filter((w) => w && w === w.toLocaleLowerCase(sourceLang))
+          .join(' ');
+        // An untranslated sentence is full of function words; an address ("4 rue du Fer à
+        // Cheval") or a caption of variables ("w = 0.1 mm") has one or two.
+        const fw = functionWords(lower, sourceLang);
+        if (fw >= 3 && fw >= 0.2 * srcPlain.split(/\s+/).length)
+          err('UNTRANSLATED', 'translation is identical to the source');
+        else warn('UNTRANSLATED', 'kept as is (names, code or figures)');
       }
     }
     const script = scriptOf(targetLang);
@@ -197,7 +209,9 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     } else if (scriptOf(sourceLang) === script) {
       const distinct = DISTINCT_LETTERS[sourceLang];
       if (distinct && !DISTINCT_LETTERS[targetLang]) {
-        const count = tgtPlain.match(distinct)?.length ?? 0;
+        // Only in lower-case words: names keep their letters ("KOPÁČIK", "Dvořák").
+        const words = tgtPlain.split(/\s+/).filter((w) => w === w.toLocaleLowerCase(sourceLang));
+        const count = words.join(' ').match(distinct)?.length ?? 0;
         if (count >= 3 && count / tgtPlain.length > 0.01) {
           err('WRONG_LANGUAGE', `contains ${count} ${sourceLang}-specific letters`);
         }

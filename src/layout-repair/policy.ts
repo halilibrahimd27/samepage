@@ -30,7 +30,7 @@ export const DEFAULT_POLICY: Policy = {
     heading: 0.85,
     caption: 0.75,
     footnote: 0.78,
-    'table-cell': 0.72,
+    'table-cell': 0.66,
     label: 0.65,
     header: 0.75,
     footer: 0.75,

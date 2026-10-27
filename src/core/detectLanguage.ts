@@ -57,6 +57,21 @@ const weight = new Map<string, number>();
 for (const set of sets.values()) for (const w of set) weight.set(w, (weight.get(w) ?? 0) + 1);
 
 /**
+ * How strongly `text` reads as `lang`: its function words, each weighted by how many languages
+ * share it ("a" says little, "the" a lot). Abbreviations such as "et al." are ignored.
+ */
+export function languageScore(text: string, lang: string): number {
+  const stop = sets.get(lang as LanguageCode);
+  if (!stop) return 0;
+  const words =
+    text
+      .replace(/\bet al\.?/gi, ' ')
+      .toLocaleLowerCase()
+      .match(/\p{L}+/gu) ?? [];
+  return words.reduce((n, w) => (stop.has(w) ? n + 1 / weight.get(w)! : n), 0);
+}
+
+/**
  * Number of the language's function words in `text` ("the", "and", "ve", "bir" …). Identifiers
  * such as `has_long_str` are not split into words. 0 means the text is names, code or figures.
  */

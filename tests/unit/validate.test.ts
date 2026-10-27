@@ -95,6 +95,54 @@ describe('validateTranslation', () => {
     );
   });
 
+  it('accepts passages already in the target language and foreign names', () => {
+    const codes = (source: string, target: string, sourceLang: string, targetLang: string) =>
+      validateTranslation({ source, target, sourceLang, targetLang }).map((i) => i.code);
+    const english =
+      'The paper concludes that this approach contributes to transparency in the city.';
+    expect(codes(english, english, 'cs', 'en')).toEqual([]);
+    // An address keeps its words; it is reported as kept, not as a failure.
+    const address = '2 HPL Consulting, 4 rue du Fer à Cheval, 78100 Saint-Germain-en-Laye, France';
+    expect(
+      validateTranslation({
+        source: address,
+        target: address,
+        sourceLang: 'fr',
+        targetLang: 'en',
+      }).map((i) => i.severity),
+    ).toEqual(['warning']);
+    expect(
+      codes(
+        'HUDEČEK, Tomáš; DLOUHÝ, Martin. Hustota a struktura zástavby města.',
+        'HUDEČEK, Tomáš; DLOUHÝ, Martin. Density and structure of the city fabric.',
+        'cs',
+        'en',
+      ),
+    ).toEqual([]);
+  });
+
+  it('reads spaces between numbers as thousands only before three digits, and Roman numerals', () => {
+    const codes = (source: string, target: string) =>
+      validateTranslation({ source, target, sourceLang: 'it', targetLang: 'en' }).map(
+        (i) => i.code,
+      );
+    expect(
+      codes(
+        'Forest @ (2019) 16: 3-9   5 della rivista',
+        'Forest @ (2019) 16: 3-9 5 of the journal',
+      ),
+    ).toEqual([]);
+    expect(
+      codes('Il costo è di 12 500 euro per ettaro.', 'The cost is 12,500 euros per hectare.'),
+    ).toEqual([]);
+    expect(
+      codes(
+        'Dalla fine del secolo XX sono state proposte formule.',
+        'Since the end of the 20th century formulas have been proposed.',
+      ),
+    ).toEqual([]);
+  });
+
   it('warns when a glossary term is not used', () => {
     const issues = validateTranslation({
       source: 'Derin öğrenme modelleri incelenmiştir.',

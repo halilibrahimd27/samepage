@@ -38,7 +38,7 @@ function textSample(doc: Document, pages: number): string {
       page.destroy();
     }
   }
-  return text.slice(0, SAMPLE_CHARS);
+  return text.normalize('NFC').slice(0, SAMPLE_CHARS);
 }
 
 export async function inspectPdf(

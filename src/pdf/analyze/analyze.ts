@@ -1,13 +1,10 @@
 import { coverage, expand, union } from '../../core/ir/geometry';
+import { CAPTION, REFERENCES_HEADING as REFERENCES } from '../../core/references';
 import type { BlockIR, PageIR, Rect, Role } from '../../core/ir/types';
 import type { RawPage } from '../extract/raw';
 import { blockText, buildBlocks } from './blocks';
 import { cluster, detectTables, type TableRegion } from './tables';
 
-const CAPTION =
-  /^(şekil|figure|fig\.|tablo|table|tab\.|listing|algorithm|algoritma|liste|рис\.|рисунок|таблица|листинг|abb\.|abbildung|resim|grafik)\s*\d/i;
-const REFERENCES =
-  /^\s*(\d+[.)]?\s*)?(kaynak(ça|lar)|references|bibliography|literatur(verzeichnis)?|literatür|литература|список литературы|bibliographie|références)\s*$/i;
 /** Share of the page height searched for running heads, feet and page numbers. */
 const BAND = 0.2;
 const PAGE_NUMBER = /^\s*[-–—]?\s*(\d{1,4}|[ivxlcdm]{1,7})\s*[-–—]?\s*$/i;
@@ -190,6 +187,8 @@ function classify(
           b.role = 'code';
           b.translatable = false;
         }
+        // An equation in a cell ("Prev = 3.940⋅Fn") stays as it is.
+        if (equationLike(blockText(b))) b.translatable = false;
         continue;
       }
       const text = blockText(b);
@@ -244,13 +243,48 @@ function classify(
       if (role === 'heading') inReferences = REFERENCES.test(text.replace(/^\d+(\.\d+)*\s*/, ''));
       // Reference entries low on the page look like footnotes (small type); they are references.
       else if (inReferences && (role === 'body' || role === 'footnote')) role = 'reference';
+      // Formulas set in a text font (Times italic variables, Symbol operators) come out as
+      // scattered letters ("O m m", "j j j", "(W"): nothing to translate, and engines glue them.
+      if (role !== 'caption' && (mathFragments(text) || equationLike(text))) role = 'formula';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);
+      // A one-word running head or foot is a journal or brand name ("sinergie", "Forest@").
+      if ((role === 'header' || role === 'footer') && !/\s/.test(text.trim()))
+        b.translatable = false;
       // Headings are never justified: a translated heading with fewer words would gape.
       if (role === 'heading' && b.align === 'justify') b.align = 'left';
     }
     keepCodeLabels(blocks);
   }
+}
+
+/**
+ * Text that is only formula pieces: Latin or Greek letters in tokens of at most three letters
+ * ("Max", "Min"), mostly single characters, with digits and symbols.
+ */
+export function mathFragments(text: string): boolean {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length || tokens.length > 16) return false;
+  if (/[^\p{Script=Latin}\p{Script=Greek}\p{N}\p{P}\p{S}\s]/u.test(text)) return false;
+  if (!/\p{L}/u.test(text)) return false;
+  if (tokens.some((t) => (t.match(/\p{L}/gu)?.length ?? 0) > 3)) return false;
+  const singles = tokens.filter((t) => (t.match(/[\p{L}\p{N}]/gu)?.length ?? 0) <= 1).length;
+  const letters = tokens.filter((t) =>
+    t
+      .match(/[\p{L}\p{N}]/gu)
+      ?.join('')
+      .match(/^\p{L}$/u),
+  );
+  return letters.length > 0 && singles > 0.5 * tokens.length;
+}
+
+/**
+ * A short equation set in a text font ("HT = 1,75⋅250", "Prev = 3.940⋅Fn", "Φ = cos−1R"): a
+ * relation sign and no word of five letters or more.
+ */
+export function equationLike(text: string): boolean {
+  if (text.length > 60 || !/[=≤≥≈]/.test(text)) return false;
+  return !text.split(/\s+/).some((t) => (t.match(/\p{L}/gu)?.length ?? 0) >= 5);
 }
 
 const IDENTIFIER = /^(?:[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+|[a-z]+[A-Z][A-Za-z0-9]*)$/;

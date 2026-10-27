@@ -313,6 +313,8 @@ describe('helpers', () => {
     expect(academicHeading('A R T I C L E  I N F O', 'en', 'tr')).toBe('MAKALE BİLGİSİ');
     // Metrics only in documents that name both precision and recall.
     expect(academicHeading('Recall (%)', 'en', 'tr', true)).toBe('Duyarlılık (%)');
+    expect(academicHeading('№ з/п', 'uk', 'en')).toBe('No.');
+    expect(academicHeading('Overall', 'en', 'tr')).toBe('Genel');
     expect(academicHeading('Recall', 'en', 'tr')).toBeNull();
     expect(usesMetrics(['Precision and recall of the classifier'], 'en')).toBe(true);
     expect(usesMetrics(['Free recall of word lists'], 'en')).toBe(false);

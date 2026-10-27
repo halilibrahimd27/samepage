@@ -25,7 +25,7 @@ import type {
   RepairCode,
   RepairStep,
 } from '../layout-repair/types';
-import { layoutUnit, sizeFactors } from './typeset/layout';
+import { layoutUnit, sizeFactors, type LayoutLine } from './typeset/layout';
 import { buildPdfUnits } from './typeset/segments';
 
 export interface PdfOptions {
@@ -37,6 +37,8 @@ export interface PdfOptions {
   faces: LoadedFaces;
   maxPages: number;
   dual: boolean;
+  /** Set identical translations again instead of keeping the original drawing (identity tests). */
+  resetIdentical?: boolean;
   /** Reference lists are kept in the original language unless this is set. */
   translateReferences?: boolean;
   cache?: TranslationCache;
@@ -133,6 +135,60 @@ function charsIn(raw: RawPage, box: Rect): string {
     })
     .sort((a, b) => Math.round(a.y) - Math.round(b.y) || a.x - b.x)
     .map((c) => c.c)
+    .join('');
+}
+
+/** Share of `a`'s characters found in `b` (as a multiset). */
+function recall(a: string, b: string): number {
+  if (!a.length) return 1;
+  const counts = new Map<string, number>();
+  for (const ch of b) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  let found = 0;
+  for (const ch of a) {
+    const n = counts.get(ch) ?? 0;
+    if (n > 0) {
+      found++;
+      counts.set(ch, n - 1);
+    }
+  }
+  return found / a.length;
+}
+
+/** `b` minus the characters of `a` (as a multiset). */
+function without(b: string, a: string): string {
+  const counts = new Map<string, number>();
+  for (const ch of a) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  let out = '';
+  for (const ch of b) {
+    const n = counts.get(ch) ?? 0;
+    if (n > 0) counts.set(ch, n - 1);
+    else out += ch;
+  }
+  return out;
+}
+
+/**
+ * Text re-extracted along the laid-out lines: characters on each line's baseline within its x
+ * extent. A box would also catch the neighbouring paragraph where line boxes overlap (fonts with
+ * tall ascenders). Rotated lines fall back to the box.
+ */
+function charsOnLines(raw: RawPage, lines: LayoutLine[], box: Rect): string {
+  if (lines.some((l) => l.dir || l.origin)) return charsIn(raw, box);
+  const chars = raw.blocks.flatMap((b) => b.lines.flatMap((l) => l.chars));
+  return lines
+    .map((line) => {
+      const size = Math.max(1, ...line.runs.map((r) => r.size));
+      const x0 = Math.min(...line.runs.map((r) => r.x)) - 1;
+      const x1 = Math.max(...line.runs.map((r) => r.x + r.width)) + 1;
+      return chars
+        .filter((c) => {
+          const cx = (c.bbox.x0 + c.bbox.x1) / 2;
+          return cx >= x0 && cx <= x1 && Math.abs(c.y - line.baseline) < 0.6 * size;
+        })
+        .sort((a, b) => a.x - b.x)
+        .map((c) => c.c)
+        .join('');
+    })
     .join('');
 }
 
@@ -256,6 +312,9 @@ export async function translatePdf(
       targetTagged: o.untranslated ? '' : o.text,
     };
     reports.set(u.id, report);
+    // A translation identical to the source (names, formulas, figures) is not set again: the
+    // original drawing stays exact.
+    if (!opts.resetIdentical && !o.untranslated && o.text === u.encoded.source) continue;
     let decoded = null;
     if (!o.untranslated) {
       try {
@@ -289,6 +348,8 @@ export async function translatePdf(
   });
   const blockById = new Map(pages.flatMap((p) => p.blocks).map((b) => [b.id, b]));
   const forcedOriginal = new Set<string>();
+  /** Why the check after writing rejected a unit (kept in the report with KEPT_ORIGINAL). */
+  const failReason = new Map<string, string>();
   let postIssues: Issue[] = [];
   let written: Awaited<ReturnType<typeof writePdf>> | null = null;
 
@@ -419,18 +480,25 @@ export async function translatePdf(
       const actual = normalize(
         r.layouts
           .map((l) =>
-            charsIn(
+            charsOnLines(
               rawOut(pageOf(blockById.get(l.blockId)!)),
+              l.lines,
               r.params.boxes[l.blockId] ?? blockById.get(l.blockId)!.bbox,
             ),
           )
           .join(''),
       );
       if (expected.length < 2) continue;
-      const similarity = overlap(expected, actual);
-      if (similarity < 0.9) {
-        const source = normalize(reports.get(r.unitId)!.source);
-        const residual = overlap(source, actual) > similarity;
+      // How much of what we wrote reads back (a formula glyph next to a short word is not ours,
+      // and does not count against it), and whether the source is still there beside it.
+      const similarity = recall(expected, actual);
+      const source = normalize(reports.get(r.unitId)!.source);
+      const leftover = without(actual, expected);
+      const residual =
+        source !== expected &&
+        leftover.length >= 0.5 * source.length &&
+        overlap(source, leftover) >= 0.8;
+      if (similarity < 0.9 || residual) {
         postIssues.push({
           code: residual ? 'RESIDUAL_SOURCE' : 'TEXT_NOT_EXTRACTABLE',
           severity: 'error',
@@ -442,6 +510,10 @@ export async function translatePdf(
             : 'output text does not re-extract as written',
         });
         failing.push(r.unitId);
+        failReason.set(
+          r.unitId,
+          `${residual ? 'source text still present' : 'text does not re-extract as written'}, similarity ${similarity.toFixed(2)}`,
+        );
       }
     }
     pdf.close();
@@ -519,7 +591,7 @@ export async function translatePdf(
       severity: 'error',
       pageIndex: r.pageIndex,
       unitId: id,
-      message: 'verification failed; original text kept',
+      message: `verification failed (${failReason.get(id) ?? 'check after writing'}); original text kept`,
     });
   }
   for (const { pageIndex, chars } of written!.missingByPage) {
