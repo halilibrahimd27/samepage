@@ -10,5 +10,10 @@ describe('restoreChar', () => {
     // Private use characters of other fonts mean something else.
     expect(restoreChar('', 'Wingdings')).toBe('');
     expect(restoreChar('a', 'STIXGeneral')).toBe('a');
+    // Word's symbol fonts.
+    expect(restoreChar('\uf0b7', 'Symbol')).toBe('•');
+    expect(restoreChar('\uf061', 'SymbolMT')).toBe('α');
+    expect(restoreChar('\uf0fc', 'Wingdings-Regular')).toBe('✓');
+    expect(restoreChar('\uf0b7', 'Calibri')).toBe('\uf0b7');
   });
 });

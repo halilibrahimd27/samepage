@@ -159,6 +159,12 @@ const SUBSTITUTE: Record<string, string> = {
   '⋅': '·',
   '∕': '/',
   '∣': '|',
+  '⊺': 'ᵀ',
+  // Word bullets (Wingdings) the bundled faces lack.
+  '➢': '►',
+  '➔': '→',
+  '❖': '◆',
+  '❑': '□',
   // Check marks in tables: the bundled faces have none.
   '✓': '√',
   '✔': '√',
@@ -198,8 +204,10 @@ function resolveGlyphs(pieces: Piece[], measurer: Measurer): Piece[] {
         const math = mathStyle(ch.codePointAt(0)!);
         const styled = faceKey(family, bold || math.bold, italic || math.italic);
         const mono = faceKey('mono', bold, italic);
+        const mathFace = faceKey('math', false, false);
         if (compat !== ch && measurer.covers(compat, styled)) [text, face] = [compat, styled];
         else if (measurer.covers(ch, mono)) face = mono;
+        else if (measurer.covers(ch, mathFace)) face = mathFace;
         else if (SUBSTITUTE[ch] && measurer.covers(SUBSTITUTE[ch], face)) text = SUBSTITUTE[ch];
       }
       const last = parts[parts.length - 1];

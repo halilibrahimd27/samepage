@@ -1,6 +1,6 @@
 import type { FaceMetrics } from './fontMetrics';
 
-export type Family = 'serif' | 'sans' | 'mono';
+export type Family = 'serif' | 'sans' | 'mono' | 'math';
 export type FaceKey = `${Family}-${'regular' | 'bold' | 'italic' | 'bolditalic'}`;
 
 export const FACE_FILES: Record<FaceKey, string> = {
@@ -17,7 +17,15 @@ export const FACE_FILES: Record<FaceKey, string> = {
   'mono-bold': 'NotoSansMono-Bold.ttf',
   'mono-italic': 'NotoSansMono-Regular.ttf',
   'mono-bolditalic': 'NotoSansMono-Bold.ttf',
+  // Symbols none of the text faces has (∫, ∑, ∝ …); loaded only when a document needs them.
+  'math-regular': 'NotoSansMath-Regular.ttf',
+  'math-bold': 'NotoSansMath-Regular.ttf',
+  'math-italic': 'NotoSansMath-Regular.ttf',
+  'math-bolditalic': 'NotoSansMath-Regular.ttf',
 };
+
+/** Faces fetched on demand (see LoadedFaces.ensure). */
+export const LAZY_FILES = new Set(['NotoSansMath-Regular.ttf']);
 
 export function faceKey(family: Family, bold: boolean, italic: boolean): FaceKey {
   return `${family}-${bold && italic ? 'bolditalic' : bold ? 'bold' : italic ? 'italic' : 'regular'}`;
@@ -30,7 +38,7 @@ export function faceKey(family: Family, bold: boolean, italic: boolean): FaceKey
 export interface Measurer {
   /** Advance width of `text` in points. */
   width(text: string, face: FaceKey, size: number): number;
-  /** True when every character of `text` has a glyph in `face`. */
+  /** True when every character of `text` has a glyph in `face` (false for a face not loaded). */
   covers(text: string, face: FaceKey): boolean;
   metrics(face: FaceKey): FaceMetrics;
 }

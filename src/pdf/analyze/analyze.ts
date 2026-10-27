@@ -248,9 +248,15 @@ function classify(
       if (role !== 'caption' && (mathFragments(text) || equationLike(text))) role = 'formula';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);
-      // A one-word running head or foot is a journal or brand name ("sinergie", "Forest@").
-      if ((role === 'header' || role === 'footer') && !/\s/.test(text.trim()))
-        b.translatable = false;
+      // A one-word running head or foot is a journal or brand name ("sinergie", "Forest@"); one
+      // with a year and a volume is the journal's citation line ("Journal of Health Monitoring ·
+      // 2018 3(1)", "Forest@ (2019) 16: 3-9"). Both stay as they are.
+      if (role === 'header' || role === 'footer') {
+        const citation =
+          /\b(19|20)\d{2}\b/.test(text) &&
+          /\d+\s*\(\d+\)|\d+\s*:\s*\d+|\b(vol|no|nr|bd|issue|cilt|sayı|том|вып)\b\.?/iu.test(text);
+        if (!/\s/.test(text.trim()) || citation) b.translatable = false;
+      }
       // Headings are never justified: a translated heading with fewer words would gape.
       if (role === 'heading' && b.align === 'justify') b.align = 'left';
     }

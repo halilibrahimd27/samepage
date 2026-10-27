@@ -119,6 +119,7 @@ const CUES: Record<string, Cues> = {
       'probable',
       'maybe',
       'seemingly',
+      'potential',
       'apparently',
       'appear(?:s|ed)?',
       'as if',

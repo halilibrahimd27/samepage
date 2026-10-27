@@ -338,6 +338,8 @@ export async function translatePdf(
     repairInputs.push({ unit: u, runs: decoded });
   }
 
+  // Symbols the text faces lack (∫, ∑, ∝ …) need the math face, fetched only then.
+  await opts.faces.ensure(repairInputs.flatMap((i) => i.runs.map((r) => r.text)).join(''));
   const repaired = repairDocument({
     pages,
     units: repairInputs,

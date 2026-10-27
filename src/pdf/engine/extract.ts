@@ -34,6 +34,46 @@ const SCRIPT_CAPITALS: Record<string, number> = {
   R: 0x211b,
 };
 
+/** Adobe Symbol encoding (Word's "Symbol" font maps it to U+F020–U+F0FF). */
+const SYMBOL: Record<number, string> = {
+  ...Object.fromEntries([...'ΑΒΧΔΕΦΓΗΙϑΚΛΜΝΟΠΘΡΣΤΥςΩΞΨΖ'].map((ch, i) => [0x41 + i, ch])),
+  ...Object.fromEntries([...'αβχδεφγηιϕκλμνοπθρστυϖωξψζ'].map((ch, i) => [0x61 + i, ch])),
+  0xa3: '≤',
+  0xa5: '∞',
+  0xac: '←',
+  0xad: '↑',
+  0xae: '→',
+  0xaf: '↓',
+  0xb0: '°',
+  0xb1: '±',
+  0xb3: '≥',
+  0xb4: '×',
+  0xb5: '∝',
+  0xb6: '∂',
+  0xb7: '•',
+  0xb8: '÷',
+  0xb9: '≠',
+  0xba: '≡',
+  0xbb: '≈',
+  0xd6: '√',
+  0xd7: '⋅',
+  0xe5: '∑',
+  0xf2: '∫',
+};
+/** Common Wingdings bullets and marks. */
+const WINGDINGS: Record<number, string> = {
+  0x6c: '●',
+  0x6e: '■',
+  0x71: '❑',
+  0x76: '❖',
+  0xa7: '▪',
+  0xd8: '➢',
+  0xe0: '→',
+  0xe8: '➔',
+  0xfb: '✗',
+  0xfc: '✓',
+};
+
 /**
  * Repairs characters MuPDF.js reports wrongly:
  * - MuPDF.js 1.28 builds each character with String.fromCharCode, which drops the bits above
@@ -41,10 +81,17 @@ const SCRIPT_CAPITALS: Record<string, number> = {
  *   U+D400–U+D7FF. That range is Hangul, which v1 does not support, so it is mapped back to plane 1.
  * - STIX 1.x math fonts (common in Elsevier papers) map calligraphic capitals to the private use
  *   area U+E22D–U+E246; they become the standard script capitals ("ℒ").
+ * - Word's Symbol and Wingdings fonts use U+F020–U+F0FF ("" is a bullet •).
  */
 export function restoreChar(c: string, fontName: string): string {
   const u = c.length === 1 ? c.charCodeAt(0) : 0;
   if (u >= 0xd400 && u <= 0xd7ff) return String.fromCodePoint(0x10000 + u);
+  // Word's symbol fonts put their glyphs in the private use area U+F020–U+F0FF.
+  if (u >= 0xf020 && u <= 0xf0ff) {
+    const table = /wingding/i.test(fontName) ? WINGDINGS : /symbol/i.test(fontName) ? SYMBOL : null;
+    const mapped = table?.[u - 0xf000];
+    if (mapped) return mapped;
+  }
   if (u >= 0xe22d && u <= 0xe246 && /^STIX/i.test(fontName)) {
     const letter = String.fromCharCode(0x41 + u - 0xe22d);
     return String.fromCodePoint(SCRIPT_CAPITALS[letter] ?? 0x1d49c + u - 0xe22d);
