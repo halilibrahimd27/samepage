@@ -10,8 +10,9 @@ import {
 } from '../core/cache/idb';
 import { buildGlossarySample } from '../core/glossary/glossary';
 import { estimateCost, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
-import { plainText, verbatimOf } from '../core/segment/codec';
-import { parsePlaygroundMarkup } from '../core/segment/markup';
+import { encode, plainText, verbatimOf } from '../core/segment/codec';
+import { parsePlaygroundMarkup, styleKey } from '../core/segment/markup';
+import { findPaperParts } from '../core/abstract';
 import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import { buildBilingualDocx } from '../docx/bilingual';
@@ -21,12 +22,14 @@ import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
 import { inspectPdf, loadFaces, renderPagePng, type LoadedFaces } from '../pdf/engine';
 import { translatePdf } from '../pdf/pipeline';
-import { extractAndAnalyze } from '../pdf/analyze';
+import { extractAndAnalyze, pdfParagraphs } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
 import { LIMITS } from '../security/limits';
 import type { DocxJob, JobError, PdfJob, PipelineApi, TextJob } from './api';
 
 const THUMBNAIL_WIDTH = 240;
+/** Pages searched for the title, abstract and keywords. */
+const FRONT_PAGES = 3;
 const cache = new IdbCache();
 const controllers = new Map<string, AbortController>();
 
@@ -53,7 +56,12 @@ function engineFor(
 }
 
 function encodeParagraphs(job: TextJob) {
-  return job.paragraphs.map((p, i) => ({ id: `s${i + 1}`, ...parsePlaygroundMarkup(p) }));
+  return job.paragraphs.map((p, i) => ({
+    id: `s${i + 1}`,
+    ...(job.plain
+      ? encode([{ type: 'text' as const, text: p, style: {} }], styleKey)
+      : parsePlaygroundMarkup(p)),
+  }));
 }
 
 function toJobError(error: unknown, signal?: AbortSignal): JobError {
@@ -100,6 +108,19 @@ const api: PipelineApi = {
       return text;
     } catch {
       return '';
+    }
+  },
+
+  async paperParts(file, kind, sourceLang) {
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const paragraphs =
+        kind === 'pdf'
+          ? pdfParagraphs(await extractAndAnalyze(bytes, FRONT_PAGES))
+          : await docxParagraphs(bytes);
+      return findPaperParts(paragraphs, sourceLang);
+    } catch {
+      return null;
     }
   },
 

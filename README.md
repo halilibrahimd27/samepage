@@ -32,6 +32,10 @@ paying for an API — and who cannot afford a translation that quietly changes w
 - **Academic details.** Running heads, journal citation lines, author lines, page numbers,
   formulas set in text fonts and reference lists are recognised and left alone; metric terms
   (precision, recall, F1-score) stay consistent between tables and text.
+- **Abstract only.** For journals that ask for the abstract in a second language: samepage
+  finds the title, abstract and keywords (labelled or not, structured, bilingual papers), lets
+  you check and edit them, and translates just those — with the meaning check, word counts and a
+  copy button.
 - **Quality report.** A layout score per page, every compromise listed (nothing is dropped or
   shrunk silently), a "needs attention" view and a "meaning check" view. Any paragraph can be
   corrected in place and the document rebuilt without translating again; DOCX also exports a
@@ -45,7 +49,8 @@ paying for an API — and who cannot afford a translation that quietly changes w
 
 1. Drop a **DOCX** or a text-based **PDF**. The source language is detected; choose the target
    language (⇄ swaps them).
-2. Press **Translate**. Progress shows the translation, then the meaning check.
+2. Choose **Whole document**, or **Title, abstract and keywords** to translate only those.
+   Press **Translate**. Progress shows the translation, then the meaning check.
 3. Open the **quality report**: the score and counts are in its summary line; "needs attention"
    and "meaning check" list what deserves a look. Correct a paragraph and rebuild if you like.
 4. Download the translated document, the side-by-side PDF, the JSON report or (DOCX) the

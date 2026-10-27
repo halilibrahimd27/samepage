@@ -10,6 +10,7 @@ import type { ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import type { EngineId, LangPair } from '../engines/types';
 import type { PdfInspection, Thumbnail } from '../pdf/engine';
 import type { PageIR } from '../core/ir/types';
+import type { PaperParts } from '../core/abstract';
 
 export interface EngineSpec {
   id: EngineId;
@@ -23,8 +24,10 @@ export interface TextJob {
   jobId: string;
   engine: EngineSpec;
   pair: LangPair;
-  /** Paragraphs in playground markup (**bold**, *italic*, $formula$). */
+  /** Paragraphs in playground markup (**bold**, *italic*, $formula$), or plain text. */
   paragraphs: string[];
+  /** The paragraphs are plain text (no markup). */
+  plain?: boolean;
   glossary: GlossaryEntry[];
   numberLocalization: boolean;
   fidelityCheck: boolean;
@@ -98,6 +101,8 @@ export interface PipelineApi {
   inspectPdf(file: Blob): Promise<PdfInspection>;
   /** Plain text of the first paragraphs of a DOCX (for language detection); '' on failure. */
   sampleDocx(file: Blob): Promise<string>;
+  /** Title, abstract and keywords of a paper; null when no abstract was found. */
+  paperParts(file: Blob, kind: 'pdf' | 'docx', sourceLang: string): Promise<PaperParts | null>;
   translateText(
     job: TextJob,
     onProgress?: (done: number, total: number, phase?: ProgressPhase) => void,

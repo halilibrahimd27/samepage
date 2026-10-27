@@ -1,11 +1,10 @@
 import { proxy } from 'comlink';
 import { useState } from 'react';
 import { languageName } from '../../core/languages';
-import type { ChromeTranslatorBridge } from '../../engines/chromeBuiltin';
 import type { ProgressPhase } from '../../core/pipeline/translate';
 import type { DocxJob, DocxJobResult, JobError, PipelineApi } from '../../workers/api';
-import { browserTranslationBridge, sheetStore } from '../bridges/browserTranslator';
-import { chromeTranslatorBridge, prepareChromeTranslator } from '../bridges/chromeTranslator';
+import { sheetStore } from '../bridges/browserTranslator';
+import { engineBridge, runErrorText } from '../engineBridge';
 import { downloadBlob } from '../download';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
@@ -74,15 +73,7 @@ export function DocxTranslator({
     setRunning(jobId);
     setProgress(null);
     try {
-      let bridge: ChromeTranslatorBridge | undefined;
-      if (config.engine === 'chrome-builtin') {
-        // Chrome requires a user gesture to create translators: stay inside the click handler.
-        await prepareChromeTranslator(pair, (f) => setDownload(Math.round(f * 100)));
-        setDownload(null);
-        bridge = proxy(chromeTranslatorBridge);
-      } else if (config.engine === 'browser') {
-        bridge = proxy(browserTranslationBridge);
-      }
+      const bridge = await engineBridge(config.engine, pair, setDownload);
       const res = await pipelineClient.call<DocxJobResult>(
         (api) =>
           api.translateDocx(
@@ -99,15 +90,7 @@ export function DocxTranslator({
         setApplied(edits);
       } else setError(jobErrorText(res));
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      // Chrome refuses to create the translator when its language download failed.
-      setError(
-        /Unable to create translator|cannot translate this language pair|download stalled/i.test(
-          message,
-        )
-          ? t('error.chromeTranslator')
-          : message,
-      );
+      setError(runErrorText(e, t));
     } finally {
       setRunning(null);
       setDownload(null);

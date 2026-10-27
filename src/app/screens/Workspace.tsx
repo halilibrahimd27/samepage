@@ -5,6 +5,7 @@ import { WorkerFailedError } from '../../core/pipeline/workerClient';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
+import { AbstractTranslator } from '../components/AbstractTranslator';
 import { DocxTranslator } from '../components/DocxTranslator';
 import { PdfTranslator } from '../components/PdfTranslator';
 import { DropZone } from '../components/DropZone';
@@ -50,6 +51,8 @@ function rejectionMessage(r: FileRejection, t: Translate, lang: string): string 
 export function Workspace({ settings, config }: { settings: Settings; config: EngineConfig }) {
   const { t, lang } = useI18n();
   const [doc, setDoc] = useState<DocState | null>(null);
+  /** Translate the whole document, or only its title, abstract and keywords. */
+  const [mode, setMode] = useState<'document' | 'abstract'>('document');
   const request = useRef(0);
 
   const thumbUrl = doc?.status === 'ready' ? doc.thumb?.url : undefined;
@@ -208,7 +211,36 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
 
       <EngineConfigPanel config={config} settings={settings} />
 
-      {doc?.status === 'ready' && doc.kind === 'pdf' ? (
+      {doc?.status === 'ready' && (
+        <div role="group" aria-label={t('mode.label')} className="flex flex-wrap gap-2">
+          {(['document', 'abstract'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={mode === m}
+              onClick={() => setMode(m)}
+              className={`rounded-full border px-4 py-1.5 text-sm ${
+                mode === m
+                  ? 'border-blue-600 bg-blue-50 font-medium text-blue-800'
+                  : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+              data-testid={`mode-${m}`}
+            >
+              {t(`mode.${m}`)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {doc?.status === 'ready' && mode === 'abstract' ? (
+        <AbstractTranslator
+          key={`${doc.file.name}-${doc.file.size}`}
+          file={doc.file}
+          kind={doc.kind}
+          config={config}
+          settings={settings}
+        />
+      ) : doc?.status === 'ready' && doc.kind === 'pdf' ? (
         <PdfTranslator
           key={`${doc.file.name}-${doc.file.size}`}
           file={doc.file}

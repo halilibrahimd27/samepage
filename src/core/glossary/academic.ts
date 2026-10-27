@@ -26,6 +26,32 @@ const ABSTRACT: Record<string, string> = {
   el: 'Περίληψη',
 };
 
+const KEYWORDS: Record<string, string> = {
+  en: 'Keywords',
+  tr: 'Anahtar kelimeler',
+  de: 'Schlüsselwörter',
+  fr: 'Mots-clés',
+  es: 'Palabras clave',
+  it: 'Parole chiave',
+  pt: 'Palavras-chave',
+  nl: 'Trefwoorden',
+  pl: 'Słowa kluczowe',
+  cs: 'Klíčová slova',
+  ro: 'Cuvinte cheie',
+  hu: 'Kulcsszavak',
+  sv: 'Nyckelord',
+  ru: 'Ключевые слова',
+  uk: 'Ключові слова',
+  bg: 'Ключови думи',
+  el: 'Λέξεις-κλειδιά',
+};
+
+/** "Abstract" and "Keywords" as journals write them in `lang`. */
+export const paperLabels = (lang: string) => ({
+  abstract: ABSTRACT[lang] ?? ABSTRACT.en!,
+  keywords: KEYWORDS[lang] ?? KEYWORDS.en!,
+});
+
 type Langs = Partial<Record<string, string>>;
 /**
  * Structured-abstract and section headings that machine translation renders out of context
@@ -133,16 +159,7 @@ const TERMS: Langs[] = [
     pt: 'Informações do artigo',
     ru: 'Информация о статье',
   },
-  {
-    en: 'Keywords',
-    tr: 'Anahtar kelimeler',
-    de: 'Schlüsselwörter',
-    fr: 'Mots-clés',
-    es: 'Palabras clave',
-    it: 'Parole chiave',
-    pt: 'Palavras-chave',
-    ru: 'Ключевые слова',
-  },
+  KEYWORDS,
   {
     // The running-number column of Slavic tables ("№ з/п" became "No. of the company").
     en: 'No.',
@@ -297,7 +314,8 @@ export function academicHeading(
 
 const NAME_WORD =
   /^(?:\p{Lu}[\p{L}'’-]*\.?|\p{Lu}\.(?:-?\p{Lu}\.)*|de|da|do|dos|van|von|der|den|del|della|di|du|la|le|bin|ibn|al|el|y)$/u;
-const JOINER = /\s*(?:[,;&]|\b(?:and|ve|und|et|y|e|i|и|і|та|και)\b)\s*/u;
+const JOINER =
+  /\s*(?:[,;&]|(?<![\p{L}\p{N}])(?:and|ve|und|et|y|e|i|и|і|та|και)(?![\p{L}\p{N}]))\s*/u;
 
 /**
  * An author line ("Haya Samaana, Diego Elias Costa, Emad Shihab and Ahmad Abdellatif"): two or
@@ -314,4 +332,18 @@ export function isNameList(text: string): boolean {
     const words = p.split(/\s+/);
     return words.length >= 2 && words.length <= 5 && words.every((w) => NAME_WORD.test(w));
   });
+}
+
+/** Words of Title Case headings that are not names ("Related Work", "Materials And Methods"). */
+const HEADING_WORD =
+  /^(?:and|work|works|review|methods?|materials?|results?|discussion|background|analysis|study|conclusions?|theory|models?|data|related|literature|problem|statement|overview|preliminaries|motivation|approach|design|experiments?|evaluation|summary|notation|definitions?)$/iu;
+
+/** One person's name ("Doreen Müller", "Dominik Graf von Stillfried"). */
+export function isPersonName(text: string): boolean {
+  const words = text.trim().split(/\s+/);
+  return (
+    words.length >= 2 &&
+    words.length <= 4 &&
+    words.every((w) => NAME_WORD.test(w) && !HEADING_WORD.test(w.replace(/\.$/, '')))
+  );
 }
