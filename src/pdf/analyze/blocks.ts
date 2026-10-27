@@ -438,7 +438,11 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
         : []),
     ];
     for (const group of groups) {
-      const lines = group.map((l) => toLine(l.chars, page)).filter((l) => l.spans.length);
+      // A line of nothing but spaces (a stray space at a figure's edge) has no text to place, but
+      // its position would become the first line's indent: the translation found no room there.
+      const lines = group
+        .map((l) => toLine(l.chars, page))
+        .filter((l) => l.spans.some((sp) => /\S/.test(sp.text)));
       if (!lines.length) continue;
       const bbox = unionAll(lines.map((l) => l.bbox));
       const underlines = inTable(bbox) ? [] : markUnderlines(lines, rules);
