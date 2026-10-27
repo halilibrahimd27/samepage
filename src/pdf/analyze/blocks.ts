@@ -437,6 +437,7 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
           )
         : []),
     ];
+    const pieces: { lines: LineIR[]; dir: [number, number] }[] = [];
     for (const group of groups) {
       // A line of nothing but spaces (a stray space at a figure's edge) has no text to place, but
       // its position would become the first line's indent: the translation found no room there.
@@ -444,6 +445,29 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
         .map((l) => toLine(l.chars, page))
         .filter((l) => l.spans.some((sp) => /\S/.test(sp.text)));
       if (!lines.length) continue;
+      // The tail of a display formula above (a closing delimiter, "= 1.53.", "(cf.") is not the
+      // first line of the paragraph below it: lines far right of the first line that starts at
+      // the paragraph's left edge, with at most two words in a text font, are split off.
+      const width = unionAll(lines.map((l) => l.bbox));
+      const span = width.x1 - width.x0;
+      const words = (l: LineIR) =>
+        l.spans
+          .filter((sp) => !sp.font.isMath)
+          .map((sp) => sp.text)
+          .join(' ')
+          .match(/\p{L}{2,}/gu)?.length ?? 0;
+      const anchor = lines.findIndex((l) => l.bbox.x0 <= width.x0 + 0.25 * span && words(l) > 0);
+      const k =
+        anchor > 0 &&
+        lines
+          .slice(0, anchor)
+          .every((l) => l.bbox.x0 > lines[anchor]!.bbox.x0 + 0.3 * span && words(l) <= 2)
+          ? anchor
+          : 0;
+      if (k) pieces.push({ lines: lines.slice(0, k), dir: group[0]!.dir });
+      pieces.push({ lines: lines.slice(k), dir: group[0]!.dir });
+    }
+    for (const { lines, dir } of pieces) {
       const bbox = unionAll(lines.map((l) => l.bbox));
       const underlines = inTable(bbox) ? [] : markUnderlines(lines, rules);
       const block: BlockIR = {
@@ -454,7 +478,7 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
         translatable: true,
         lines,
         align: alignment(lines, bbox),
-        direction: group[0]!.dir,
+        direction: dir,
         columnIndex: 0,
         readingOrder: 0,
       };
