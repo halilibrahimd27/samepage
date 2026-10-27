@@ -160,6 +160,9 @@ const SUBSTITUTE: Record<string, string> = {
   '∕': '/',
   '∣': '|',
   '⊺': 'ᵀ',
+  // CJK angle brackets: engines turn the mathematical ⟨ ⟩ into them.
+  '〈': '⟨',
+  '〉': '⟩',
   // The corresponding author's e-mail mark (Wingdings envelope).
   '✉': '@',
   // Word bullets (Wingdings) the bundled faces lack.
@@ -210,7 +213,12 @@ function resolveGlyphs(pieces: Piece[], measurer: Measurer): Piece[] {
         if (compat !== ch && measurer.covers(compat, styled)) [text, face] = [compat, styled];
         else if (measurer.covers(ch, mono)) face = mono;
         else if (measurer.covers(ch, mathFace)) face = mathFace;
-        else if (SUBSTITUTE[ch] && measurer.covers(SUBSTITUTE[ch], face)) text = SUBSTITUTE[ch];
+        else if (SUBSTITUTE[ch]) {
+          // The look-alike may only exist in the mono or math face (⟨ ⟩).
+          const look = SUBSTITUTE[ch];
+          const found = [face, mono, mathFace].find((f) => measurer.covers(look, f));
+          if (found) [text, face] = [look, found];
+        }
       }
       const last = parts[parts.length - 1];
       if (last?.face === face) last.text += text;

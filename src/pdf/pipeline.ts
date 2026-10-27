@@ -116,8 +116,10 @@ export const glyphLabel = (ch: string) =>
 const pageOf = (b: BlockIR) => Number(b.id.split('-')[0]!.slice(1));
 
 /** Text comparison for post-apply verification: whitespace, dashes and accents ignored. */
+// NFKD: mathematical italic letters (𝑒, 𝜃) read back as their plain forms or the other way
+// round depending on the face; compared, they are the same letters.
 const normalize = (t: string) =>
-  t.normalize('NFD').replace(/[\s\p{Pd}\p{M}\p{Cf}\p{Sk}\p{Lm}†\d]+/gu, '');
+  t.normalize('NFKD').replace(/[\s\p{Pd}\p{M}\p{Cf}\p{Sk}\p{Lm}†\d]+/gu, '');
 /** Order-insensitive character overlap (rotated text re-extracts in a different order). */
 function overlap(a: string, b: string): number {
   if (a === b) return 1;
