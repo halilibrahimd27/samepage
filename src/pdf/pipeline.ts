@@ -435,7 +435,11 @@ export async function translatePdf(
       const ocr = pages[w.index]!.ocr;
       if (!ocr) return;
       // The recognised text is part of the scan: paint the paper colour over it.
-      w.cover = w.redact.map((r) => ({ rect: grow(r, 1.2), color: paperUnder(r, ocr.lines) }));
+      // Accents reach above the recognised box: a quarter of the line more on top.
+      w.cover = w.redact.map((r) => ({
+        rect: { ...grow(r, 1.8), y0: r.y0 - Math.max(1.8, 0.25 * (r.y1 - r.y0)) },
+        color: paperUnder(r, ocr.lines),
+      }));
     };
     for (const r of placed) {
       if (r.fallback === 'keep-original') continue;
@@ -605,6 +609,7 @@ export async function translatePdf(
       const d = policy.postApply.maskDilatePt;
       const masks = [
         ...pages[w.index]!.blocks.flatMap((b) => b.lines.map((l) => l.bbox)),
+        ...(w.cover ?? []).map((c) => c.rect),
         ...w.lines.flatMap((line) =>
           line.runs.map((run) => ({
             x0: run.x,

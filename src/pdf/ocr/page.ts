@@ -86,6 +86,23 @@ export function inkColor(px: PagePixels, box: Rect): Color {
 const DESCENDER = /[gjpqyçşğţșJQ,;()[\]{}|]/u;
 
 /**
+ * The em size implied by a word's box: its letters say how far it reaches above the baseline
+ * (x-height 0.5, ascenders and capitals 0.7, accented capitals 0.85) and below it (descenders
+ * 0.22, cedillas 0.15). A median over the words of a line is robust to odd boxes.
+ */
+function emOf(w: OcrWord): number | null {
+  const t = w.text.replace(/[^\p{L}\p{N}]/gu, '');
+  if (t.length < 2) return null;
+  const top = /[İÖÜÇŞĞÂÎÛÉÈÀÄ]/u.test(t)
+    ? 0.85
+    : /[\p{Lu}\p{N}bdfhkltiïjğüöéèêàäîûâ]/u.test(t)
+      ? 0.7
+      : 0.5;
+  const bottom = /[gjpqy]/u.test(t) ? 0.22 : /[çşţș]/u.test(t) ? 0.15 : 0;
+  return w.height / (top + bottom);
+}
+
+/**
  * The page with its recognised text as lines of characters, as if the PDF had a text layer:
  * the analysis builds paragraphs, columns and roles from it like from any page. Characters are
  * spread evenly over their word's box; the size comes from the tallest word of the line.
@@ -102,19 +119,33 @@ export function ocrPage(
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(w);
   }
+  // Lines of one recognised paragraph share its median size: a line with tall glyphs (accented
+  // capitals, brackets) would otherwise come out larger and be taken for a heading.
+  const lineEm = new Map<string, number>();
+  for (const [key, ws] of groups) {
+    const ems = ws.map(emOf).filter((e): e is number => e !== null);
+    lineEm.set(key, ems.length ? median(ems) : Math.max(...ws.map((w) => w.height)) / 0.9);
+  }
+  const parEm = new Map<string, number>();
+  const byPar = new Map<string, number[]>();
+  for (const [key, em] of lineEm) {
+    const par = key.slice(0, key.lastIndexOf('.'));
+    if (!byPar.has(par)) byPar.set(par, []);
+    byPar.get(par)!.push(em);
+  }
+  for (const [par, ems] of byPar) parEm.set(par, median(ems));
   const blocks = new Map<number, RawTextBlock>();
   const lines: OcrLine[] = [];
-  for (const ws of groups.values()) {
+  for (const [key, ws] of groups) {
     const box: Rect = {
       x0: Math.min(...ws.map((w) => w.left)),
       y0: Math.min(...ws.map((w) => w.top)),
       x1: Math.max(...ws.map((w) => w.left + w.width)),
       y1: Math.max(...ws.map((w) => w.top + w.height)),
     };
-    const tallest = Math.max(...ws.map((w) => w.height));
-    const text = ws.map((w) => w.text).join(' ');
-    // Ascender to descender is about 0.9 em; capitals and x-height letters alone about 0.72.
-    const em = tallest / (DESCENDER.test(text) ? 0.9 : 0.72);
+    const own = lineEm.get(key)!;
+    const shared = parEm.get(key.slice(0, key.lastIndexOf('.')))!;
+    const em = Math.abs(own - shared) <= 0.25 * shared ? shared : own;
     const size = Math.round(Math.min(72, Math.max(4, em / scale)) * 10) / 10;
     const flat = ws.filter((w) => !DESCENDER.test(w.text)).map((w) => w.top + w.height);
     const baseline = (flat.length ? median(flat) : box.y1 - 0.2 * em) / scale;

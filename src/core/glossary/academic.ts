@@ -59,6 +59,9 @@ type Langs = Partial<Record<string, string>>;
  */
 const TERMS: Langs[] = [
   ABSTRACT,
+  // DergiPark papers head their Turkish abstract "Öz" ("self" to an engine); OCR may drop the dots.
+  { ...ABSTRACT, tr: 'Öz' },
+  { ...ABSTRACT, tr: 'Oz' },
   {
     en: 'Background',
     tr: 'Arka plan',
