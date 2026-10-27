@@ -97,8 +97,11 @@ export function restoreTerms(translated: string, targets: string[], kind = 'G'):
   for (let n = 1; n <= targets.length; n++) {
     if (translated.split(`⟦${kind}${n}⟧`).length !== 2) return null;
   }
-  return translated.replace(
-    new RegExp(`⟦${kind}(\\d+)⟧`, 'g'),
-    (m, n: string) => targets[Number(n) - 1] ?? m,
-  );
+  return translated.replace(new RegExp(`⟦${kind}(\\d+)⟧`, 'g'), (m, n: string, at: number) => {
+    const t = targets[Number(n) - 1];
+    if (t === undefined) return m;
+    // A term that opens a sentence starts with a capital ("kesinlik" → "Kesinlik ve …").
+    const before = translated.slice(0, at).replace(/<\/?t\d+>/g, '');
+    return /^\s*$|[.!?]\s+$/u.test(before) ? t.charAt(0).toLocaleUpperCase() + t.slice(1) : t;
+  });
 }

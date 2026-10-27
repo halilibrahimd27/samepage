@@ -1,4 +1,4 @@
-import { coverage, expand, intersect, union } from '../core/ir/geometry';
+import { contains, coverage, expand, intersect, union } from '../core/ir/geometry';
 import type { BlockIR, PageIR, Rect, Role } from '../core/ir/types';
 import type { DecodedRun } from '../core/segment/codec';
 import { layoutUnit, type BlockLayout } from '../pdf/typeset/layout';
@@ -303,6 +303,26 @@ export function repairDocument(input: RepairInput): RepairOutput {
       grown.x0 = Math.max(grown.x0, cell.x0 + 1);
       grown.x1 = Math.min(grown.x1, cell.x1 - 1);
       grown.y1 = Math.min(grown.y1, cell.y1 - 1);
+    }
+    // Text in a framed or shaded box (a callout, a highlighted finding) stays inside it with the
+    // box's own inner margin: the smallest shape around the block, not a page-sized background.
+    const frame = page.vectors
+      .map((v) => v.bbox)
+      .filter(
+        (r) =>
+          contains(r, original, 1) &&
+          (r.x1 - r.x0) * (r.y1 - r.y0) < 4 * Math.max(1, w * h) &&
+          r.x1 - r.x0 > w + 2,
+      )
+      .sort((a, b) => (a.x1 - a.x0) * (a.y1 - a.y0) - (b.x1 - b.x0) * (b.y1 - b.y0))[0];
+    if (frame) {
+      const pad = Math.max(2, Math.min(original.x0 - frame.x0, frame.x1 - original.x1));
+      grown.x0 = Math.max(grown.x0, Math.min(box.x0, frame.x0 + pad));
+      grown.x1 = Math.min(grown.x1, Math.max(box.x1, frame.x1 - pad));
+      grown.y1 = Math.min(
+        grown.y1,
+        Math.max(box.y1, frame.y1 - Math.max(2, original.y0 - frame.y0)),
+      );
     }
     if (grown.x0 >= box.x0 - 0.01 && grown.x1 <= box.x1 + 0.01 && grown.y1 <= box.y1 + 0.01)
       return false;

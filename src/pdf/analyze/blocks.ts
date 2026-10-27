@@ -38,7 +38,39 @@ function linkAt(r: Rect, links: RawPage['links']): string | undefined {
     ?.uri;
 }
 
-function toLine(chars: RawChar[], page: RawPage): LineIR {
+/**
+ * Letter-spaced text ("İ N Ö N Ü  Ü N İ V E R S İ T E S İ", "A R T I C L E  I N F O") arrives
+ * as single letters between spaces, which no engine can translate. When most of a line is single
+ * letters, the letters are joined and a space is kept only where the gap is clearly wider than
+ * the letter spacing (a word boundary).
+ */
+export function collapseLetterSpacing(chars: RawChar[]): RawChar[] {
+  const tokens = chars
+    .map((c) => c.c)
+    .join('')
+    .split(/\s+/)
+    .filter(Boolean);
+  const singles = tokens.filter((t) => /^\p{L}$/u.test(t)).length;
+  if (tokens.length < 5 || singles < 0.7 * tokens.length) return chars;
+  const glyphs = chars.filter((c) => c.c.trim());
+  const gaps = glyphs.slice(1).map((c, i) => c.bbox.x0 - glyphs[i]!.bbox.x1);
+  const sorted = [...gaps].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  const size = glyphs[0]?.size ?? 10;
+  const out: RawChar[] = [];
+  glyphs.forEach((c, i) => {
+    const prev = glyphs[i - 1];
+    if (prev && gaps[i - 1]! > median + 0.3 * size) {
+      const x = prev.bbox.x1;
+      out.push({ ...prev, c: ' ', x, bbox: { ...prev.bbox, x0: x, x1: c.bbox.x0 } });
+    }
+    out.push(c);
+  });
+  return out;
+}
+
+function toLine(rawChars: RawChar[], page: RawPage): LineIR {
+  const chars = collapseLetterSpacing(rawChars);
   const spans: SpanIR[] = [];
   let cur: RawChar[] = [];
   const flush = () => {

@@ -17,8 +17,9 @@ export type PdfInspection =
  * Opens a PDF, returns its page count, a PNG thumbnail of page 1 and a text sample of the first
  * pages (for language detection). Frees all WASM objects.
  */
-const SAMPLE_PAGES = 3;
-const SAMPLE_CHARS = 8000;
+// Enough text to outweigh an English abstract on the first page of a non-English paper.
+const SAMPLE_PAGES = 6;
+const SAMPLE_CHARS = 24_000;
 
 function textSample(doc: Document, pages: number): string {
   let text = '';

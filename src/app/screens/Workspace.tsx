@@ -26,6 +26,8 @@ type DocState =
       pageCount?: number;
       thumb?: Thumb;
       detected?: LanguageCode;
+      /** Detection ran and found no clear language: the user must check the source language. */
+      undetected?: boolean;
     }
   | { status: 'error'; file: File; message: string; workerFailed?: boolean };
 
@@ -88,7 +90,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
         .catch(() => '');
       if (!current()) return;
       const detected = applyDetected(sample);
-      if (detected) setDoc({ status: 'ready', file, kind: 'docx', detected });
+      setDoc(
+        detected
+          ? { status: 'ready', file, kind: 'docx', detected }
+          : { status: 'ready', file, kind: 'docx', undetected: true },
+      );
       return;
     }
 
@@ -108,7 +114,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
           kind: 'pdf',
           pageCount: result.pageCount,
           thumb: { url, width, height },
-          ...(detected ? { detected } : {}),
+          ...(detected ? { detected } : { undetected: true }),
         });
       } else {
         const message =
@@ -162,6 +168,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
             {doc.status === 'ready' && doc.detected && (
               <p className="text-sm text-slate-600" data-testid="detected-language">
                 {t('file.detected', { lang: languageName(doc.detected, lang) })}
+              </p>
+            )}
+            {doc.status === 'ready' && doc.undetected && (
+              <p role="status" className="text-sm text-amber-800" data-testid="language-undetected">
+                {t('file.undetected')}
               </p>
             )}
             {doc.status === 'reading' && (

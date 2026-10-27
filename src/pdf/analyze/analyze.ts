@@ -249,7 +249,27 @@ function classify(
       // Headings are never justified: a translated heading with fewer words would gape.
       if (role === 'heading' && b.align === 'justify') b.align = 'left';
     }
+    keepCodeLabels(blocks);
   }
+}
+
+const IDENTIFIER = /^(?:[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+|[a-z]+[A-Z][A-Za-z0-9]*)$/;
+
+/**
+ * On a page whose chart labels are mostly code identifiers ("has_url", "is_license"), the other
+ * one-word lower-case labels are code too ("connect", "open", "read" are API names, not verbs): they
+ * stay as they are.
+ */
+function keepCodeLabels(labels: BlockIR[]): void {
+  const words = labels.filter(
+    (b) => b.role === 'label' && /^\S*\p{L}\S*$/u.test(blockText(b).trim()),
+  );
+  const code = words.filter((b) => IDENTIFIER.test(blockText(b).trim()));
+  if (code.length < 3 || code.length < 0.4 * words.length) return;
+  // Rotated labels are axis titles ("features"), not ticks.
+  for (const b of words)
+    if (b.direction[1] === 0 && /^[a-z][a-z0-9]*$/.test(blockText(b).trim()))
+      b.translatable = false;
 }
 
 /** Columns and reading order (ARCHITECTURE.md §4.1): full-width blocks split the flow. */

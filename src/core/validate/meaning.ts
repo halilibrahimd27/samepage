@@ -53,13 +53,23 @@ const EN_HEDGE = [
   'tend(?:s|ed)? to(?! (?:zero|infinity|one|a|an|the|its|\\d|∞))',
 ];
 const TR_HEDGE = [
-  'muhtemel\\p{L}*',
-  'olası\\p{L}*',
+  'muhtemelen',
   'belki',
   'ihtimal\\p{L}*',
   'gibi görün\\p{L}*',
   'düşündür\\p{L}*',
+  'olabil\\p{L}*',
+  // "-abileceğini" (that it may …) reports a possibility.
+  '\\p{L}+[ae]bilece[ğk]\\p{L}*',
+];
+/** "-abilir" is also plain ability ("uygulanabilir" = applicable), "olası" an adjective. */
+const TR_WEAK_HEDGE = [
   '\\p{L}+[ae]bil(?:ir|ecek|eceğ|mekte|iyor|en)\\p{L}*',
+  'muhtemel\\p{L}*',
+  'olası\\p{L}*',
+  'potansiyel\\p{L}*',
+  'mümkün\\p{L}*',
+  'olasılık\\p{L}*',
 ];
 
 const CUES: Record<string, Cues> = {
@@ -124,21 +134,24 @@ const CUES: Record<string, Cues> = {
     },
   },
   tr: {
-    // Verb negation is a suffix: only lower-case words count, so names ("Yılmaz") do not.
+    // Verb negation is a suffix. "-maz/-mez" only in lower-case words: names ("Yılmaz", "Dönmez").
     negation: new RegExp(
-      `(?<!\\p{L})(?:değil\\p{L}*|yok(?:tur|tu)?|hiç\\p{L}*|asla|\\p{Ll}{2,}(?:m[ae]z|m[ae]d[ıi]|m[ae]m[ıi]ş|m[ae]y[ae]n|m[ae]m[ae]k|m[ıiuü]yor|m[ae]m[ae]l[ıi]|m[ae]y[ae]c[ae]k|m[ae]y[ae]bil)\\p{L}*)(?!\\p{L})`,
+      `(?<!\\p{L})(?:[Dd]eğil\\p{L}*|[Yy]ok(?:tur|tu)?|[Hh]iç\\p{L}*|[Aa]sla|\\p{Ll}{2,}m[ae]z\\p{L}*|\\p{L}\\p{Ll}+(?:m[ae]d[ıi]|m[ae]m[ıi]ş|m[ae]y[ae]n|m[ae]m[ae]k|m[ıiuü]yor|m[ae]m[ae]l[ıi]|m[ae]y[ae]c[ae]k|m[ae]y[ae]bil|m[ae]s[ae]|m[ae]y[ıi]p|m[ae]ks[ıi]z[ıi]n)\\p{L}*)(?!\\p{L})`,
       'gu',
     ),
     softNegation: words([
       'eksik\\p{L}*',
+      'yerine',
+      'ziyade',
+      'aksine',
       '\\p{Ll}{2,}s[ıiuü]z\\p{L}*',
       'imkânsız\\p{L}*',
       'olanaksız\\p{L}*',
     ]),
     hedge: words(TR_HEDGE),
-    // "olup olmadığı" is "whether or not".
-    ignore: words(['olup olma\\p{L}*']),
-    weakHedge: words([...TR_HEDGE, 'mümkün\\p{L}*', 'olasılık\\p{L}*']),
+    // "olup olmadığı" is "whether or not"; "yok etmek" is "to destroy".
+    ignore: words(['olup olma\\p{L}*', 'yok (?:et|ed|ol|say)\\p{L}*']),
+    weakHedge: words([...TR_HEDGE, ...TR_WEAK_HEDGE]),
     quantifiers: {
       'all/every': words([
         'tüm\\p{L}*',

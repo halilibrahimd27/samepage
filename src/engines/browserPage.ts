@@ -1,5 +1,23 @@
 import { checkByBackTranslation, type ChromeTranslatorBridge } from './chromeBuiltin';
-import type { SegmentResult, TranslationEngine } from './types';
+import { restoreInline, type InnerTag } from './plainText';
+import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
+
+/**
+ * Single-word identifiers ("permutation_importance", "RQ3", URLs) and glossary terms travel as
+ * text: Google reads a no-translate span as a sentence break ("Biz bunu kullanıyoruz.
+ * permutation_importance …"). Frozen numbers (⟦D⟧) stay spans — they are frozen because the
+ * engine changed them.
+ */
+function inlineIdentifiers(req: SegmentRequest): { text: string; inlined: InnerTag[] } {
+  const inlined: InnerTag[] = [];
+  const text = req.text.replace(/⟦([A-Z]\d+)⟧/g, (ph, id: string) => {
+    const v = req.verbatim?.[id];
+    if (!v || id.startsWith('D') || !/^\S+$/u.test(v)) return ph;
+    inlined.push({ id, text: v });
+    return v;
+  });
+  return { text, inlined };
+}
 
 const untagged = (t: string) => t.replace(/<\/?t\d+>/g, '');
 
@@ -46,19 +64,36 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       fidelityCheck: true,
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
-    // sentence-level meaning check).
-    model: 'browser-page-3',
+    // sentence-level meaning check, 4: identifiers inline).
+    model: 'browser-page-4',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
     async translate(batch, ctx, signal): Promise<SegmentResult[]> {
-      const texts = await bridge.translate(
+      const prepared = batch.map(inlineIdentifiers);
+      const first = await bridge.translate(
         ctx.pair,
-        batch.map((s) => s.text),
+        prepared.map((p) => p.text),
       );
       signal.throwIfAborted();
-      return batch.map((s, i) => ({ id: s.id, text: respacePlaceholders(s.text, texts[i] ?? '') }));
+      const out = batch.map((s, i): string | null => {
+        const { inlined } = prepared[i]!;
+        const text = first[i] ?? '';
+        const restored = inlined.length ? restoreInline(text, inlined) : text;
+        return restored === null ? null : respacePlaceholders(s.text, restored);
+      });
+      // An identifier the engine changed: the segment again, identifiers as no-translate spans.
+      const again = out.flatMap((t, i) => (t === null ? [i] : []));
+      if (again.length) {
+        const texts = await bridge.translate(
+          ctx.pair,
+          again.map((i) => batch[i]!.text),
+        );
+        signal.throwIfAborted();
+        again.forEach((i, k) => (out[i] = respacePlaceholders(batch[i]!.text, texts[k] ?? '')));
+      }
+      return batch.map((s, i) => ({ id: s.id, text: out[i]! }));
     },
   };
 }

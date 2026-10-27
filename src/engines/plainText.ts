@@ -401,7 +401,7 @@ export function matchInitialCase(source: string, target: string, lang: string): 
  * when a piece came back empty, so the pipeline retries instead of dropping text.
  */
 /** Puts inlined placeholders back where their text survived (any letter case), or null. */
-function restoreInline(t: string, inlined: InnerTag[]): string | null {
+export function restoreInline(t: string, inlined: InnerTag[]): string | null {
   const spans: { at: number; end: number; id: string }[] = [];
   let cursor = 0;
   for (const it of inlined) {

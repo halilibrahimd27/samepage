@@ -3,7 +3,7 @@ import { MemoryCache } from '../../src/core/cache/cache';
 import { glossaryToCsv, mergeGlossaries, parseGlossaryCsv } from '../../src/core/glossary/glossary';
 import { translateSegments } from '../../src/core/pipeline/translate';
 import { createDehyphenator } from '../../src/core/segment/dehyphenate';
-import { respacePlaceholders } from '../../src/engines/browserPage';
+import { createBrowserPageEngine, respacePlaceholders } from '../../src/engines/browserPage';
 import { createChromeEngine } from '../../src/engines/chromeBuiltin';
 import { parseJsonLoose } from '../../src/engines/openaiCompatible';
 import {
@@ -78,6 +78,82 @@ describe('translateSegments', () => {
     });
     expect(out[1]).toMatchObject({ text: segments[1]!.text, untranslated: true, attempts: 3 });
     expect(out[1]!.issues.map((i) => i.code)).toContain('CITATION_MISMATCH');
+  });
+
+  it('Google engine: identifiers travel inline, changed ones fall back to spans', async () => {
+    const sent: string[][] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(texts);
+        return Promise.resolve(
+          texts.map((t) =>
+            t
+              .replace('We use the', 'Kullanıyoruz:')
+              .replace('function', 'fonksiyonunu')
+              .replace('bandit tool', 'haydut aracı')
+              .replace('bandit', 'haydut'),
+          ),
+        );
+      },
+    });
+    const out = await engine.translate(
+      [
+        {
+          id: 'a',
+          text: 'We use the ⟦U1⟧ function',
+          role: 'body',
+          verbatim: { U1: 'permutation_importance' },
+        },
+        { id: 'b', text: 'the ⟦U1⟧ tool', role: 'body', verbatim: { U1: 'bandit' } },
+      ],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      new AbortController().signal,
+    );
+    expect(sent[0]).toEqual(['We use the permutation_importance function', 'the bandit tool']);
+    expect(sent[1]).toEqual(['the ⟦U1⟧ tool']);
+    expect(out.map((r) => r.text)).toEqual(['Kullanıyoruz: ⟦U1⟧ fonksiyonunu', 'the ⟦U1⟧ tool']);
+  });
+
+  it('keeps metric terms consistent between tables and sentences', async () => {
+    const seen: string[] = [];
+    const engine: TranslationEngine = {
+      ...createPseudoEngine(),
+      id: 'browser',
+      capabilities: { ...createPseudoEngine().capabilities, glossary: false },
+      translate(batch) {
+        seen.push(...batch.map((b) => b.text));
+        return Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text: b.text
+              .replace('Performance under', 'Performans:')
+              .replace(/ and /g, ' ve ')
+              .replace('high', 'yüksek'),
+          })),
+        );
+      },
+    };
+    const out = await translateSegments({
+      engine,
+      segments: [
+        seg('c', 'Performance under ⟦U1⟧ (P), recall (R) and F1 score'),
+        seg('h', 'F1-score (%)'),
+        seg('p', 'Precision'),
+      ].map((s) =>
+        s.id === 'c'
+          ? { ...s, text: 'Performance under precision (P), recall (R) and F1 score', verbatim: {} }
+          : s,
+      ),
+      ctx: { ...ctx, pair: { source: 'en', target: 'tr' } },
+      signal: new AbortController().signal,
+    });
+    expect(seen).toEqual(['Performance under ⟦G1⟧ (P), ⟦G2⟧ (R) and ⟦G3⟧']);
+    expect(out.map((o) => o.text)).toEqual([
+      'Performans: kesinlik (P), duyarlılık (R) ve F1 skoru',
+      'F1 skoru (%)',
+      'Kesinlik',
+    ]);
   });
 
   it('puts back the spaces Google drops around placeholders', () => {

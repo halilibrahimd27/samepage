@@ -31,12 +31,12 @@ const LETTERS: Partial<Record<LanguageCode, RegExp>> = {
   tr: /[ğışİ]/gu,
   de: /[ßäöü]/gu,
   pl: /[ąęłńśźż]/gu,
-  cs: /[ěřů]/gu,
+  cs: /[ěřůťďň]/gu,
   ro: /[ăâșțţ]/gu,
   hu: /[őű]/gu,
   sv: /[å]/gu,
   pt: /[ãõ]/gu,
-  es: /[ñ]/gu,
+  es: /[ñ¿¡]/gu,
   fr: /[èêœ]/gu,
   uk: /[іїєґ]/gu,
   ru: /[ыэё]/gu,
@@ -52,6 +52,9 @@ const scriptOf = (lang: LanguageCode) =>
   ['ru', 'uk', 'bg'].includes(lang) ? 'cyrillic' : lang === 'el' ? 'greek' : 'latin';
 
 const sets = new Map(LANGUAGES.map((l) => [l, new Set(STOPWORDS[l].split(' '))]));
+/** A function word shared by k languages counts 1/k ("de", "que", "a" say little alone). */
+const weight = new Map<string, number>();
+for (const set of sets.values()) for (const w of set) weight.set(w, (weight.get(w) ?? 0) + 1);
 
 /**
  * Number of the language's function words in `text` ("the", "and", "ve", "bir" …). Identifiers
@@ -88,7 +91,7 @@ export function detectLanguage(text: string): DetectedLanguage | null {
   const sample = words.join(' ');
   const scores = LANGUAGES.filter((l) => scriptOf(l) === script).map((lang) => {
     const stop = sets.get(lang)!;
-    let score = words.filter((w) => stop.has(w)).length;
+    let score = words.reduce((n, w) => (stop.has(w) ? n + 1 / weight.get(w)! : n), 0);
     const letters = LETTERS[lang];
     if (letters) score += 0.3 * (sample.match(letters)?.length ?? 0);
     return { lang, score };

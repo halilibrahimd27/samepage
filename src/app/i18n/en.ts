@@ -17,6 +17,8 @@ export const en = {
   'error.chromeTranslator':
     'Chrome could not prepare its on-device translator for this language pair (the language download may have failed). Try again in a moment, or choose “Browser translation”.',
   'file.detected': 'Detected language: {lang}',
+  'file.undetected':
+    'The document language could not be detected. Please choose the source language below — a wrong one gives a wrong translation.',
   'file.thumbnail': 'First page of {name}',
 
   'error.empty': 'This file is empty.',

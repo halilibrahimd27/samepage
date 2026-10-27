@@ -19,6 +19,8 @@ export const tr: Record<MessageKey, string> = {
   'error.chromeTranslator':
     'Chrome bu dil çifti için cihaz içi çevirmeni hazırlayamadı (dil paketi indirilemedi olabilir). Biraz sonra tekrar deneyin ya da “Tarayıcı çevirisi”ni seçin.',
   'file.detected': 'Algılanan dil: {lang}',
+  'file.undetected':
+    'Belgenin dili algılanamadı. Lütfen aşağıdan kaynak dili seçin — yanlış dil yanlış çeviri demektir.',
   'file.thumbnail': '{name} belgesinin ilk sayfası',
 
   'error.empty': 'Bu dosya boş.',

@@ -1,4 +1,5 @@
 import { tokenize } from '../segment/codec';
+import type { GlossaryEntry } from '../validate/validate';
 
 /**
  * Section names that machine translation gets wrong without context: "Abstract" alone becomes
@@ -142,6 +143,17 @@ const TERMS: Langs[] = [
     pt: 'Palavras-chave',
     ru: 'Ключевые слова',
   },
+  {
+    // A table's column group ("Overall" | "Per-class") became "Etraflı" (detailed).
+    en: 'Overall',
+    tr: 'Genel',
+    de: 'Gesamt',
+    fr: 'Global',
+    es: 'Global',
+    it: 'Complessivo',
+    pt: 'Geral',
+    ru: 'В целом',
+  },
 ];
 
 /**
@@ -169,7 +181,44 @@ const PRECISION: Langs = {
   pt: 'Precisão',
   ru: 'Точность',
 };
+/** "F1-score" alone became "F1-Gol" (a football goal). */
+const F1_SCORE: Langs = {
+  en: 'F1-score',
+  tr: 'F1 skoru',
+  de: 'F1-Score',
+  fr: 'score F1',
+  es: 'puntuación F1',
+  it: 'punteggio F1',
+  pt: 'pontuação F1',
+  ru: 'F1-мера',
+};
 const METRICS: Langs[] = [RECALL, PRECISION];
+/** Terms looked up in metric documents (cells) and kept consistent in sentences (glossary). */
+const METRIC_TERMS: Langs[] = [
+  RECALL,
+  PRECISION,
+  F1_SCORE,
+  { ...F1_SCORE, en: 'F1 score' },
+  { ...F1_SCORE, en: 'F1-measure' },
+];
+
+/**
+ * The metric terms as glossary entries, so that a sentence ("under precision (P), recall (R),
+ * and F1 score") uses the same words as the table headers. Lower case, except German nouns
+ * and "F1".
+ */
+export function metricGlossary(source: string, target: string): GlossaryEntry[] {
+  return METRIC_TERMS.flatMap((t) => {
+    const from = t[source];
+    const to = t[target];
+    if (!from || !to) return [];
+    // "Kesinlik" → "kesinlik", but "F1 skoru" keeps its capital.
+    const lower = target !== 'de' && /^\p{Lu}\p{Ll}+(?:\s|$)/u.test(to);
+    return [
+      { source: from, target: lower ? to.charAt(0).toLocaleLowerCase(target) + to.slice(1) : to },
+    ];
+  });
+}
 
 /** True when the document names both precision and recall in the source language. */
 export function usesMetrics(texts: string[], source: string): boolean {
@@ -193,7 +242,7 @@ export function academicTerm(
 ): string | null {
   const word = text.trim().replace(/[.:]$/u, '');
   const key = (w: string, lang: string) => w.replace(/\s+/gu, '').toLocaleLowerCase(lang);
-  for (const t of metrics ? [...TERMS, ...METRICS] : TERMS) {
+  for (const t of metrics ? [...TERMS, ...METRIC_TERMS] : TERMS) {
     const from = t[source];
     const to = t[target];
     if (!from || !to || key(word, source) !== key(from, source)) continue;
@@ -217,7 +266,7 @@ export function academicHeading(
   const tokens = tokenize(tagged);
   const texts = tokens.filter((t) => t.type === 'text' && t.text.trim());
   if (texts.length !== 1) return null;
-  const m = /^(\s*)(\p{L}[\p{L} ]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$/u.exec(
+  const m = /^(\s*)(\p{L}[\p{L}\d -]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$/u.exec(
     (texts[0] as { text: string }).text,
   );
   if (!m) return null;

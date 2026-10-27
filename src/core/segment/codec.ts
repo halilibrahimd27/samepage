@@ -30,7 +30,7 @@ const LITERAL_RE = /<\/?t\d+>|[⟦⟧]/g;
  * ("M/B" became "Erkek/Kadın"). Plurals of acronyms ("PDFs", "APIs") stay translatable.
  */
 const URL_RE =
-  /\b(?:[Hh][Tt][Tt][Pp][Ss]?:\/\/|[Ww][Ww][Ww]\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z0-9][\w.-]*-\d+(?:\.\d+)+\b|\b[A-Za-z]+\d+[A-Za-z\d]*\b|\b[A-Za-z]*[a-z][A-Z][A-Za-z]*\b|\b[A-Z]{2,}[a-z]{2,}[A-Za-z]*\b|\b[A-Z]{1,4}(?:\/[A-Z]{1,4})+\b/g;
+  /\b(?:[Hh][Tt][Tt][Pp][Ss]?:\/\/|[Ww][Ww][Ww]\.)[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\b10\.\d{4,9}\/[^\s<>⟦⟧]+[^\s<>⟦⟧.,;:!?)\]}'"]|\barXiv:\d{4}\.\d{4,5}(?:v\d+)?\b|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b|\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b|\b[A-Za-z0-9][\w.-]*-\d+(?:\.\d+)+\b|\b[A-Za-z]+\d+[A-Za-z\d]*\b(?![- ](?:score|measure))|\b[A-Za-z]*[a-z][A-Z][A-Za-z]*\b|\b[A-Z]{2,}[a-z]{2,}[A-Za-z]*\b|\b[A-Z]{1,4}(?:\/[A-Z]{1,4})+\b/g;
 
 /** Splits tagged text into tokens. Unknown-looking markup stays as plain text. */
 export function tokenize(tagged: string): Token[] {

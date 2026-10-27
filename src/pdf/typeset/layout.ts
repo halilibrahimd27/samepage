@@ -159,6 +159,11 @@ const SUBSTITUTE: Record<string, string> = {
   '⋅': '·',
   '∕': '/',
   '∣': '|',
+  // Check marks in tables: the bundled faces have none.
+  '✓': '√',
+  '✔': '√',
+  '✗': '×',
+  '✘': '×',
 };
 
 /** Mathematical alphanumerics (𝑁, 𝐲): bold and italic ranges of U+1D400–U+1D49B. */

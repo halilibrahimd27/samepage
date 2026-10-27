@@ -12,7 +12,7 @@ import {
   type TranslationEngine,
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
-import { academicHeading, usesMetrics } from '../glossary/academic';
+import { academicHeading, metricGlossary, usesMetrics } from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
 import { protectNumbers, protectTerms, restoreTerms } from '../glossary/protect';
 import { plainText } from '../segment/codec';
@@ -109,10 +109,26 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   const dehyphenate = createDehyphenator(job.segments.map((s) => s.text));
   const segments = job.segments.map((s) => ({ ...s, text: dehyphenate(s.text) }));
   const originalText = new Map(job.segments.map((s) => [s.id, s.text]));
-  const ctx: TranslateContext = { ...job.ctx };
   const checkLanguage = engine.id !== 'pseudo';
+  const headings = !engine.capabilities.glossary && engine.id !== 'pseudo';
+  const metrics =
+    headings &&
+    usesMetrics(
+      segments.map((s) => plainText(s.text)),
+      job.ctx.pair.source,
+    );
+  // In a metrics paper the metric terms are kept consistent like glossary terms (user entries win).
+  const glossary = metrics
+    ? [
+        ...job.ctx.glossary,
+        ...metricGlossary(job.ctx.pair.source, job.ctx.pair.target).filter(
+          (m) => !job.ctx.glossary.some((g) => g.source.toLowerCase() === m.source.toLowerCase()),
+        ),
+      ]
+    : job.ctx.glossary;
+  const ctx: TranslateContext = { ...job.ctx, glossary };
   // Engines without glossary support get terms protected as placeholders (ADR-015).
-  const protecting = !engine.capabilities.glossary && job.ctx.glossary.length > 0;
+  const protecting = !engine.capabilities.glossary && glossary.length > 0;
   const gHash = await glossaryHash(ctx.glossary);
   const keys = await Promise.all(
     segments.map((s) =>
@@ -169,13 +185,6 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   };
 
   const pending: SegmentRequest[] = [];
-  const headings = !engine.capabilities.glossary && engine.id !== 'pseudo';
-  const metrics =
-    headings &&
-    usesMetrics(
-      segments.map((s) => plainText(s.text)),
-      ctx.pair.source,
-    );
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
     const heading = headings

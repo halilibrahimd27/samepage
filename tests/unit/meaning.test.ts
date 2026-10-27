@@ -178,6 +178,44 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Turkish: capitalised negation, "yok etmek", "yerine" and ability are understood', () => {
+    expect(
+      issues(
+        'Sığmayan modeller için dış bir API kullanılır.',
+        'Uygun olmayan modeller için harici bir API kullanılır.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Bu ortalamalar tek satırın sinyalini binlerce satır içinde boğuyor.',
+        'Bu ortalamalar tek bir satırın sinyalini binlerce satır içinde yok eder.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Bu araç engelleyici değil, önceliklendirici olarak kullanılmalıdır.',
+        'Bu araç engellemek yerine önceliklendirmek için kullanılmalıdır.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Yöntem yalnızca JavaScript ve Python için kolayca uygulanabilen bir yaklaşımdır.',
+        'Yöntem yalnızca JavaScript ve Python için kolayca uygulanan bir yaklaşımdır.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Bu sonuç modelin aşırı öğrenme yapmış olabileceğini gösteriyor.',
+        'Bu sonuç modelin aşırı öğrenme yaptığını gösteriyor.',
+        'tr',
+      ),
+    ).toEqual(['major: hedging lost']);
+  });
+
   it('attaches the back-translation to each finding', () => {
     const findings = backTranslationFindings(
       [{ id: 's1', source: 'The effect was <t1>not</t1> significant in ⟦F1⟧ cases.', target: '…' }],
