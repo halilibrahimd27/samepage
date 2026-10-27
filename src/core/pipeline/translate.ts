@@ -158,6 +158,8 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       targetLang: ctx.pair.target,
       glossary: ctx.glossary,
       checkLanguage,
+      // Machine translators translate "Of course, …" literally; they never add chatter.
+      checkChatter: engine.capabilities.glossary,
     });
     if (notes.includes('style-approximated')) {
       issues.push({
@@ -224,7 +226,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         untranslated: false,
         cached: true,
         attempts: 0,
-        issues: validate(s, hit.text, hit.notes ?? []).filter((i) => i.severity === 'warning'),
+        issues: validate(s, hit.text, hit.notes ?? []).filter((i) => i.severity !== 'error'),
         notes: hit.notes ?? [],
         findings: hit.findings ?? [],
       });

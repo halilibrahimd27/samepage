@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { equationLike, mathFragments } from '../../src/pdf/analyze/analyze';
+import { equationLike, mathFragments, mathLike } from '../../src/pdf/analyze/analyze';
 
 describe('mathFragments', () => {
   it('recognises formula pieces set in a text font, not words or labels', () => {
@@ -27,5 +27,17 @@ describe('mathFragments', () => {
       expect(equationLike(t), t).toBe(true);
     for (const t of ['p = 0.05 was considered significant', 'Total = 100 students', 'Results'])
       expect(equationLike(t), t).toBe(false);
+  });
+
+  it('recognises lines of mathematics in a text font', () => {
+    for (const t of [
+      '4L Bh −D R(g)h',
+      '〈u,v〉g dVg g dVg',
+      '2(n −1)dd∗−n',
+      'n D R(g)∗TrB∗div = c(n −2)',
+    ])
+      expect(mathLike(t), t).toBe(true);
+    for (const t of ['Fig. 2', 'Age (y)', 'The results', 'PCA analysis + clustering'])
+      expect(mathLike(t), t).toBe(false);
   });
 });

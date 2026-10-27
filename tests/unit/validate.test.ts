@@ -110,7 +110,7 @@ describe('validateTranslation', () => {
         sourceLang: 'fr',
         targetLang: 'en',
       }).map((i) => i.severity),
-    ).toEqual(['warning']);
+    ).toEqual(['info']);
     expect(
       codes(
         'HUDEČEK, Tomáš; DLOUHÝ, Martin. Hustota a struktura zástavby města.',
@@ -150,6 +150,42 @@ describe('validateTranslation', () => {
         targetLang: 'en',
       }).map((i) => i.code),
     ).toEqual([]);
+  });
+
+  it('accepts numbers written in words and thin-space thousands, per source language', () => {
+    const codes = (source: string, target: string, sourceLang: string) =>
+      validateTranslation({ source, target, sourceLang, targetLang: 'en' })
+        .filter((i) => i.code === 'NUMBER_MISMATCH')
+        .map((i) => i.detail);
+    expect(
+      codes(
+        'A betegek négy csoportba sorolhatók a vizsgálatban.',
+        'Patients can be divided into 4 groups in the study.',
+        'hu',
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        'Teplota plazmatu (1 eV ~ 11\u2009604 K) je vysoká v tokamaku.',
+        'Plasma temperature (1 eV ~ 11 604 K) is high in the tokamak.',
+        'cs',
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        'V devadesátých letech se začal nitazen objevovat na trhu.',
+        'In the 1990s nitazene began to appear on the market.',
+        'cs',
+      ),
+    ).toEqual([]);
+    // A stray number is still reported ("on" is not a number word in English).
+    expect(
+      codes(
+        'The effect depends on the dose given to the patients.',
+        'The effect depends on the 10 doses given to the patients.',
+        'en',
+      ),
+    ).toEqual(['unexpected 10']);
   });
 
   it('warns when a glossary term is not used', () => {

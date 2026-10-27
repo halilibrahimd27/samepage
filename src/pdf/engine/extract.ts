@@ -107,6 +107,9 @@ export function restoreChar(c: string, fontName: string): string {
     // ASCII range of Symbol keeps its characters ("(", "1", "+").
     if (u - 0xf000 <= 0x7e && (!table || table === SYMBOL)) return String.fromCharCode(u - 0xf000);
   }
+  // CJK angle brackets in mathematics are the mathematical ones (and only those have a glyph).
+  if (u === 0x3008) return '⟨';
+  if (u === 0x3009) return '⟩';
   // Adobe's serif ©, ® and ™.
   if (u >= 0xf6d9 && u <= 0xf6db) return '©®™'[u - 0xf6d9]!;
   // Adobe Symbol's private-use bracket pieces (big parentheses, brackets and braces).

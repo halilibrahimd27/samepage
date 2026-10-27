@@ -21,8 +21,11 @@ export type ValidationCode =
 
 export interface ValidationIssue {
   code: ValidationCode;
-  /** Errors trigger a retry; warnings are reported but the translation is kept. */
-  severity: 'error' | 'warning';
+  /**
+   * Errors trigger a retry; warnings are reported but the translation is kept; info is listed
+   * for completeness only (a name kept as it is).
+   */
+  severity: 'error' | 'warning' | 'info';
   detail: string;
 }
 
@@ -40,6 +43,8 @@ export interface ValidateInput {
   glossary?: GlossaryEntry[];
   /** Off for the pseudo engine, whose output is intentionally not in the target language. */
   checkLanguage?: boolean;
+  /** Look for model chatter ("Here is the translation:"); only language models produce it. */
+  checkChatter?: boolean;
 }
 
 const multiset = (items: string[]) => {
@@ -127,8 +132,9 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
   const warn = (code: ValidationCode, detail: string) =>
     issues.push({ code, severity: 'warning', detail });
 
-  const srcPlain = plainText(source).trim();
-  const tgtPlain = plainText(target).trim();
+  // Runs of spaces (padded running heads) say nothing about length.
+  const srcPlain = plainText(source).replace(/\s+/g, ' ').trim();
+  const tgtPlain = plainText(target).replace(/\s+/g, ' ').trim();
   if (!target.trim()) {
     if (source.trim()) err('EMPTY', 'translation is empty');
     return issues;
@@ -157,7 +163,7 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
       .map((tok) => (tok.type === 'text' ? tok.text : tok.type === 'ph' ? ' | ' : ''))
       .join('')
       .replace(CITATION_RE, ' ');
-  const nums = compareNumbers(forNumbers(source), forNumbers(target));
+  const nums = compareNumbers(forNumbers(source), forNumbers(target), sourceLang);
   if (nums.missing.length || nums.extra.length) {
     err(
       'NUMBER_MISMATCH',
@@ -173,7 +179,7 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     err('CITATION_MISMATCH', `citations ${citations(srcPlain).join(' ')} must be kept exactly`);
   }
 
-  if (CHATTER_RE.test(tgtPlain))
+  if (input.checkChatter !== false && CHATTER_RE.test(tgtPlain))
     err('CHATTER', 'translation starts with a comment instead of content');
 
   if (srcPlain.length >= 20) {
@@ -200,7 +206,12 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
         const fw = functionWords(lower, sourceLang);
         if (fw >= 3 && fw >= 0.2 * srcPlain.split(/\s+/).length)
           err('UNTRANSLATED', 'translation is identical to the source');
-        else warn('UNTRANSLATED', 'kept as is (names, code or figures)');
+        else
+          issues.push({
+            code: 'UNTRANSLATED',
+            severity: 'info',
+            detail: 'kept as is (names, code or figures)',
+          });
       }
     }
     const script = scriptOf(targetLang);

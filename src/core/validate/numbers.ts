@@ -4,10 +4,10 @@
  * ("1,000" → {1000, 1}; "3,5" → {3.5}) and source/target tokens are matched bipartitely.
  */
 /** Decimal/thousands separators: dot, comma, space, no-break space, narrow no-break space. */
-const SEP = '[.,\\u0020\\u00a0\\u202f]';
+const SEP = '[.,\\u0020\\u00a0\\u202f\\u2009\\u2007]';
 // A space separates thousands only before exactly three digits ("12 500"); "3-9 5" (a page
 // number after a page range) is two numbers.
-const NUMBER_RE = /\d+(?:[.,]\d+|[\u0020\u00a0\u202f]\d{3}(?!\d))*/g;
+const NUMBER_RE = /\d+(?:[.,]\d+|[\u0020\u00a0\u202f\u2009\u2007]\d{3}(?!\d))*/g;
 const SEP_RE = new RegExp(SEP);
 const SEP_RE_G = new RegExp(SEP, 'g');
 
@@ -77,10 +77,118 @@ const GREEK_NUMERAL: Record<string, number> = {
   Ι: 10,
 };
 
+/**
+ * Number words that a translation may write as digits ("négy" → 4, "tisíc" → 1,000, "nineties" →
+ * 1990s), per source language, for WORD_VALUES in order.
+ */
+const NUMBER_WORDS: Record<string, string[]> = {
+  en: [
+    'two',
+    'three',
+    'four',
+    'five',
+    'ten',
+    'hundreds?',
+    'thousands?',
+    'sixties',
+    'eighties',
+    'nineties',
+  ],
+  de: [
+    'zwei',
+    'drei',
+    'vier',
+    'fünf',
+    'zehn',
+    'hundert',
+    'tausend',
+    'sechziger',
+    'achtziger',
+    'neunziger',
+  ],
+  fr: ['deux', 'trois', 'quatre', 'cinq', 'dix', 'cents?', 'milles?', '', '', ''],
+  es: ['dos', 'tres', 'cuatro', 'cinco', 'diez', 'cien(?:to)?s?', 'mil', '', '', ''],
+  it: ['due', 'tre', 'quattro', 'cinque', 'dieci', 'cento', 'mille', '', '', ''],
+  pt: ['dois', 'três', 'quatro', 'cinco', 'dez', 'cem', 'mil', '', '', ''],
+  nl: ['twee', 'drie', 'vier', 'vijf', 'tien', 'honderd', 'duizend', '', '', ''],
+  pl: [
+    'dwa',
+    'trzy',
+    'cztery',
+    'pięć',
+    'dziesięć',
+    'sto',
+    'tysiąc\\p{L}*',
+    '',
+    'osiemdziesiąt\\p{L}*',
+    'dziewięćdziesiąt\\p{L}*',
+  ],
+  cs: [
+    'dva',
+    'tři',
+    'čtyři',
+    'pět',
+    'deset',
+    'sto',
+    'tisíc\\p{L}*',
+    'šedesát\\p{L}*',
+    'osmdesát\\p{L}*',
+    'devadesát\\p{L}*',
+  ],
+  ru: [
+    'два',
+    'три',
+    'четыре',
+    'пять',
+    'десять',
+    'сто',
+    'тысяч\\p{L}*',
+    'шестидесят\\p{L}*',
+    'восьмидесят\\p{L}*',
+    'девяност\\p{L}*',
+  ],
+  uk: ['два', 'три', 'чотири', "п'ять", 'десять', 'сто', 'тисяч\\p{L}*', '', '', ''],
+  hu: [
+    'két|kettő',
+    'három',
+    'négy',
+    'öt',
+    'tíz',
+    'száz',
+    'ezer',
+    'hatvanas',
+    'nyolcvanas',
+    'kilencvenes',
+  ],
+  ro: ['doi|două', 'trei', 'patru', 'cinci', 'zece', 'sută', 'mii|mie', '', '', ''],
+  sv: ['två', 'tre', 'fyra', 'fem', 'tio', 'hundra', 'tusen', '', '', ''],
+  el: ['δύο', 'τρ(?:ία|εις)', 'τέσσερ\\p{L}*', 'πέντε', 'δέκα', 'εκατό', 'χίλι\\p{L}*', '', '', ''],
+  tr: ['iki', 'üç', 'dört', 'beş', 'on', 'yüz', 'bin', '', '', ''],
+  bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', ''],
+};
+const WORD_VALUES = [2, 3, 4, 5, 10, 100, 1000, 1960, 1980, 1990];
+
+/** Values the source writes in words, in the source language. */
+function wordNumbers(text: string, lang: string): { t: string; v: number[]; optional: true }[] {
+  const words = NUMBER_WORDS[lang];
+  if (!words) return [];
+  return text
+    .split(/[^\p{L}']+/u)
+    .flatMap((w) =>
+      words.flatMap((pattern, k) =>
+        pattern && new RegExp(`^(?:${pattern})$`, 'iu').test(w)
+          ? [{ t: w, v: [WORD_VALUES[k]!], optional: true as const }]
+          : [],
+      ),
+    );
+}
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
   target: string,
+  /** Source language, for numbers written in words. */
+  lang?: string,
 ): { missing: string[]; extra: string[] } {
   // A Roman numeral may become digits ("siglo XX" → "20th century"); one the target keeps as
   // is needs no match.
@@ -90,6 +198,13 @@ export function compareNumbers(
   const src = [
     ...extractNumbers(source).map((t) => ({ t, v: candidateValues(t), optional: false })),
     ...romans.map((t) => ({ t, v: [romanValue(t)], optional: true })),
+    ...(lang ? wordNumbers(source, lang) : []),
+    // A decade written with an apostrophe ("anni '90") becomes a year ("the 1990s").
+    ...[...source.matchAll(/['’](\d{2})(?!\d)/g)].map((m) => ({
+      t: m[0],
+      v: [1900 + Number(m[1]), 2000 + Number(m[1])],
+      optional: true,
+    })),
     ...[...source.matchAll(GREEK_NUMERAL_RE)].map((m) => ({
       t: m[0],
       v: [GREEK_NUMERAL[m[1]!]!],

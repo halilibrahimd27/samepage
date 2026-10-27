@@ -346,8 +346,8 @@ describe('helpers', () => {
       validateTranslation({ source: text, target: text, sourceLang: 'en', targetLang: 'tr' })
         .filter((i) => i.code === 'UNTRANSLATED')
         .map((i) => i.severity);
-    expect(check('Haya Samaana1, Diego Elias Costa2, Emad Shihab2')).toEqual(['warning']);
-    expect(check('has_long_str is_valid_homepage')).toEqual(['warning']);
+    expect(check('Haya Samaana1, Diego Elias Costa2, Emad Shihab2')).toEqual(['info']);
+    expect(check('has_long_str is_valid_homepage')).toEqual(['info']);
     expect(check('The results of the study are shown here.')).toEqual(['error']);
   });
 

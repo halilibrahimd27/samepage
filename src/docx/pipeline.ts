@@ -281,7 +281,11 @@ export async function translateDocx(
             issues: manualIssues(u.source, rawManual!, opts),
           }
         : base;
-    const status = o.untranslated ? 'untranslated' : o.issues.length ? 'warning' : 'translated';
+    const status = o.untranslated
+      ? 'untranslated'
+      : o.issues.some((i) => i.severity !== 'info')
+        ? 'warning'
+        : 'translated';
     segReports.push({
       id: u.id,
       part: u.part,

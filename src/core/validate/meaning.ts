@@ -178,8 +178,27 @@ const CUES: Record<string, Cues> = {
       'ohne',
       'weder',
     ]),
+    softNegation: words([
+      'verboten\\p{L}*',
+      'fehl\\p{L}*',
+      'mangel\\p{L}*',
+      'unzureichend\\p{L}*',
+      'unmöglich\\p{L}*',
+      'un\\p{L}{4,}',
+    ]),
   },
-  fr: { negation: words(['ne', "n[’']", 'pas', 'jamais', 'aucun\\p{L}*', 'sans', 'ni', 'rien']) },
+  fr: {
+    negation: words(['ne', "n[’']", 'pas', 'jamais', 'aucun\\p{L}*', 'sans', 'ni', 'rien']),
+    softNegation: words([
+      'interdit\\p{L}*',
+      'déconseill\\p{L}*',
+      'manqu\\p{L}*',
+      'absen\\p{L}*',
+      'insuffisan\\p{L}*',
+      'impossibl\\p{L}*',
+      'in(?:adapt|capab|exact|valide|correct)\\p{L}*',
+    ]),
+  },
   es: {
     negation: words([
       'no',
@@ -193,10 +212,37 @@ const CUES: Record<string, Cues> = {
       'jamás',
       'tampoco',
     ]),
+    softNegation: words([
+      'prohibid\\p{L}*',
+      'falta\\p{L}*',
+      'ausen\\p{L}*',
+      'insuficient\\p{L}*',
+      'imposibl\\p{L}*',
+      'inadecuad\\p{L}*',
+    ]),
   },
-  it: { negation: words(['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né']) },
+  it: {
+    negation: words(['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né']),
+    softNegation: words([
+      'vietat\\p{L}*',
+      'mancan\\p{L}*',
+      'assen\\p{L}*',
+      'inadeguat\\p{L}*',
+      'insufficient\\p{L}*',
+      'impossibil\\p{L}*',
+      'incapac\\p{L}*',
+    ]),
+  },
   pt: {
     negation: words(['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais']),
+    softNegation: words([
+      'proibid\\p{L}*',
+      'falta\\p{L}*',
+      'ausên\\p{L}*',
+      'insuficient\\p{L}*',
+      'impossív\\p{L}*',
+      'inadequad\\p{L}*',
+    ]),
   },
   ru: { negation: words(['не', 'нет', 'ни', 'никогда', 'ничего', 'никто', 'без', 'нельзя']) },
 };

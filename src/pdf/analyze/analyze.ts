@@ -246,7 +246,8 @@ function classify(
       else if (inReferences && (role === 'body' || role === 'footnote')) role = 'reference';
       // Formulas set in a text font (Times italic variables, Symbol operators) come out as
       // scattered letters ("O m m", "j j j", "(W"): nothing to translate, and engines glue them.
-      if (role !== 'caption' && (mathFragments(text) || equationLike(text))) role = 'formula';
+      if (role !== 'caption' && (mathFragments(text) || equationLike(text) || mathLike(text)))
+        role = 'formula';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);
       // A one-word running head or foot is a journal or brand name ("sinergie", "Forest@"); one
@@ -311,6 +312,18 @@ const MATH_FUNCTION =
 export function equationLike(text: string): boolean {
   if (text.length > 60 || !/[=≤≥≈]/.test(text)) return false;
   return !text.split(/\s+/).some((t) => (t.match(/\p{L}/gu)?.length ?? 0) >= 5);
+}
+
+/**
+ * A line of mathematics in a text font ("4L Bh −D R(g)h", "〈u,v〉g dVg"): no letter run longer
+ * than three, and a mathematical operator.
+ */
+export function mathLike(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.length > 80 || !/\p{L}/u.test(t)) return false;
+  if ((t.match(/\p{L}+/gu) ?? []).some((run) => run.length > 3 && !MATH_FUNCTION.test(run)))
+    return false;
+  return /[=<>≤≥≈∗×·−+∑∫∂∇∆〈〉⟨⟩|^∈∉⊂⊆∀∃→↦]/u.test(t);
 }
 
 const IDENTIFIER = /^(?:[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+|[a-z]+[A-Z][A-Za-z0-9]*)$/;

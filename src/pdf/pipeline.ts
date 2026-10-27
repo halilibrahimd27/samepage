@@ -301,7 +301,11 @@ export async function translatePdf(
       pages: [...new Set(u.blocks.map(pageOf))],
       source: readableText(u.encoded.source, u.encoded.placeholders),
       target: o.untranslated ? '' : readableText(o.text, u.encoded.placeholders),
-      status: o.untranslated ? 'untranslated' : o.issues.length ? 'warning' : 'translated',
+      status: o.untranslated
+        ? 'untranslated'
+        : o.issues.some((i) => i.severity !== 'info')
+          ? 'warning'
+          : 'translated',
       scale: 1,
       score: 100,
       repairs: [],
