@@ -180,8 +180,9 @@ function without(b: string, a: string): string {
 
 /**
  * Text re-extracted along the laid-out lines: characters on each line's baseline within its x
- * extent. A box would also catch the neighbouring paragraph where line boxes overlap (fonts with
- * tall ascenders). Rotated lines fall back to the box.
+ * extent, and those of raised or lowered runs (a fraction's numerator, its exponents) on their
+ * own baselines. A box would also catch the neighbouring paragraph where line boxes overlap
+ * (fonts with tall ascenders). Rotated lines fall back to the box.
  */
 function charsOnLines(raw: RawPage, lines: LayoutLine[], box: Rect): string {
   if (lines.some((l) => l.dir || l.origin)) return charsIn(raw, box);
@@ -191,10 +192,18 @@ function charsOnLines(raw: RawPage, lines: LayoutLine[], box: Rect): string {
       const size = Math.max(1, ...line.runs.map((r) => r.size));
       const x0 = Math.min(...line.runs.map((r) => r.x)) - 1;
       const x1 = Math.max(...line.runs.map((r) => r.x + r.width)) + 1;
+      const shifted = line.runs.filter((r) => r.rise);
       return chars
         .filter((c) => {
           const cx = (c.bbox.x0 + c.bbox.x1) / 2;
-          return cx >= x0 && cx <= x1 && Math.abs(c.y - line.baseline) < 0.6 * size;
+          if (cx < x0 || cx > x1) return false;
+          if (Math.abs(c.y - line.baseline) < 0.6 * size) return true;
+          return shifted.some(
+            (r) =>
+              cx >= r.x - 1 &&
+              cx <= r.x + r.width + 1 &&
+              Math.abs(c.y - (line.baseline - r.rise)) < 0.6 * Math.max(1, r.size),
+          );
         })
         .sort((a, b) => a.x - b.x)
         .map((c) => c.c)
