@@ -57,6 +57,8 @@ paying for an API — and who cannot afford a translation that quietly changes w
 
 ## How it works
 
+![Demo: a Turkish paper translated into English with its quality report and side-by-side preview, then its title and abstract alone](media/demo.gif)
+
 1. Drop a **DOCX** or a **PDF** (text-based or scanned). The source language is detected; choose the target
    language (⇄ swaps them).
 2. Choose **Whole document**, or **Title, abstract and keywords** to translate only those.
