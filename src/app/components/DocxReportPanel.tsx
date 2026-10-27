@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { DocxReport } from '../../docx/pipeline';
 import { urgency } from '../issues';
 import { IssueList } from './IssueList';
+import type { LangPair } from '../../engines/types';
+import { BackTranslation } from './BackTranslation';
 import { SegmentEditor } from './SegmentEditor';
 import { useI18n } from '../i18n';
 
@@ -16,10 +18,12 @@ export function DocxReportPanel({
   report,
   edits,
   onEdit,
+  pair,
 }: {
   report: DocxReport;
   edits: Record<string, string>;
   onEdit: (sourceTagged: string, targetTagged: string) => void;
+  pair: LangPair;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<'attention' | 'meaning' | 'all'>('attention');
@@ -129,6 +133,15 @@ export function DocxReportPanel({
                 ) : (
                   <>
                     {s.target && <p className="mt-1">{s.target}</p>}
+                    {s.back && s.target && !(s.sourceTagged in edits) && (
+                      <BackTranslation
+                        source={s.source}
+                        target={s.target}
+                        back={s.back}
+                        sourceLang={pair.source}
+                        targetLang={pair.target}
+                      />
+                    )}
                     {s.status !== 'skipped' && (
                       <button
                         type="button"

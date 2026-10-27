@@ -32,11 +32,11 @@ function scripted(
     model: 'test',
     maxBatchChars: 10_000,
     checkFidelity: (pairs) =>
-      Promise.resolve(
-        pairs
+      Promise.resolve({
+        findings: pairs
           .filter((p) => p.id === 'b')
           .map((p) => ({ id: p.id, issue: 'hedging lost', severity: 'major' as const })),
-      ),
+      }),
     calls,
     translate(batch) {
       const n = calls.length;

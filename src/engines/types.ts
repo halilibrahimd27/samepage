@@ -57,6 +57,12 @@ export interface FidelityFinding {
   backTranslation?: string;
 }
 
+export interface FidelityResult {
+  findings: FidelityFinding[];
+  /** Back-translation of each checked target by id (back-translation check, source language). */
+  back?: Record<string, string>;
+}
+
 export interface FidelityPair {
   id: string;
   source: string;
@@ -96,7 +102,7 @@ export interface TranslationEngine {
     pairs: FidelityPair[],
     ctx: TranslateContext,
     signal: AbortSignal,
-  ): Promise<FidelityFinding[]>;
+  ): Promise<FidelityResult>;
   extractGlossary?(
     sample: string,
     ctx: TranslateContext,

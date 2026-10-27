@@ -75,6 +75,8 @@ export interface PdfUnitReport {
   /** Tagged text, for the review editor. */
   sourceTagged: string;
   targetTagged: string;
+  /** The translation translated back (meaning check), for the side-by-side review. */
+  back?: string;
 }
 
 export interface PdfReport {
@@ -314,6 +316,8 @@ export async function translatePdf(
       manual: opts.overrides?.[u.encoded.source] !== undefined,
       sourceTagged: u.encoded.source,
       targetTagged: o.untranslated ? '' : o.text,
+      // The back-translation is of the engine's text, not of a manual edit.
+      ...(o.back && opts.overrides?.[u.encoded.source] === undefined ? { back: o.back } : {}),
     };
     reports.set(u.id, report);
     // A translation identical to the source (names, formulas, figures) is not set again: the

@@ -5,6 +5,8 @@ export interface CacheEntry {
   notes?: string[];
   /** undefined = fidelity not checked yet; [] = checked, no findings. */
   findings?: FidelityFinding[];
+  /** Back-translation of the text (back-translation check). */
+  back?: string;
 }
 
 export interface TranslationCache {

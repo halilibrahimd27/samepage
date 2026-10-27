@@ -142,5 +142,12 @@ test.describe('browser engine (automatic)', () => {
     });
     // No manual sheet was needed.
     await expect(page.getByTestId('translation-sheet')).toHaveCount(0);
+
+    // The meaning check's back-translations can be compared paragraph by paragraph.
+    await page.getByTestId('report').locator('summary').first().click();
+    await page.getByRole('tab', { name: /All paragraphs/ }).click();
+    const compare = page.getByTestId('back-translation').first();
+    await compare.locator('summary').click();
+    await expect(compare.getByTestId('back-translation-text').first()).not.toBeEmpty();
   });
 });

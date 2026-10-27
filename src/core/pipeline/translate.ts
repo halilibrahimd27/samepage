@@ -29,6 +29,8 @@ export interface SegmentOutcome {
   issues: ValidationIssue[];
   notes: string[];
   findings: FidelityFinding[];
+  /** The translation translated back into the source language (meaning check). */
+  back?: string;
 }
 
 export interface TranslateJob {
@@ -229,6 +231,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         issues: validate(s, hit.text, hit.notes ?? []).filter((i) => i.severity !== 'error'),
         notes: hit.notes ?? [],
         findings: hit.findings ?? [],
+        ...(hit.back ? { back: hit.back } : {}),
       });
     } else {
       pending.push(s);
@@ -429,7 +432,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     const workers = engine.runsOn === 'main' ? 1 : (job.concurrency ?? 2);
     await pool(makeBatches(pairs, size), workers, async (batch) => {
       signal.throwIfAborted();
-      const findings = await engine.checkFidelity!(
+      const { findings, back } = await engine.checkFidelity!(
         batch.map(({ text: _, ...pair }) => pair),
         ctx,
         signal,
@@ -437,9 +440,15 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       for (const p of batch) {
         const o = outcomes.get(p.id)!;
         o.findings = findings.filter((f) => f.id === p.id);
+        if (back?.[p.id]) o.back = back[p.id];
         fresh.push([
           keyOf.get(p.id)!,
-          { text: o.text, ...(o.notes.length ? { notes: o.notes } : {}), findings: o.findings },
+          {
+            text: o.text,
+            ...(o.notes.length ? { notes: o.notes } : {}),
+            findings: o.findings,
+            ...(o.back ? { back: o.back } : {}),
+          },
         ]);
       }
       checked += batch.length;

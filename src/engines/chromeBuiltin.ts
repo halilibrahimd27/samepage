@@ -1,5 +1,5 @@
 import { tokenize } from '../core/segment/codec';
-import { backTranslationFindings, cueText } from '../core/validate/meaning';
+import { backTranslationFindings, cueText, inSourceLanguage } from '../core/validate/meaning';
 import {
   assemblePieces,
   matchInitialCase,
@@ -10,8 +10,8 @@ import {
 } from './plainText';
 import type {
   Availability,
-  FidelityFinding,
   FidelityPair,
+  FidelityResult,
   LangPair,
   SegmentResult,
   TranslateContext,
@@ -38,15 +38,24 @@ export async function checkByBackTranslation(
   pairs: FidelityPair[],
   ctx: TranslateContext,
   signal: AbortSignal,
-): Promise<FidelityFinding[]> {
+): Promise<FidelityResult> {
+  const { source, target } = ctx.pair;
   const back = await bridge
     .backTranslate?.(
-      { source: ctx.pair.target, target: ctx.pair.source },
+      { source: target, target: source },
       pairs.map((p) => cueText(p.target, p.verbatim)),
     )
     .catch(() => null);
   signal.throwIfAborted();
-  return back ? backTranslationFindings(pairs, back, ctx.pair.source, ctx.pair.target) : [];
+  if (!back) return { findings: [] };
+  const kept = pairs.flatMap((p, i) => {
+    const text = back[i]?.trim();
+    return text && inSourceLanguage(text, source, target) ? [[p.id, text] as const] : [];
+  });
+  return {
+    findings: backTranslationFindings(pairs, back, source, target),
+    back: Object.fromEntries(kept),
+  };
 }
 
 const tagIds = (t: string) =>

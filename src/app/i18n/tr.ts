@@ -277,6 +277,12 @@ export const tr: Record<MessageKey, string> = {
     'Henüz hiçbir şey çevrilmedi. Tarayıcılar varsayılan olarak kendi dillerine çevirir — çeviri menüsünden {target} seçin.',
   'sheet.stuckChrome':
     'Bu bilgisayarda “Chrome yerleşik çevirmen” motoru kendiliğinden çalışır: iptal edip yukarıdan onu seçebilirsiniz.',
+  'review.compare': 'Geri çeviriyle karşılaştır',
+  'review.compareHint':
+    'Geri çeviri, çevirinin kaynak dile geri çevrilmiş halidir. İşaretli kelimeler kaynaktan farklıdır; farklı ifade etmek normaldir, ama sayıları (kırmızı), olumsuzlukları ve temkinli ifadeleri kontrol edin.',
+  'review.source': 'Kaynak',
+  'review.translation': 'Çeviri',
+  'review.back': 'Geri çeviri',
   'review.edit': 'Düzenle',
   'review.save': 'Kaydet',
   'review.cancel': 'Vazgeç',

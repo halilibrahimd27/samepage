@@ -16,6 +16,7 @@ import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { useGlossary, useTermSuggestions } from '../useGlossary';
 import { GlossaryPanel } from './GlossaryPanel';
+import { BackTranslation } from './BackTranslation';
 import { IssueList } from './IssueList';
 import { ProgressBar } from './ProgressBar';
 import { TranslationSheet } from './TranslationSheet';
@@ -23,7 +24,7 @@ import { TranslationSheet } from './TranslationSheet';
 const JOB_MS = 30 * 60_000;
 
 type Fields = { title: string; abstract: string; keywords: string };
-type Part = { text: string; issues: ShownIssue[] };
+type Part = { source: string; text: string; issues: ShownIssue[]; back?: string };
 interface Result {
   title: Part | null;
   abstract: Part[];
@@ -49,7 +50,10 @@ function translated(segment: TextSegment): Part {
     text = plainText(segment.outcome.text);
   }
   const issues = segment.outcome.issues.filter((i) => i.severity !== 'info');
-  return { text, issues };
+  const source = decode(segment.source, segment)
+    .map((r) => r.text)
+    .join('');
+  return { source, text, issues, ...(segment.outcome.back ? { back: segment.outcome.back } : {}) };
 }
 
 /** The title, abstract and keywords of a paper, found in the file, edited and translated. */
@@ -227,6 +231,17 @@ export function AbstractTranslator({
     </label>
   );
 
+  const compare = (p: Part) =>
+    p.back && (
+      <BackTranslation
+        source={p.source}
+        target={p.text}
+        back={p.back}
+        sourceLang={config.source}
+        targetLang={config.target}
+      />
+    );
+
   const otherInTarget = found?.otherAbstracts.includes(config.target);
   const notSource = found?.lang && found.lang !== config.source;
 
@@ -343,6 +358,7 @@ export function AbstractTranslator({
                 {copyButton('title', result.title.text)}
               </div>
               <IssueList issues={result.title.issues} />
+              {compare(result.title)}
             </div>
           )}
           {result.abstract.length > 0 && (
@@ -363,6 +379,7 @@ export function AbstractTranslator({
                     {p.text}
                   </p>
                   <IssueList issues={p.issues} />
+                  {compare(p)}
                 </div>
               ))}
             </div>
@@ -377,6 +394,7 @@ export function AbstractTranslator({
                 {copyButton('keywords', result.keywords.text)}
               </div>
               <IssueList issues={result.keywords.issues} />
+              {compare(result.keywords)}
             </div>
           )}
         </section>

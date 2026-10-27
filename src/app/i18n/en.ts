@@ -275,6 +275,12 @@ export const en = {
     'Nothing has been translated yet. Browsers translate into their own language by default — choose {target} in the translate menu.',
   'sheet.stuckChrome':
     'On this computer the “Chrome built-in translator” engine works automatically: cancel and choose it above.',
+  'review.compare': 'Compare with the back-translation',
+  'review.compareHint':
+    'The back-translation is the translation translated back into the source language. Marked words differ from the source; rewording is normal, but check numbers (red), negations and hedges.',
+  'review.source': 'Source',
+  'review.translation': 'Translation',
+  'review.back': 'Back-translation',
   'review.edit': 'Edit',
   'review.save': 'Save',
   'review.cancel': 'Cancel',

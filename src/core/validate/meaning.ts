@@ -335,6 +335,11 @@ export function compareMeaning(source: string, back: string, lang: string): Diff
   );
 }
 
+/** The back-translation came back in the source language (the translator did its work). */
+export function inSourceLanguage(text: string, lang: string, targetLang: string): boolean {
+  return functionWords(text, lang) >= functionWords(text, targetLang);
+}
+
 /** Findings for translated pairs, given the back-translation of each target. */
 export function backTranslationFindings(
   pairs: FidelityPair[],
@@ -343,7 +348,7 @@ export function backTranslationFindings(
   targetLang: string,
 ): FidelityFinding[] {
   // A back-translation the translator left in the target language says nothing.
-  const inSource = (t: string) => functionWords(t, lang) >= functionWords(t, targetLang);
+  const inSource = (t: string) => inSourceLanguage(t, lang, targetLang);
   return pairs.flatMap((p, i) =>
     (inSource(back[i] ?? '')
       ? compareMeaning(cueText(p.source, p.verbatim), back[i] ?? '', lang)

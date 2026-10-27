@@ -3,6 +3,8 @@ import type { PdfReport } from '../../pdf/pipeline';
 import { useI18n } from '../i18n';
 import { urgency, type ShownIssue } from '../issues';
 import { IssueList } from './IssueList';
+import type { LangPair } from '../../engines/types';
+import { BackTranslation } from './BackTranslation';
 import { SegmentEditor } from './SegmentEditor';
 
 const STATUS_BADGE = {
@@ -22,10 +24,12 @@ export function PdfReportPanel({
   report,
   edits,
   onEdit,
+  pair,
 }: {
   report: PdfReport;
   edits: Record<string, string>;
   onEdit: (sourceTagged: string, targetTagged: string) => void;
+  pair: LangPair;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<'attention' | 'meaning' | 'all'>('attention');
@@ -169,6 +173,15 @@ export function PdfReportPanel({
                 ) : (
                   <>
                     {u.target && <p className="mt-1">{u.target}</p>}
+                    {u.back && u.target && !(u.sourceTagged in edits) && (
+                      <BackTranslation
+                        source={u.source}
+                        target={u.target}
+                        back={u.back}
+                        sourceLang={pair.source}
+                        targetLang={pair.target}
+                      />
+                    )}
                     <button
                       type="button"
                       className="mt-1 text-xs text-blue-700 underline"

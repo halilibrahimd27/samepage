@@ -243,6 +243,7 @@ export function PdfTranslator(props: {
             </div>
           )}
           <PdfReportPanel
+            pair={pair}
             report={result.report}
             edits={edits}
             onEdit={(src, tgt) => setEdits((e) => ({ ...e, [src]: tgt }))}

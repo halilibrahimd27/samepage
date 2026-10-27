@@ -150,7 +150,7 @@ export function createAnthropicEngine(config: {
         signal,
       );
       const ids = new Set(pairs.map((p) => p.id));
-      return out.findings.filter((f) => ids.has(f.id));
+      return { findings: out.findings.filter((f) => ids.has(f.id)) };
     },
 
     async extractGlossary(sample, ctx, signal) {

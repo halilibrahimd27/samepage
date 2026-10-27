@@ -46,6 +46,8 @@ export interface DocxSegmentReport {
   /** Tagged text, for the review editor. */
   sourceTagged: string;
   targetTagged: string;
+  /** The translation translated back (meaning check), for the side-by-side review. */
+  back?: string;
 }
 
 export interface DocxReport {
@@ -299,6 +301,8 @@ export async function translateDocx(
       issues: o.issues,
       sourceTagged: u.source,
       targetTagged: o.untranslated ? '' : o.text,
+      // The back-translation is of the engine's text, not of a manual edit.
+      ...(o.back && manualText === undefined ? { back: o.back } : {}),
     });
     if (o.untranslated) continue; // the original paragraph stays untouched
     touched.add(u.part);
