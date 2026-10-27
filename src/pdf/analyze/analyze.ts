@@ -302,7 +302,7 @@ export function mathFragments(text: string): boolean {
 }
 
 const MATH_FUNCTION =
-  /^[(\[|‖−\-\ufffd]*(?:exp|log|ln|lg|sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|arcsin|arccos|arctan|max|min|sup|inf|lim|det|tr|rank|dim|ker|deg|arg|mod|gcd|lcm|sgn|erf|Re|Im|Pr|var|cov|argmax|argmin)[)\]|‖,.;:]*$/;
+  /^[([|‖−\-\ufffd]*(?:exp|log|ln|lg|sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|arcsin|arccos|arctan|max|min|sup|inf|lim|det|tr|rank|dim|ker|deg|arg|mod|gcd|lcm|sgn|erf|Re|Im|Pr|var|cov|argmax|argmin)[)\]|‖,.;:]*$/;
 
 /**
  * A short equation set in a text font ("HT = 1,75⋅250", "Prev = 3.940⋅Fn", "Φ = cos−1R"): a
