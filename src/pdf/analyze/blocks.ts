@@ -535,7 +535,11 @@ function mergeSplitParagraphs(
         fontA.name === fontB.name;
       const continuesCentred =
         Math.abs(centre(aLast.bbox) - centre(bFirst.bbox)) < 3 &&
-        Math.abs(aLast.bbox.x0 - bFirst.bbox.x0) > 6 &&
+        // Lines of different lengths around one centre (a stacked masthead, a centred title).
+        Math.max(
+          Math.abs(aLast.bbox.x0 - bFirst.bbox.x0),
+          Math.abs(aLast.bbox.x1 - bFirst.bbox.x1),
+        ) > 3 &&
         fontA.name === fontB.name &&
         fontA.bold === fontB.bold;
       // A block that opens with a superscript mark is a new item (the next affiliation).
@@ -549,7 +553,8 @@ function mergeSplitParagraphs(
         (continuesLeft || continuesFull || continuesCentred) &&
         step > 0.5 * size &&
         (step < Math.max(1.6, layout.lineStepEm + 0.3) * size || (regular && step < 3 * size)) &&
-        Math.abs(aLast.spans[0]!.size - size) < 0.3
+        // Small caps mix sizes within a line: a relative tolerance.
+        Math.abs(aLast.spans[0]!.size - size) < Math.max(0.3, 0.08 * size)
       ) {
         const lines = [...a.lines, ...b.lines];
         const bbox = union(a.bbox, b.bbox);

@@ -141,6 +141,15 @@ describe('validateTranslation', () => {
         'Since the end of the 20th century formulas have been proposed.',
       ),
     ).toEqual([]);
+    expect(
+      validateTranslation({
+        source: 'Στην Α’ Γυμνασίου και στην Γ’ τάξη οι μαθητές μαθαίνουν τον αλγόριθμο.',
+        target:
+          'In the 1st grade of middle school and in the 3rd class students learn the algorithm.',
+        sourceLang: 'el',
+        targetLang: 'en',
+      }).map((i) => i.code),
+    ).toEqual([]);
   });
 
   it('warns when a glossary term is not used', () => {

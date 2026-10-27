@@ -62,6 +62,21 @@ function romanValue(r: string): number {
   return v;
 }
 
+/** Greek numerals with a keraia ("Α’ Γυμνασίου" = 1st grade, "Γ’ τάξη" = 3rd class). */
+const GREEK_NUMERAL_RE = /(?<!\p{L})(ΣΤ|[ΑΒΓΔΕΖΗΘΙ])['’ʹ](?!\p{L})/gu;
+const GREEK_NUMERAL: Record<string, number> = {
+  Α: 1,
+  Β: 2,
+  Γ: 3,
+  Δ: 4,
+  Ε: 5,
+  ΣΤ: 6,
+  Ζ: 7,
+  Η: 8,
+  Θ: 9,
+  Ι: 10,
+};
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
@@ -75,6 +90,11 @@ export function compareNumbers(
   const src = [
     ...extractNumbers(source).map((t) => ({ t, v: candidateValues(t), optional: false })),
     ...romans.map((t) => ({ t, v: [romanValue(t)], optional: true })),
+    ...[...source.matchAll(GREEK_NUMERAL_RE)].map((m) => ({
+      t: m[0],
+      v: [GREEK_NUMERAL[m[1]!]!],
+      optional: true,
+    })),
   ];
   const tgt = extractNumbers(target).map((t) => ({ t, v: candidateValues(t) }));
   const matchOf = new Array<number>(tgt.length).fill(-1);

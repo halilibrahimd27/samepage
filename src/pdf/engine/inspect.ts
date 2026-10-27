@@ -21,14 +21,25 @@ export type PdfInspection =
 const SAMPLE_PAGES = 6;
 const SAMPLE_CHARS = 24_000;
 
+/**
+ * Text of the first pages and of the middle of the document: a thesis or a paper may open with an
+ * English title page and abstract before the body in its own language.
+ */
 function textSample(doc: Document, pages: number): string {
+  const count = doc.countPages();
+  const middle = Math.floor(count / 2);
+  const indices = [
+    ...new Set([0, 1, 2, middle - 1, middle, middle + 1].filter((i) => i >= 0 && i < count)),
+  ].slice(0, Math.max(pages, 1));
+  // An equal share per page, so the opening pages cannot crowd out the middle ones.
+  const share = Math.floor(SAMPLE_CHARS / Math.max(1, indices.length));
   let text = '';
-  for (let i = 0; i < pages && text.length < SAMPLE_CHARS; i++) {
+  for (const i of indices) {
     const page = doc.loadPage(i);
     try {
       const stext = page.toStructuredText('preserve-whitespace');
       try {
-        text += `${stext.asText()}\n`;
+        text += `${stext.asText().slice(0, share)}\n`;
       } finally {
         stext.destroy();
       }
