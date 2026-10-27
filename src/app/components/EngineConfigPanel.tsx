@@ -18,19 +18,32 @@ export function EngineConfigPanel({
   const sameLanguage = config.source === config.target;
   return (
     <div className="flex flex-col gap-6">
-      <section className="grid gap-4 sm:grid-cols-2">
+      <section className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
         <LanguageSelect
           label={t('config.source')}
           value={config.source}
           onChange={config.setSource}
         />
+        <button
+          type="button"
+          className="justify-self-center rounded-full border border-slate-300 bg-white px-3 py-2 text-slate-700 hover:bg-slate-50"
+          aria-label={t('config.swap')}
+          title={t('config.swap')}
+          onClick={() => {
+            const { source, target } = config;
+            config.setSource(target);
+            config.setTarget(source);
+          }}
+        >
+          ⇄
+        </button>
         <LanguageSelect
           label={t('config.target')}
           value={config.target}
           onChange={config.setTarget}
         />
         {sameLanguage && (
-          <p role="alert" className="text-sm text-red-800 sm:col-span-2">
+          <p role="alert" className="text-sm text-red-800 sm:col-span-3">
             {t('config.sameLanguage')}
           </p>
         )}

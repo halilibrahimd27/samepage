@@ -17,7 +17,7 @@ export const tr: Record<MessageKey, string> = {
   'sheet.autoFailed':
     'Otomatik çeviri başlatılamadı (Google Çeviri yüklenemedi). Tarayıcınızla çevirin:',
   'error.chromeTranslator':
-    'Chrome bu dil çifti için cihaz içi çevirmeni hazırlayamadı (dil paketi indirilemedi olabilir). Biraz sonra tekrar deneyin ya da “Tarayıcı çevirisi”ni seçin.',
+    'Chrome bu dil çifti için cihaz içi çevirmeni hazırlayamadı (Chrome bu çifti sunmuyor olabilir ya da dil paketi indirmesi takıldı). “Google Çeviri”yi seçin ya da daha sonra tekrar deneyin.',
   'file.detected': 'Algılanan dil: {lang}',
   'file.undetected':
     'Belgenin dili algılanamadı. Lütfen aşağıdan kaynak dili seçin — yanlış dil yanlış çeviri demektir.',
@@ -39,6 +39,7 @@ export const tr: Record<MessageKey, string> = {
 
   'config.source': 'Kaynak dil',
   'config.target': 'Hedef dil',
+  'config.swap': 'Kaynak ve hedef dili değiştir',
   'config.engine': 'Çeviri motoru',
   'config.sameLanguage': 'Kaynak ve hedef dil farklı olmalı.',
   'config.translate': 'Çevir',
@@ -49,7 +50,7 @@ export const tr: Record<MessageKey, string> = {
     'Akademik metin için en iyi kalite, sadakat kontrolüyle. Kendi API anahtarınızı kullanır.',
   'engine.chrome-builtin.label': 'Chrome yerleşik çevirmen',
   'engine.chrome-builtin.description':
-    'Ücretsiz ve gizli, cihazınızda çalışır. Yalnızca masaüstü Chrome ve Edge.',
+    'Cihazınızda gizlice çalışır. Yalnızca masaüstü Chrome ve Edge.',
   'engine.openai-compatible.label': 'Yerel LLM sunucusu',
   'engine.openai-compatible.description':
     'Bu bilgisayardaki Ollama, LM Studio veya OpenAI uyumlu herhangi bir sunucu.',
@@ -161,6 +162,30 @@ export const tr: Record<MessageKey, string> = {
   'report.attention': 'İlgilenmeniz gerekenler',
   'report.allSegments': 'Tüm paragraflar',
   'report.empty': 'İlgilenmeniz gereken bir şey yok.',
+  'report.meaningFilter': 'Anlam kontrolü',
+  'report.technical': 'Teknik ayrıntılar',
+  'meaning.title': 'Anlam kontrolü',
+  'meaning.back': 'Geri çeviri',
+  'meaning.negationLost':
+    'bir olumsuzluk kaybolmuş olabilir — cümle artık tersini söylüyor olabilir.',
+  'meaning.negationAdded':
+    'bir olumsuzluk eklenmiş olabilir — cümle artık tersini söylüyor olabilir.',
+  'meaning.hedgingLost':
+    'bir ihtimal ifadesi ("olabilir", "düşündürmektedir") kaybolmuş olabilir — iddia kaynaktakinden güçlü okunabilir.',
+  'meaning.hedgingAdded': 'bir ihtimal ifadesi eklenmiş olabilir — iddia daha zayıf okunabilir.',
+  'meaning.quantifier': 'bir niceleyici değişmiş olabilir ("çoğu" → "tümü", "bazı" → "az").',
+  'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
+  'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',
+  'issue.CITATION_MISMATCH': 'Kaynak ile çeviri arasında bir atıf farklı.',
+  'issue.TAG_MISMATCH': 'Bazı biçimlendirmeler çeviriye yerleştirilemedi.',
+  'issue.PLACEHOLDER_MISMATCH': 'Bir formül, bağlantı ya da tanımlayıcı kayboldu.',
+  'issue.WRONG_LANGUAGE': 'Çeviri hedef dilde görünmüyor.',
+  'issue.REVIEW_SUGGESTED': 'Parça parça çevrildi; lütfen ifadeyi kontrol edin.',
+  'issue.PARTLY_UNTRANSLATED': 'Bir bölüm orijinal dilde bırakıldı.',
+  'issue.STYLE_APPROXIMATED': 'Bazı satır içi biçimler (kalın, italik) yaklaşık yerleştirildi.',
+  'issue.GLOSSARY_MISMATCH': 'Bir sözlük terimi kullanılmadı.',
+  'issue.KEPT_ORIGINAL': 'Burada orijinal metin korundu.',
+  'issue.BELOW_MIN_SIZE': 'Metin olağan en küçük boyutun altında dizildi.',
   'report.status.translated': 'Çevrildi',
   'report.status.warning': 'Uyarı',
   'report.status.untranslated': 'Çevrilemedi — orijinal korundu',
@@ -177,8 +202,10 @@ export const tr: Record<MessageKey, string> = {
     'Biten çeviriler (dosya ve rapor) yalnızca bu tarayıcıda saklanır, tekrar indirebilirsiniz.',
   'header.history': 'Geçmiş',
   'history.title': 'Çeviri geçmişi',
-  'history.hint': 'Yalnızca bu tarayıcıda saklanır. Tarayıcı verilerini silerseniz kaybolur.',
+  'history.hint':
+    'Yalnızca bu tarayıcıda saklanır. Tarayıcı verilerini silerseniz kaybolur; gizli pencere de kapanınca unutur.',
   'history.empty': 'Henüz çeviri yok.',
+  'history.failed': 'Geçmiş bu tarayıcıda okunamadı (depolama engelli ya da dolu).',
   'history.download': 'İndir',
   'history.report': 'Rapor',
   'history.delete': 'Sil',
@@ -189,7 +216,7 @@ export const tr: Record<MessageKey, string> = {
   'history.summary':
     '{translated}/{segments} çevrildi · {warnings} uyarı · {untranslated} çevrilemedi',
   'history.back': '← Geri',
-  'engine.browser.label': 'Google Çeviri (ücretsiz)',
+  'engine.browser.label': 'Google Çeviri',
   'engine.browser.description':
     'Seçtiğiniz dile kendiliğinden çevirir — telefonda da. Google’ın web sitesi çevirmenini kullanır; yalnızca çeviri sırasında yüklenir.',
   'privacy.browser-vendor': 'Metin Google’a gider',

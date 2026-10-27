@@ -15,7 +15,7 @@ export const en = {
   'sheet.autoFailed':
     'Automatic translation could not start (Google Translate did not load). Translate with your browser instead:',
   'error.chromeTranslator':
-    'Chrome could not prepare its on-device translator for this language pair (the language download may have failed). Try again in a moment, or choose “Browser translation”.',
+    'Chrome could not prepare its on-device translator for this language pair (Chrome may not offer it, or its language download stalled). Choose “Google Translate”, or try again later.',
   'file.detected': 'Detected language: {lang}',
   'file.undetected':
     'The document language could not be detected. Please choose the source language below — a wrong one gives a wrong translation.',
@@ -37,6 +37,7 @@ export const en = {
 
   'config.source': 'Source language',
   'config.target': 'Target language',
+  'config.swap': 'Swap source and target language',
   'config.engine': 'Translation engine',
   'config.sameLanguage': 'Source and target language must be different.',
   'config.translate': 'Translate',
@@ -47,7 +48,7 @@ export const en = {
     'Best quality for academic text, with a fidelity check. Uses your own API key.',
   'engine.chrome-builtin.label': 'Chrome built-in translator',
   'engine.chrome-builtin.description':
-    'Free and private, runs on your device. Desktop Chrome and Edge only.',
+    'Runs privately on your device. Desktop Chrome and Edge only.',
   'engine.openai-compatible.label': 'Local LLM server',
   'engine.openai-compatible.description':
     'Ollama, LM Studio or any OpenAI-compatible server on this computer.',
@@ -159,6 +160,29 @@ export const en = {
   'report.attention': 'Needs your attention',
   'report.allSegments': 'All paragraphs',
   'report.empty': 'Nothing needs attention.',
+  'report.meaningFilter': 'Meaning check',
+  'report.technical': 'Technical details',
+  'meaning.title': 'Meaning check',
+  'meaning.back': 'Back-translation',
+  'meaning.negationLost': 'a negation may be lost — the sentence may now say the opposite.',
+  'meaning.negationAdded':
+    'a negation may have been added — the sentence may now say the opposite.',
+  'meaning.hedgingLost':
+    'a hedge ("may", "suggests") may be lost — the claim may read stronger than in the source.',
+  'meaning.hedgingAdded': 'a hedge may have been added — the claim may read weaker.',
+  'meaning.quantifier': 'a quantifier may have changed ("most" → "all", "some" → "few").',
+  'issue.UNTRANSLATED': 'The translation was identical to the source.',
+  'issue.NUMBER_MISMATCH': 'A number differs between source and translation.',
+  'issue.CITATION_MISMATCH': 'A citation differs between source and translation.',
+  'issue.TAG_MISMATCH': 'Some formatting could not be placed in the translation.',
+  'issue.PLACEHOLDER_MISMATCH': 'A formula, link or identifier went missing.',
+  'issue.WRONG_LANGUAGE': 'The translation does not look like the target language.',
+  'issue.REVIEW_SUGGESTED': 'Translated in parts; please check the wording.',
+  'issue.PARTLY_UNTRANSLATED': 'A part was kept in the original language.',
+  'issue.STYLE_APPROXIMATED': 'Some inline formatting (bold, italic) was approximated.',
+  'issue.GLOSSARY_MISMATCH': 'A glossary term was not used.',
+  'issue.KEPT_ORIGINAL': 'The original text was kept here.',
+  'issue.BELOW_MIN_SIZE': 'The text was set smaller than the usual minimum size.',
   'report.status.translated': 'Translated',
   'report.status.warning': 'Warning',
   'report.status.untranslated': 'Untranslated — original kept',
@@ -175,8 +199,10 @@ export const en = {
     'Finished translations (file and report) are stored only in this browser so you can download them again.',
   'header.history': 'History',
   'history.title': 'Translation history',
-  'history.hint': 'Stored only in this browser. Clearing your browser data removes it.',
+  'history.hint':
+    'Stored only in this browser. Clearing your browser data removes it, and a private (incognito) window forgets it when it is closed.',
   'history.empty': 'No translations yet.',
+  'history.failed': 'The history could not be read in this browser (storage blocked or full).',
   'history.download': 'Download',
   'history.report': 'Report',
   'history.delete': 'Delete',
@@ -187,7 +213,7 @@ export const en = {
   'history.summary':
     '{translated}/{segments} translated · {warnings} warnings · {untranslated} untranslated',
   'history.back': '← Back',
-  'engine.browser.label': 'Google Translate (free)',
+  'engine.browser.label': 'Google Translate',
   'engine.browser.description':
     'Translates automatically into the language you choose — also on phones. Uses Google’s website translator, loaded only while you translate.',
   'privacy.browser-vendor': 'Text sent to Google',

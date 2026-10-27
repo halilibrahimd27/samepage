@@ -34,13 +34,41 @@ export async function prepareChromeTranslator(
   const T = api();
   if (!T) throw new Error('Chrome built-in translator is not available in this browser.');
   if (translators.has(keyOf(pair))) return;
-  const translator = await T.create({
+  let lastProgress = Date.now();
+  // create() first, while the click still counts as a user gesture (a download needs one).
+  const creating = T.create({
     sourceLanguage: pair.source,
     targetLanguage: pair.target,
-    monitor: (m) => m.addEventListener('downloadprogress', (e) => onProgress?.(e.loaded)),
+    monitor: (m) =>
+      m.addEventListener('downloadprogress', (e) => {
+        lastProgress = Date.now();
+        onProgress?.(e.loaded);
+      }),
   });
-  translators.set(keyOf(pair), translator);
+  const availability = await T.availability({
+    sourceLanguage: pair.source,
+    targetLanguage: pair.target,
+  });
+  if (availability === 'unavailable') throw new Error(CHROME_PAIR_UNAVAILABLE);
+  // A language pack to download: say so at once (Chrome may take a while to report progress).
+  if (availability !== 'available') onProgress?.(0);
+  let watchdog: ReturnType<typeof setInterval> | undefined;
+  const stalled = new Promise<never>((_, reject) => {
+    watchdog = setInterval(() => {
+      if (Date.now() - lastProgress > DOWNLOAD_STALL_MS) reject(new Error(CHROME_DOWNLOAD_STALLED));
+    }, 1000);
+  });
+  try {
+    translators.set(keyOf(pair), await Promise.race([creating, stalled]));
+  } finally {
+    clearInterval(watchdog);
+  }
 }
+
+/** No download progress for this long: Chrome's language pack download is stuck. */
+const DOWNLOAD_STALL_MS = 90_000;
+export const CHROME_PAIR_UNAVAILABLE = 'Chrome cannot translate this language pair';
+export const CHROME_DOWNLOAD_STALLED = 'Chrome language pack download stalled';
 
 export const chromeTranslatorBridge: ChromeTranslatorBridge = {
   async availability(pair: LangPair): Promise<Availability> {

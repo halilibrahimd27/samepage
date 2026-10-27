@@ -9,6 +9,7 @@ import { chromeTranslatorBridge, prepareChromeTranslator } from '../bridges/chro
 import { downloadBlob } from '../download';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
+import { ProgressBar } from './ProgressBar';
 import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
@@ -101,7 +102,11 @@ export function DocxTranslator({
       const message = e instanceof Error ? e.message : String(e);
       // Chrome refuses to create the translator when its language download failed.
       setError(
-        /Unable to create translator/i.test(message) ? t('error.chromeTranslator') : message,
+        /Unable to create translator|cannot translate this language pair|download stalled/i.test(
+          message,
+        )
+          ? t('error.chromeTranslator')
+          : message,
       );
     } finally {
       setRunning(null);
@@ -178,7 +183,7 @@ export function DocxTranslator({
             type="button"
             onClick={() => void run()}
             disabled={running !== null}
-            className="rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white sm:w-auto hover:bg-blue-700 disabled:opacity-50"
           >
             {t('config.translate')}
           </button>
@@ -207,6 +212,9 @@ export function DocxTranslator({
             </span>
           )}
         </div>
+        {running && progress && (
+          <ProgressBar done={progress.done} total={progress.total} phase={progress.phase} />
+        )}
         {error && (
           <p role="alert" className="text-sm text-red-800">
             {error}

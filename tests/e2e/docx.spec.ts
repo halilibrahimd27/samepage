@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { expect, test } from './fixtures';
+import type { Page } from '@playwright/test';
+
+/** The quality report is folded by default. */
+async function openReport(page: Page, testId: string) {
+  const report = page.getByTestId(testId);
+  if (!(await report.evaluate((e) => (e as HTMLDetailsElement).open)))
+    await report.locator('summary').first().click();
+}
 
 test('DOCX is translated end-to-end with report, previews and download', async ({ page }) => {
   await page.goto('./');
@@ -15,6 +23,7 @@ test('DOCX is translated end-to-end with report, previews and download', async (
   await expect(page.getByTestId('report-summary')).toContainText('0 untranslated', {
     timeout: 60_000,
   });
+  await openReport(page, 'report');
   await expect(page.getByTestId('repairs')).toContainText('D1_ROW_HEIGHT');
 
   // Both previews render inside sandboxed iframes.
@@ -73,7 +82,8 @@ test('review step: a manual edit is applied without re-translating; bilingual re
   await page.getByRole('button', { name: 'Translate', exact: true }).click();
   await expect(page.getByTestId('report-summary')).toBeVisible({ timeout: 60_000 });
 
-  await page.getByRole('button', { name: /All paragraphs/ }).click();
+  await openReport(page, 'report');
+  await page.getByRole('tab', { name: /All paragraphs/ }).click();
   const heading = page.getByTestId('report').locator('li', { hasText: '1. Giriş' });
   await heading.getByRole('button', { name: 'Edit' }).click();
   const editor = page.getByTestId('segment-editor');
@@ -81,6 +91,7 @@ test('review step: a manual edit is applied without re-translating; bilingual re
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByTestId('apply-edits').click();
   await expect(page.getByTestId('report-summary')).toBeVisible({ timeout: 60_000 });
+  await openReport(page, 'report');
   await expect(page.getByTestId('report').getByText('Edited by you').first()).toBeVisible();
 
   const [download] = await Promise.all([

@@ -31,11 +31,11 @@ Works in desktop browsers and on phones. Finished translations are kept in
   rebuilt entirely inside your browser; the file itself never leaves your device.
 - **Translation is free.** No account and no API key are needed:
 
-  | Engine                                | Where your text goes                                             |
-  | ------------------------------------- | ---------------------------------------------------------------- |
-  | **Google Translate (free)** (default) | Google, through Google's website translator. Works on phones.    |
-  | Chrome built-in translator            | Nowhere — translated on your device (desktop Chrome and Edge)    |
-  | Advanced: Claude API / local LLM      | Anthropic under your own key, or your own computer (`localhost`) |
+  | Engine                           | Where your text goes                                             |
+  | -------------------------------- | ---------------------------------------------------------------- |
+  | **Google Translate** (default)   | Google, through Google's website translator. Works on phones.    |
+  | Chrome built-in translator       | Nowhere — translated on your device (desktop Chrome and Edge)    |
+  | Advanced: Claude API / local LLM | Anthropic under your own key, or your own computer (`localhost`) |
 
   Only the text that needs translating is sent, and only to the engine you choose.
 

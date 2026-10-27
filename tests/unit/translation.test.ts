@@ -115,6 +115,19 @@ describe('translateSegments', () => {
     expect(out.map((r) => r.text)).toEqual(['Kullanıyoruz: ⟦U1⟧ fonksiyonunu', 'the ⟦U1⟧ tool']);
   });
 
+  it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => Promise.resolve(texts.map(() => "F1 skoru%94,2'lik bir oran")),
+    });
+    const [r] = await engine.translate(
+      [{ id: 'a', text: 'an F1 score of 94.2%', role: 'body' }],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      new AbortController().signal,
+    );
+    expect(r!.text).toBe("F1 skoru %94,2'lik bir oran");
+  });
+
   it('keeps metric terms consistent between tables and sentences', async () => {
     const seen: string[] = [];
     const engine: TranslationEngine = {

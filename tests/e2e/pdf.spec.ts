@@ -1,5 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from './fixtures';
+import type { Page } from '@playwright/test';
+
+/** The quality report is folded by default. */
+async function openReport(page: Page, testId: string) {
+  const report = page.getByTestId(testId);
+  if (!(await report.evaluate((e) => (e as HTMLDetailsElement).open)))
+    await report.locator('summary').first().click();
+}
 
 test('PDF is translated in the browser with report, previews and downloads', async ({ page }) => {
   await page.goto('./');
@@ -43,12 +51,15 @@ test('PDF review step: a manual edit is laid out again from the cache', async ({
   await page.getByRole('button', { name: 'Translate', exact: true }).click();
   await expect(page.getByTestId('pdf-score')).toContainText('/100', { timeout: 120_000 });
 
-  await page.getByRole('button', { name: /All paragraphs/ }).click();
+  await openReport(page, 'pdf-report');
+  await page.getByRole('tab', { name: /All paragraphs/ }).click();
   const unit = page.getByTestId('pdf-report').locator('li', { hasText: '3 Yöntem' });
   await unit.getByRole('button', { name: 'Edit' }).click();
   await page.getByTestId('segment-editor').fill('3 Method');
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByTestId('pdf-apply-edits').click();
+  await expect(page.getByTestId('pdf-score')).toContainText('/100', { timeout: 120_000 });
+  await openReport(page, 'pdf-report');
   await expect(page.getByTestId('pdf-report').getByText('Edited by you').first()).toBeVisible({
     timeout: 120_000,
   });

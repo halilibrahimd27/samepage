@@ -14,12 +14,18 @@ const MIME = {
 export function History() {
   const { t, lang } = useI18n();
   const [items, setItems] = useState<HistoryMeta[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
-    void pipelineClient.call((api) => api.listHistory()).then((list) => active && setItems(list));
+    pipelineClient
+      .call((api) => api.listHistory())
+      .then(
+        (list) => active && setItems(list),
+        () => active && setFailed(true),
+      );
     return () => {
       active = false;
     };
@@ -50,6 +56,11 @@ export function History() {
         <p className="mt-1 text-sm text-slate-600">{t('history.hint')}</p>
       </div>
 
+      {failed && (
+        <p role="alert" className="text-red-800">
+          {t('history.failed')}
+        </p>
+      )}
       {items?.length === 0 && <p className="text-slate-600">{t('history.empty')}</p>}
 
       <ul className="flex flex-col gap-3" data-testid="history-list">

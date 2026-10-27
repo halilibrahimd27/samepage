@@ -278,7 +278,7 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
             type="button"
             onClick={() => void run()}
             disabled={running !== null}
-            className="rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white sm:w-auto hover:bg-blue-700 disabled:opacity-50"
           >
             {t('playground.translate')}
           </button>

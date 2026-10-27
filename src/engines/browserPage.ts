@@ -93,7 +93,11 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         signal.throwIfAborted();
         again.forEach((i, k) => (out[i] = respacePlaceholders(batch[i]!.text, texts[k] ?? '')));
       }
-      return batch.map((s, i) => ({ id: s.id, text: out[i]! }));
+      // Turkish puts the percent sign before the number; Google glues it to the word before
+      // ("F1 skoru%94,2'lik").
+      const fix = (t: string) =>
+        ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t;
+      return batch.map((s, i) => ({ id: s.id, text: fix(out[i]!) }));
     },
   };
 }

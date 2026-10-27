@@ -163,26 +163,40 @@ export async function addHistory(
   bytes: Uint8Array,
   report: unknown,
 ): Promise<void> {
+  const metas = await listHistory();
   const db = await openDb();
   const tx = db.transaction(H, 'readwrite');
   const store = tx.objectStore(H);
   store.put({ meta, bytes, report } satisfies HistoryRow, meta.id);
   // Evict the oldest entries beyond the cap.
-  const metas = ((await request(store.getAll())) as HistoryRow[]).map((r) => r.meta);
-  metas.sort((a, b) => b.createdAt - a.createdAt);
-  let total = 0;
+  let total = meta.sizeBytes;
   for (const m of metas) {
+    if (m.id === meta.id) continue;
     total += m.sizeBytes;
-    if (total > HISTORY_MAX_BYTES && m.id !== meta.id) store.delete(m.id);
+    if (total > HISTORY_MAX_BYTES) store.delete(m.id);
   }
   await done(tx);
 }
 
+/**
+ * Entry metadata, newest first. A cursor reads one row at a time: getAll() would hold every
+ * stored document in memory at once, which fails after many large translations.
+ */
 export async function listHistory(): Promise<HistoryMeta[]> {
   const db = await openDb();
   const tx = db.transaction(H, 'readonly');
-  const rows = (await request(tx.objectStore(H).getAll())) as HistoryRow[];
-  return rows.map((r) => r.meta).sort((a, b) => b.createdAt - a.createdAt);
+  const metas: HistoryMeta[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const cursor = tx.objectStore(H).openCursor();
+    cursor.onsuccess = () => {
+      const c = cursor.result;
+      if (!c) return resolve();
+      metas.push((c.value as HistoryRow).meta);
+      c.continue();
+    };
+    cursor.onerror = () => reject(cursor.error ?? new Error('IndexedDB cursor failed'));
+  });
+  return metas.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getHistoryEntry(id: string): Promise<HistoryRow | null> {
