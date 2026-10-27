@@ -4,10 +4,10 @@
  * ("1,000" → {1000, 1}; "3,5" → {3.5}) and source/target tokens are matched bipartitely.
  */
 /** Decimal/thousands separators: dot, comma, space, no-break space, narrow no-break space. */
-const SEP = '[.,\\u0020\\u00a0\\u202f\\u2009\\u2007]';
+const SEP = '[.,\\u0020\\u00a0\\u2000-\\u200a\\u202f\\u205f]';
 // A space separates thousands only before exactly three digits ("12 500"); "3-9 5" (a page
 // number after a page range) is two numbers.
-const NUMBER_RE = /\d+(?:[.,]\d+|[\u0020\u00a0\u202f\u2009\u2007]\d{3}(?!\d))*/g;
+const NUMBER_RE = /\d+(?:[.,]\d+|[\u0020\u00a0\u2000-\u200a\u202f\u205f]\d{3}(?!\d))*/g;
 const SEP_RE = new RegExp(SEP);
 const SEP_RE_G = new RegExp(SEP, 'g');
 
@@ -44,8 +44,9 @@ export function candidateValues(token: string): number[] {
 }
 
 export function extractNumbers(text: string): string[] {
-  // "425 ,0": a decimal split by extraction (glyphs drawn out of order) is one number.
-  const joined = text.replace(/(\d)\s+([.,])(\d)/g, '$1$2$3');
+  // Runs of spaces count as one (source and target are compared alike), and "425 ,0" — a decimal
+  // split by extraction — is one number.
+  const joined = text.replace(/\s{2,}/g, ' ').replace(/(\d)\s+([.,])(\d)/g, '$1$2$3');
   return [...joined.matchAll(NUMBER_RE)].map((m) => m[0].trim());
 }
 
@@ -195,8 +196,15 @@ export function compareNumbers(
   const romans = [...source.matchAll(ROMAN_RE)]
     .map((m) => m[0])
     .filter((r) => r && !new RegExp(`\\b${r}\\b`).test(target));
+  // A decade may gain its century ("90-es évek" → "the 1990s").
+  const decade = (t: string, v: number[]) =>
+    /^[1-9]0$/.test(t) ? [...v, 1900 + Number(t), 2000 + Number(t)] : v;
   const src = [
-    ...extractNumbers(source).map((t) => ({ t, v: candidateValues(t), optional: false })),
+    ...extractNumbers(source).map((t) => ({
+      t,
+      v: decade(t, candidateValues(t)),
+      optional: false,
+    })),
     ...romans.map((t) => ({ t, v: [romanValue(t)], optional: true })),
     ...(lang ? wordNumbers(source, lang) : []),
     // A decade written with an apostrophe ("anni '90") becomes a year ("the 1990s").

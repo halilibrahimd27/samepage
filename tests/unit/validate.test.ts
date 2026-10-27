@@ -178,6 +178,20 @@ describe('validateTranslation', () => {
         'cs',
       ),
     ).toEqual([]);
+    expect(
+      codes(
+        'Kemény Péter: J. Chem. Phys. 2004, 121, 11599 Ref. 36      617 hivatkozás',
+        'Péter Kemény: J. Chem. Phys. 2004, 121, 11599 Ref. 36 617 citations',
+        'hu',
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        'A 90-es években a kvantumkémia gyorsan fejlődött.',
+        'In the 1990s quantum chemistry developed rapidly.',
+        'hu',
+      ),
+    ).toEqual([]);
     // A stray number is still reported ("on" is not a number word in English).
     expect(
       codes(

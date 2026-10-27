@@ -74,6 +74,7 @@ const BRACKET_PIECES = [...'⎛⎜⎝⎡⎢⎣⎧⎨⎩⎪⎮⎞⎟⎠⎤⎥⎦�
 
 /** Common Wingdings bullets and marks. */
 const WINGDINGS: Record<number, string> = {
+  0x2a: '✉',
   0x6c: '●',
   0x6e: '■',
   0x71: '❑',

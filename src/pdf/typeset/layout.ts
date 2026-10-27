@@ -160,6 +160,8 @@ const SUBSTITUTE: Record<string, string> = {
   '∕': '/',
   '∣': '|',
   '⊺': 'ᵀ',
+  // The corresponding author's e-mail mark (Wingdings envelope).
+  '✉': '@',
   // Word bullets (Wingdings) the bundled faces lack.
   '➢': '►',
   '➔': '→',

@@ -482,6 +482,10 @@ function dropDuplicates(blocks: BlockIR[]): BlockIR[] {
  * centred heading (same centre, same font: "A Machine Learning-Based Approach For Detecting
  * Malicious" + "PyPI Packages" is one title and must be translated as one).
  */
+/** The span with the most characters (not a leading paragraph number or mark). */
+const mainSpan = (line: LineIR) =>
+  line.spans.reduce((best, sp) => (sp.text.length > best.text.length ? sp : best), line.spans[0]!);
+
 function mergeSplitParagraphs(
   blocks: BlockIR[],
   layout: PageLayout,
@@ -494,7 +498,7 @@ function mergeSplitParagraphs(
     if (a) {
       const aLast = a.lines[a.lines.length - 1]!;
       const bFirst = b.lines[0]!;
-      const size = bFirst.spans[0]!.size;
+      const size = mainSpan(bFirst).size;
       const aText = aLast.spans
         .map((s) => s.text)
         .join('')
@@ -516,12 +520,15 @@ function mergeSplitParagraphs(
       ];
       const regular = around.some((g) => g !== undefined && Math.abs(g - step) < 0.15 * size);
       const centre = (r: Rect) => (r.x0 + r.x1) / 2;
-      const fontA = aLast.spans[0]!.font;
-      const fontB = bFirst.spans[0]!.font;
-      const continuesLeft =
-        /^\p{Ll}/u.test(bText) &&
-        bFirst.bbox.x0 <= a.bbox.x0 + 2 &&
-        bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
+      const fontA = mainSpan(aLast).font;
+      const fontB = mainSpan(bFirst).font;
+      // A paragraph number hanging in the margin ("6 Dit patroon …") puts the first line's start
+      // left of the text: the next lines start up to a few ems further right.
+      const aFirstText = a.lines[0]!.spans.map((sp) => sp.text).join('');
+      const hanging = /^\s*\d{1,3}[.)]?\s+\S/u.test(aFirstText) ? 3 * size : 0;
+      const leftOk =
+        bFirst.bbox.x0 <= a.bbox.x0 + 2 + hanging && bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
+      const continuesLeft = /^\p{Ll}/u.test(bText) && leftOk;
       // On a justified page a line that runs to the text edge does not end its paragraph, even
       // when the next line starts with a capital ("We can use Network" | "Property Chains to").
       // Not in tables: a number column may end at the text edge.
@@ -530,8 +537,7 @@ function mergeSplitParagraphs(
         !cells.has(b) &&
         layout.justified &&
         layout.edgeFor(a.bbox) - aLast.bbox.x1 < 3 &&
-        bFirst.bbox.x0 <= a.bbox.x0 + 2 &&
-        bFirst.bbox.x0 >= a.bbox.x0 - 3 * size &&
+        leftOk &&
         fontA.name === fontB.name;
       const continuesCentred =
         Math.abs(centre(aLast.bbox) - centre(bFirst.bbox)) < 3 &&
@@ -554,7 +560,7 @@ function mergeSplitParagraphs(
         step > 0.5 * size &&
         (step < Math.max(1.6, layout.lineStepEm + 0.3) * size || (regular && step < 3 * size)) &&
         // Small caps mix sizes within a line: a relative tolerance.
-        Math.abs(aLast.spans[0]!.size - size) < Math.max(0.3, 0.08 * size)
+        Math.abs(mainSpan(aLast).size - size) < Math.max(0.3, 0.08 * size)
       ) {
         const lines = [...a.lines, ...b.lines];
         const bbox = union(a.bbox, b.bbox);
