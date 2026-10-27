@@ -2,7 +2,7 @@
 // Node-side tooling may use MuPDF directly; app code goes through src/pdf/engine/.
 // LaTeX (Phase 3) and DOCX (Phase 2) generators are added here as they land.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as mupdf from 'mupdf';
 import { buildDocxFixtures } from './docxFixtures.mjs';
@@ -92,4 +92,34 @@ if (tectonic) {
     });
     console.log(`fixtures: compiled tests/corpus/pdf/${tex.replace(/\.tex$/, '.pdf')}`);
   }
+}
+
+// Scanned paper (P8.4): page 1 of one-column-basic.pdf as a greyscale 180 dpi JPEG, no text
+// layer — the OCR path must recognise it. Built after the LaTeX corpus it is made from.
+{
+  const source = mupdf.Document.openDocument(
+    readFileSync(new URL('one-column-basic.pdf', OUT)),
+    'application/pdf',
+  );
+  const page = source.loadPage(0);
+  const [x0, y0, x1, y1] = page.getBounds();
+  const pixmap = page.toPixmap(
+    mupdf.Matrix.scale(2.5, 2.5),
+    mupdf.ColorSpace.DeviceGray,
+    false,
+    true,
+  );
+  // JPEG, as scanners store pages (and small enough to commit).
+  const image = new mupdf.Image(pixmap.asJPEG(80));
+  const buf = new mupdf.Buffer();
+  const writer = new mupdf.DocumentWriter(buf, 'pdf', '');
+  const dev = writer.beginPage([0, 0, x1 - x0, y1 - y0]);
+  dev.fillImage(image, [x1 - x0, 0, 0, y1 - y0, 0, 0], 1);
+  writer.endPage();
+  writer.close();
+  save('scanned.pdf', buf.asUint8Array().slice());
+  image.destroy();
+  pixmap.destroy();
+  page.destroy();
+  source.destroy();
 }

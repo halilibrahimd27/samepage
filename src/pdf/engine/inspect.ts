@@ -9,7 +9,14 @@ export interface Thumbnail {
 }
 
 export type PdfInspection =
-  | { ok: true; pageCount: number; thumbnail: Thumbnail; sample: string }
+  | {
+      ok: true;
+      pageCount: number;
+      thumbnail: Thumbnail;
+      sample: string;
+      /** The first pages have no text: a scan, read with OCR. */
+      scanned: boolean;
+    }
   | { ok: false; reason: 'encrypted' | 'corrupt' }
   | { ok: false; reason: 'too-many-pages'; pageCount: number };
 
@@ -80,10 +87,12 @@ export async function inspectPdf(
         true,
       );
       try {
+        const sample = textSample(doc, Math.min(pageCount, SAMPLE_PAGES));
         return {
           ok: true,
           pageCount,
-          sample: textSample(doc, Math.min(pageCount, SAMPLE_PAGES)),
+          sample,
+          scanned: (sample.match(/\p{L}/gu)?.length ?? 0) < 50,
           thumbnail: {
             png: pixmap.asPNG().slice(),
             width: pixmap.getWidth(),

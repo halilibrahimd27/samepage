@@ -1,10 +1,10 @@
 import type { TranslationCache } from '../core/cache/cache';
-import type { BlockIR, LineIR, Rect, Role } from '../core/ir/types';
+import type { BlockIR, LineIR, PageIR, Rect, Role } from '../core/ir/types';
 import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
-import { extractAndAnalyze } from './analyze';
+import { extractAndAnalyze, type OcrOptions } from './analyze';
 import {
   readOutlineAndTitle,
   openPdfForExtraction,
@@ -54,6 +54,8 @@ export interface PdfOptions {
   translateMetadata?: boolean;
   /** Only units entirely inside this page range (0-based, inclusive) are translated (P6.1). */
   pageRange?: { from: number; to: number };
+  /** Recognise the text of scanned pages (P8.4). */
+  ocr?: Pick<OcrOptions, 'engine'>;
 }
 
 export type PdfUnitStatus = 'translated' | 'warning' | 'untranslated' | 'kept-original';
@@ -97,6 +99,8 @@ export interface PdfReport {
     issues: Partial<Record<IssueCode, number>>;
     repairs: Partial<Record<RepairCode, number>>;
     overflowNotes: number;
+    /** Scanned pages whose text was recognised, with the mean word confidence (0–100). */
+    ocr?: { pages: number; confidence: number };
   };
   /** Active content removed from the output (document JavaScript, launch actions…). */
   sanitization: { removed: string[] };
@@ -240,18 +244,62 @@ function redactRect(line: LineIR, horizontal: boolean): Rect {
   };
 }
 
+/** Units on scanned pages below this mean confidence are flagged for review. */
+const OCR_TRUSTED = 80;
+
+/** Mean OCR confidence of the recognised lines inside the blocks, or null (not a scan). */
+function ocrConfidence(blocks: BlockIR[], pages: PageIR[]): number | null {
+  const confs: number[] = [];
+  for (const b of blocks) {
+    const ocr = pages[pageOf(b)]?.ocr;
+    if (!ocr) continue;
+    for (const l of ocr.lines) if (intersects(l.bbox, b.bbox)) confs.push(l.conf);
+  }
+  return confs.length ? confs.reduce((a, c) => a + c, 0) / confs.length : null;
+}
+
+const intersects = (a: Rect, b: Rect) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+const grow = (r: Rect, d: number): Rect => ({
+  x0: r.x0 - d,
+  y0: r.y0 - d,
+  x1: r.x1 + d,
+  y1: r.y1 + d,
+});
+
+function ocrSummary(pages: PageIR[]): { ocr?: { pages: number; confidence: number } } {
+  const scanned = pages.filter((p) => p.ocr);
+  if (!scanned.length) return {};
+  const confidence = scanned.reduce((n, p) => n + p.ocr!.confidence, 0) / scanned.length;
+  return { ocr: { pages: scanned.length, confidence: Math.round(confidence) } };
+}
+
+/** The paper colour under a recognised line (white when none matches). */
+function paperUnder(r: Rect, lines: NonNullable<PageIR['ocr']>['lines']): [number, number, number] {
+  const hit = lines.find((l) => intersects(l.bbox, r));
+  return hit ? hit.background : [1, 1, 1];
+}
+
 export async function translatePdf(
   bytes: Uint8Array,
   opts: PdfOptions,
 ): Promise<{ mono: Uint8Array; dual: Uint8Array | null; report: PdfReport }> {
   const policy = DEFAULT_POLICY;
-  const pages = await extractAndAnalyze(bytes, opts.maxPages);
+  const inRange = (p: number) =>
+    !opts.pageRange || (p >= opts.pageRange.from && p <= opts.pageRange.to);
+  const pages = await extractAndAnalyze(
+    bytes,
+    opts.maxPages,
+    opts.ocr && {
+      engine: opts.ocr.engine,
+      pages: inRange,
+      signal: opts.signal,
+      onPage: (done, total) => opts.onProgress?.(done, total, 'ocr'),
+    },
+  );
   if (opts.translateReferences) {
     for (const b of pages.flatMap((p) => p.blocks))
       if (b.role === 'reference') b.translatable = true;
   }
-  const inRange = (p: number) =>
-    !opts.pageRange || (p >= opts.pageRange.from && p <= opts.pageRange.to);
   const units = buildPdfUnits(pages).filter((u) => u.blocks.every((b) => inRange(pageOf(b))));
   const meta = opts.translateMetadata
     ? await readOutlineAndTitle(bytes)
@@ -322,6 +370,15 @@ export async function translatePdf(
       // The back-translation is of the engine's text, not of a manual edit.
       ...(o.back && opts.overrides?.[u.encoded.source] === undefined ? { back: o.back } : {}),
     };
+    const conf = ocrConfidence(u.blocks, pages);
+    if (conf !== null && conf < OCR_TRUSTED) {
+      report.issues.push({
+        code: 'OCR_LOW_CONFIDENCE',
+        severity: 'warning',
+        detail: `recognised text, confidence ${Math.round(conf)}%`,
+      });
+      if (report.status === 'translated') report.status = 'warning';
+    }
     reports.set(u.id, report);
     // A translation identical to the source (names, formulas, figures) is not set again: the
     // original drawing stays exact.
@@ -374,6 +431,12 @@ export async function translatePdf(
       notes: [],
     }));
     const placed = repaired.units.filter((r) => !forcedOriginal.has(r.unitId));
+    const coverOf = (w: PageWrite) => {
+      const ocr = pages[w.index]!.ocr;
+      if (!ocr) return;
+      // The recognised text is part of the scan: paint the paper colour over it.
+      w.cover = w.redact.map((r) => ({ rect: grow(r, 1.2), color: paperUnder(r, ocr.lines) }));
+    };
     for (const r of placed) {
       if (r.fallback === 'keep-original') continue;
       if (r.fallback === 'annotation' && r.annotation) {
@@ -461,6 +524,7 @@ export async function translatePdf(
       const o = bySource.get(t);
       return o && !o.untranslated ? plainText(o.text) : t;
     };
+    for (const w of writes) coverOf(w);
     written = await writePdf(bytes, writes, opts.faces, {
       dual: opts.dual,
       appendix,
@@ -658,6 +722,7 @@ export async function translatePdf(
         repairs: repairCounts,
         overflowNotes: repaired.units.filter((r) => r.overflowNote && !forcedOriginal.has(r.unitId))
           .length,
+        ...ocrSummary(pages),
       },
       pages: scored.pages,
       units: all,

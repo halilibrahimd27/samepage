@@ -17,7 +17,8 @@ export type ValidationCode =
   | 'STYLE_APPROXIMATED'
   | 'PARTLY_UNTRANSLATED'
   | 'REVIEW_SUGGESTED'
-  | 'REFUSED';
+  | 'REFUSED'
+  | 'OCR_LOW_CONFIDENCE';
 
 export interface ValidationIssue {
   code: ValidationCode;

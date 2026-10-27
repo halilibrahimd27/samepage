@@ -23,6 +23,8 @@ import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
 import { inspectPdf, loadFaces, renderPagePng, type LoadedFaces } from '../pdf/engine';
 import { translatePdf } from '../pdf/pipeline';
+import { browserOcrLoader } from '../pdf/ocr/assets';
+import { createOcr } from '../pdf/ocr/tesseract';
 import { extractAndAnalyze, pdfParagraphs, pdfTermTexts } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
 import { LIMITS } from '../security/limits';
@@ -132,7 +134,11 @@ const api: PipelineApi = {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const paragraphs =
         kind === 'pdf'
-          ? pdfParagraphs(await extractAndAnalyze(bytes, FRONT_PAGES))
+          ? pdfParagraphs(
+              await extractAndAnalyze(bytes, FRONT_PAGES, {
+                engine: () => createOcr([sourceLang, 'en'], browserOcrLoader),
+              }),
+            )
           : await docxParagraphs(bytes);
       return findPaperParts(paragraphs, sourceLang);
     } catch {
@@ -305,6 +311,8 @@ const api: PipelineApi = {
           translateMetadata: job.translateMetadata,
           ...(job.pageRange ? { pageRange: job.pageRange } : {}),
           faces: await getFaces(),
+          // Scanned pages: the source language, and English for the abstract most papers have.
+          ocr: { engine: () => createOcr([job.pair.source, 'en'], browserOcrLoader) },
           maxPages: LIMITS.pdfMaxPages,
           dual: job.dual,
           cache,

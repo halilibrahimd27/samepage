@@ -19,6 +19,8 @@ export const en = {
   'file.detected': 'Detected language: {lang}',
   'file.undetected':
     'The document language could not be detected. Please choose the source language below — a wrong one gives a wrong translation.',
+  'file.scanned':
+    'Scanned PDF: its text will be recognised on your device (OCR) when you translate. The first time, about 5 MB is downloaded from this site. Choose the source language.',
   'file.thumbnail': 'First page of {name}',
 
   'error.empty': 'This file is empty.',
@@ -160,6 +162,7 @@ export const en = {
   'jobError.internal': 'Unexpected error.',
   'jobError.rejected': 'The document was rejected by the safety checks.',
   'workspace.translating': 'Translating… {done} / {total} paragraphs',
+  'workspace.ocr': 'Recognising text (OCR)… page {done} / {total}',
   'workspace.checking': 'Checking meaning… {done} / {total} paragraphs',
   'mode.label': 'What to translate',
   'mode.document': 'Whole document',
@@ -209,6 +212,8 @@ export const en = {
     'a hedge ("may", "suggests") may be lost — the claim may read stronger than in the source.',
   'meaning.hedgingAdded': 'a hedge may have been added — the claim may read weaker.',
   'meaning.quantifier': 'a quantifier may have changed ("most" → "all", "some" → "few").',
+  'issue.OCR_LOW_CONFIDENCE':
+    'The scan was hard to read here; the recognised text may contain errors.',
   'issue.UNTRANSLATED': 'The translation was identical to the source.',
   'issue.NUMBER_MISMATCH': 'A number differs between source and translation.',
   'issue.CITATION_MISMATCH': 'A citation differs between source and translation.',
@@ -324,6 +329,8 @@ export const en = {
   'pdf.pageRange': 'Pages to translate',
   'pdf.pageFrom': 'From page',
   'pdf.pageTo': 'to page',
+  'pdfReport.ocr':
+    'Text recognised from the scan (OCR) on {pages} pages, mean confidence {confidence}%. Recognition errors stay in the translation: check names and numbers.',
   'pdfReport.sanitized': 'Active content removed from the output: {items}',
 } as const;
 

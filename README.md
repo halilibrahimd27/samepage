@@ -48,6 +48,8 @@ paying for an API — and who cannot afford a translation that quietly changes w
   shrunk silently), a "needs attention" view and a "meaning check" view. Any paragraph can be
   corrected in place and the document rebuilt without translating again; DOCX also exports a
   bilingual review table.
+- **Scanned papers too.** A PDF without a text layer is read with OCR (Tesseract, on your device,
+  17 languages); the translation is set over the scan and hard-to-read passages are flagged.
 - **Private by design.** No backend, no account, no analytics. History, glossary and the
   translation cache stay in your browser.
 
@@ -55,7 +57,7 @@ paying for an API — and who cannot afford a translation that quietly changes w
 
 ## How it works
 
-1. Drop a **DOCX** or a text-based **PDF**. The source language is detected; choose the target
+1. Drop a **DOCX** or a **PDF** (text-based or scanned). The source language is detected; choose the target
    language (⇄ swaps them).
 2. Choose **Whole document**, or **Title, abstract and keywords** to translate only those.
    Press **Translate**. Progress shows the translation, then the meaning check.
@@ -118,8 +120,11 @@ meaning drift. The papers are not part of the repository.
 
 ## Limitations
 
-- Not supported: scanned PDFs (no OCR), right-to-left scripts, vertical CJK, encrypted PDFs,
-  form field values, and text inside raster images (left untouched and reported).
+- Not supported: right-to-left scripts, vertical CJK, encrypted PDFs, form field values, and text
+  inside figures (left untouched and reported).
+- Scanned PDFs are read with OCR: recognition errors (rare letters, names, small print) carry
+  into the translation, and the original text is covered with the paper colour rather than
+  removed. Pages that were hard to read are flagged.
 - Inline math in PDFs is re-set in the Noto fonts (display formulas are left untouched).
 - Very long PDFs (hundreds of pages) need a lot of memory; translate them in page ranges.
 - PDFs with unusual internal glyph encodings or private-use symbols without a Unicode meaning
@@ -153,4 +158,6 @@ another translation endpoint.
 
 [AGPL-3.0-only](LICENSE). samepage uses [MuPDF.js](https://mupdf.com/) (AGPL) for PDF
 processing. Bundled Noto fonts (including Noto Sans Math) are licensed under the SIL Open Font
-License ([public/fonts/OFL.txt](public/fonts/OFL.txt)).
+License ([public/fonts/OFL.txt](public/fonts/OFL.txt)). OCR uses
+[Tesseract](https://github.com/tesseract-ocr/tesseract) through tesseract.js-core and the
+`best_int` language models (Apache-2.0), served from this site.

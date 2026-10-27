@@ -2,18 +2,56 @@ import type { DocParagraph } from '../../core/abstract';
 import type { TermText } from '../../core/glossary/detect';
 import type { BlockIR, PageIR } from '../../core/ir/types';
 import { openPdfForExtraction } from '../engine';
+import { needsOcr, OCR_SCALE, ocrPage, type OcrPageInfo } from '../ocr/page';
+import type { OcrEngine } from '../ocr/tesseract';
 import { analyzeDocument, blockText } from './analyze';
 
 export { analyzeDocument, blockText } from './analyze';
 
-/** Extracts and analyses up to `maxPages` pages of a PDF. */
-export async function extractAndAnalyze(bytes: Uint8Array, maxPages: number): Promise<PageIR[]> {
+/** Text recognition for scanned pages, started on the first one. */
+export interface OcrOptions {
+  engine: () => Promise<OcrEngine>;
+  /** Pages to recognise (0-based); others are read as they are. Default: all. */
+  pages?: (index: number) => boolean;
+  onPage?: (done: number, total: number) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * Extracts and analyses up to `maxPages` pages of a PDF. With `ocr`, scanned pages (no text, a
+ * page-size image) get their text from recognition.
+ */
+export async function extractAndAnalyze(
+  bytes: Uint8Array,
+  maxPages: number,
+  ocr?: OcrOptions,
+): Promise<PageIR[]> {
   const pdf = await openPdfForExtraction(bytes);
+  let engine: OcrEngine | null = null;
   try {
     const count = Math.min(pdf.pageCount, maxPages);
     const raw = Array.from({ length: count }, (_, i) => pdf.extractPage(i));
-    return analyzeDocument(raw);
+    const scanned = ocr ? raw.filter((p) => needsOcr(p) && (ocr.pages?.(p.index) ?? true)) : [];
+    const infos = new Map<number, OcrPageInfo>();
+    for (const [k, p] of scanned.entries()) {
+      ocr!.signal?.throwIfAborted();
+      ocr!.onPage?.(k, scanned.length);
+      engine ??= await ocr!.engine();
+      const { png, pixels } = pdf.renderPage(p.index, OCR_SCALE);
+      const words = engine.recognize(png);
+      const result = ocrPage(p, words, pixels, OCR_SCALE);
+      raw[p.index] = result.page;
+      infos.set(p.index, result.info);
+    }
+    if (scanned.length) ocr!.onPage?.(scanned.length, scanned.length);
+    const pages = analyzeDocument(raw);
+    for (const page of pages) {
+      const info = infos.get(page.index);
+      if (info) page.ocr = info;
+    }
+    return pages;
   } finally {
+    engine?.close();
     pdf.close();
   }
 }

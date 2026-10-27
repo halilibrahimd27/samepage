@@ -21,6 +21,8 @@ export const tr: Record<MessageKey, string> = {
   'file.detected': 'Algılanan dil: {lang}',
   'file.undetected':
     'Belgenin dili algılanamadı. Lütfen aşağıdan kaynak dili seçin — yanlış dil yanlış çeviri demektir.',
+  'file.scanned':
+    'Taranmış PDF: çevirirken metni cihazınızda tanınacak (OCR). İlk seferde bu siteden yaklaşık 5 MB indirilir. Kaynak dili seçin.',
   'file.thumbnail': '{name} belgesinin ilk sayfası',
 
   'error.empty': 'Bu dosya boş.',
@@ -162,6 +164,7 @@ export const tr: Record<MessageKey, string> = {
   'jobError.internal': 'Beklenmeyen hata.',
   'jobError.rejected': 'Belge güvenlik kontrollerinden geçemedi.',
   'workspace.translating': 'Çevriliyor… {done} / {total} paragraf',
+  'workspace.ocr': 'Metin tanınıyor (OCR)… sayfa {done} / {total}',
   'workspace.checking': 'Anlam kontrol ediliyor… {done} / {total} paragraf',
   'mode.label': 'Ne çevrilsin',
   'mode.document': 'Tüm belge',
@@ -211,6 +214,7 @@ export const tr: Record<MessageKey, string> = {
     'bir ihtimal ifadesi ("olabilir", "düşündürmektedir") kaybolmuş olabilir — iddia kaynaktakinden güçlü okunabilir.',
   'meaning.hedgingAdded': 'bir ihtimal ifadesi eklenmiş olabilir — iddia daha zayıf okunabilir.',
   'meaning.quantifier': 'bir niceleyici değişmiş olabilir ("çoğu" → "tümü", "bazı" → "az").',
+  'issue.OCR_LOW_CONFIDENCE': 'Tarama burada zor okundu; tanınan metinde hata olabilir.',
   'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
   'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',
   'issue.CITATION_MISMATCH': 'Kaynak ile çeviri arasında bir atıf farklı.',
@@ -326,5 +330,7 @@ export const tr: Record<MessageKey, string> = {
   'pdf.pageRange': 'Çevrilecek sayfalar',
   'pdf.pageFrom': 'Başlangıç sayfası',
   'pdf.pageTo': 'bitiş sayfası',
+  'pdfReport.ocr':
+    'Metin taramadan tanındı (OCR): {pages} sayfa, ortalama güven %{confidence}. Tanıma hataları çeviriye geçer: isimleri ve sayıları kontrol edin.',
   'pdfReport.sanitized': 'Çıktıdan kaldırılan etkin içerik: {items}',
 };

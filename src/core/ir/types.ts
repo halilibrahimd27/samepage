@@ -71,6 +71,13 @@ export interface PageIR {
   images: { bbox: Rect }[];
   vectors: { bbox: Rect; isRectangle: boolean; isStroked: boolean }[];
   columns: Rect[];
+  /** The page is a scan and its text was recognised (OCR, P8.4). */
+  ocr?: {
+    /** Mean word confidence, 0–100. */
+    confidence: number;
+    /** Recognised lines with their confidence and the paper colour under them. */
+    lines: { bbox: Rect; conf: number; background: [number, number, number] }[];
+  };
 }
 
 export interface DocIR {

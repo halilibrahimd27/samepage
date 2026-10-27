@@ -16,6 +16,7 @@ const EXPLAINED = new Set([
   'GLOSSARY_MISMATCH',
   'KEPT_ORIGINAL',
   'BELOW_MIN_SIZE',
+  'OCR_LOW_CONFIDENCE',
 ]);
 
 /** Issues of one paragraph: meaning findings with their back-translation, then the others. */

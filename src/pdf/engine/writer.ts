@@ -15,6 +15,11 @@ export interface PageWrite {
   lines: LayoutLine[];
   /** PDF notes (annotation fallback): the original text stays, the translation is in the note. */
   notes?: { rect: Rect; text: string }[];
+  /**
+   * Areas painted over before the translation is drawn (scanned pages: the recognised text is
+   * part of the image, so it is covered with the paper colour instead of removed).
+   */
+  cover?: { rect: Rect; color: [number, number, number] }[];
 }
 
 /** Extra pages appended at the end (overflow notes), laid out in page space (y down). */
@@ -195,7 +200,7 @@ export async function writePdf(
           flush();
         }
 
-        if (pw.lines.length) {
+        if (pw.lines.length || pw.cover?.length) {
           const inv = mupdf.Matrix.invert(page.getTransform());
           const pageObj = page.getObject();
           if (pageObj.get('Resources').isNull())
@@ -210,7 +215,14 @@ export async function writePdf(
             fontDict = doc.newDictionary();
             resources.put('Font', fontDict);
           }
-          const ops = buildOps(pw.lines, fontDict, inv, pw.index);
+          // Covers in page space (y down) through the page's inverse transform, under the text.
+          const covers = (pw.cover ?? [])
+            .map(
+              ({ rect: r, color: [cr, cg, cb] }) =>
+                `q ${inv.map(fmt).join(' ')} cm ${fmt(cr)} ${fmt(cg)} ${fmt(cb)} rg ${fmt(r.x0)} ${fmt(r.y0)} ${fmt(r.x1 - r.x0)} ${fmt(r.y1 - r.y0)} re f Q\n`,
+            )
+            .join('');
+          const ops = covers + buildOps(pw.lines, fontDict, inv, pw.index);
           const contents = pageObj.get('Contents');
           const arr = doc.newArray();
           arr.push(doc.addStream('q\n', null));

@@ -49,7 +49,7 @@ export interface TranslateJob {
 }
 
 /** 'check': the meaning check after translation (back-translation or Claude review). */
-export type ProgressPhase = 'check';
+export type ProgressPhase = 'check' | 'ocr';
 
 const MAX_SEGMENTS_PER_BATCH = 40;
 const FIDELITY_BATCH_CHARS = 8000;

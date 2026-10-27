@@ -29,6 +29,8 @@ type DocState =
       detected?: LanguageCode;
       /** Detection ran and found no clear language: the user must check the source language. */
       undetected?: boolean;
+      /** A scanned PDF: its text is recognised (OCR) when translating. */
+      scanned?: boolean;
     }
   | { status: 'error'; file: File; message: string; workerFailed?: boolean };
 
@@ -118,6 +120,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
           pageCount: result.pageCount,
           thumb: { url, width, height },
           ...(detected ? { detected } : { undetected: true }),
+          ...(result.scanned ? { scanned: true } : {}),
         });
       } else {
         const message =
@@ -173,7 +176,12 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
                 {t('file.detected', { lang: languageName(doc.detected, lang) })}
               </p>
             )}
-            {doc.status === 'ready' && doc.undetected && (
+            {doc.status === 'ready' && doc.scanned && (
+              <p role="status" className="text-sm text-amber-800" data-testid="scanned-notice">
+                {t('file.scanned')}
+              </p>
+            )}
+            {doc.status === 'ready' && doc.undetected && !doc.scanned && (
               <p role="status" className="text-sm text-amber-800" data-testid="language-undetected">
                 {t('file.undetected')}
               </p>

@@ -308,7 +308,11 @@ export function AbstractTranslator({
                 ? t('playground.downloading', { percent: download })
                 : progress
                   ? t(
-                      progress.phase === 'check' ? 'workspace.checking' : 'workspace.translating',
+                      progress.phase === 'check'
+                        ? 'workspace.checking'
+                        : progress.phase === 'ocr'
+                          ? 'workspace.ocr'
+                          : 'workspace.translating',
                       progress,
                     )
                   : t('file.reading')}

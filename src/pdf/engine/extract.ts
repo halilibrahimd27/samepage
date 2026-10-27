@@ -1,5 +1,6 @@
 import type { Rect } from '../../core/ir/types';
 import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
+import type { PagePixels } from './render';
 import { loadMupdf } from './mupdf';
 
 /**
@@ -125,6 +126,8 @@ export function restoreChar(c: string, fontName: string): string {
 export interface OpenedPdf {
   pageCount: number;
   extractPage(index: number): RawPage;
+  /** The page as PNG and as RGB pixels at `scale` (1 = 72 dpi), for text recognition. */
+  renderPage(index: number, scale: number): { png: Uint8Array; pixels: PagePixels };
   close(): void;
 }
 
@@ -135,6 +138,31 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
   return {
     pageCount: doc.countPages(),
     close: () => doc.destroy(),
+    renderPage(index, scale) {
+      const page = doc.loadPage(index);
+      try {
+        const pixmap = page.toPixmap(
+          mupdf.Matrix.scale(scale, scale),
+          mupdf.ColorSpace.DeviceRGB,
+          false,
+          true,
+        );
+        try {
+          return {
+            png: pixmap.asPNG().slice(),
+            pixels: {
+              data: pixmap.getPixels().slice(),
+              width: pixmap.getWidth(),
+              height: pixmap.getHeight(),
+            },
+          };
+        } finally {
+          pixmap.destroy();
+        }
+      } finally {
+        page.destroy();
+      }
+    },
     extractPage(index) {
       const page = doc.loadPage(index);
       const stext = page.toStructuredText(STEXT_OPTIONS);

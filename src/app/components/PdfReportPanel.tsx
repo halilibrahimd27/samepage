@@ -55,7 +55,7 @@ export function PdfReportPanel({
     .map((x) => x.u);
   const meaning = report.units.filter((u) => u.issues.some((i) => i.code === 'MEANING_DRIFT'));
   const list = view === 'all' ? report.units : view === 'meaning' ? meaning : attention;
-  const { missingGlyphs, issues, repairs, score, status, overflowNotes, ...counts } =
+  const { missingGlyphs, issues, repairs, score, status, overflowNotes, ocr, ...counts } =
     report.summary;
 
   return (
@@ -100,6 +100,11 @@ export function PdfReportPanel({
         {report.sanitization.removed.length > 0 && (
           <p className="text-sm">
             {t('pdfReport.sanitized', { items: report.sanitization.removed.join('; ') })}
+          </p>
+        )}
+        {ocr && (
+          <p className="text-sm" data-testid="pdf-ocr">
+            {t('pdfReport.ocr', { pages: ocr.pages, confidence: ocr.confidence })}
           </p>
         )}
         {overflowNotes > 0 && (

@@ -1,4 +1,6 @@
-/** Thin progress bar under the Translate button (translation, then the meaning check). */
+import type { ProgressPhase } from '../../core/pipeline/translate';
+
+/** Thin progress bar under the Translate button (OCR, translation, then the meaning check). */
 export function ProgressBar({
   done,
   total,
@@ -6,7 +8,7 @@ export function ProgressBar({
 }: {
   done: number;
   total: number;
-  phase?: 'check' | undefined;
+  phase?: ProgressPhase | undefined;
 }) {
   const percent = total > 0 ? Math.min(100, Math.round((100 * done) / total)) : 0;
   return (
@@ -19,7 +21,7 @@ export function ProgressBar({
     >
       <div
         className={`h-full rounded-full transition-[width] duration-300 ${
-          phase === 'check' ? 'bg-violet-600' : 'bg-blue-600'
+          phase === 'check' ? 'bg-violet-600' : phase === 'ocr' ? 'bg-amber-500' : 'bg-blue-600'
         }`}
         style={{ width: `${percent}%` }}
       />
