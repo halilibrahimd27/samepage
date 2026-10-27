@@ -49,13 +49,25 @@ export const sheetStore = {
 };
 
 let automatic = true;
-/** Set once automatic translation failed in this session: later batches go to the sheet. */
-let automaticFailed = false;
+/**
+ * When automatic translation last failed: later batches go to the sheet for a while (the user
+ * is already translating by hand), then automatic translation is tried again.
+ */
+let failedAt = -Infinity;
+const FAILED_FOR_MS = 5 * 60_000;
+/**
+ * Waits before the second and third attempt. Quick failures are mostly the helper not loading
+ * Google's script (a network blip, or Google refusing a burst of requests for a moment).
+ */
+const RETRY_DELAYS_MS = [0, 4_000, 12_000];
+
+const automaticFailed = () => Date.now() - failedAt < FAILED_FOR_MS;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Settings → bridge: automatic Google translation on or off. */
 export function setAutomaticTranslation(on: boolean): void {
   automatic = on;
-  if (on) automaticFailed = false;
+  if (on) failedAt = -Infinity;
   else closeGoogleTranslate();
 }
 
@@ -71,23 +83,24 @@ export const browserTranslationBridge: ChromeTranslatorBridge = {
   // Every browser we target can do this (automatically, or with its own page translation).
   availability: () => Promise.resolve('available'),
   async translate(pair, texts) {
-    if (automatic && !automaticFailed) {
-      // A failed batch gets a fresh helper frame once before the manual sheet takes over.
-      for (let attempt = 0; attempt < 2; attempt++) {
+    if (automatic && !automaticFailed()) {
+      // A failed batch gets a fresh helper frame, twice, before the manual sheet takes over.
+      for (const delay of RETRY_DELAYS_MS) {
+        if (delay) await sleep(delay);
         try {
           return await googleTranslate(pair, texts);
         } catch {
           closeGoogleTranslate();
         }
       }
-      automaticFailed = true;
+      failedAt = Date.now();
       return viaSheet(pair, texts, 'auto-failed');
     }
     return viaSheet(pair, texts);
   },
   // The meaning check never asks the user to translate by hand.
   async backTranslate(pair, texts) {
-    if (!automatic || automaticFailed) return null;
+    if (!automatic || automaticFailed()) return null;
     return googleTranslate(pair, texts).catch(() => null);
   },
 };

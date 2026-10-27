@@ -16,7 +16,8 @@ import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache
 import { academicHeading, isNameList, metricGlossary, usesMetrics } from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
 import { protectNumbers, protectTerms, restoreTerms } from '../glossary/protect';
-import { plainText } from '../segment/codec';
+import { splitSentences } from '../../engines/plainText';
+import { plainText, tokenize } from '../segment/codec';
 import { createDehyphenator } from '../segment/dehyphenate';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
 
@@ -179,6 +180,14 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         severity: 'warning',
         detail:
           'translated clause by clause because the engine dropped content from the full sentence; please review the wording',
+      });
+    }
+    if (notes.includes('sentences')) {
+      issues.push({
+        code: 'REVIEW_SUGGESTED',
+        severity: 'info',
+        detail:
+          'translated sentence by sentence: given the whole paragraph, the engine changed numbers or citations',
       });
     }
     if (notes.includes('kept-verbatim')) {
@@ -396,8 +405,46 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     if (failing.length) failing = await round(failing, feedbackFor(failing));
     const individually: SegmentRequest[] = [];
     for (const req of failing) individually.push(...(await round([req], feedbackFor([req]))));
-    for (const req of individually.concat(
-      batch.filter((b) => !outcomes.has(b.id) && !individually.includes(b)),
+    // Machine translators can rewrite a long paragraph the same way on every try (a sentence,
+    // a year or a citation that is not in the source); sentence by sentence they rarely do.
+    const unresolved: SegmentRequest[] = [];
+    for (const req of individually) {
+      const pieces = engine.capabilities.glossary ? null : sentencePieces(req.text);
+      if (!pieces) {
+        unresolved.push(req);
+        continue;
+      }
+      const parts = pieces.map((text, k) => ({ ...req, id: `${req.id}~${k + 1}`, text }));
+      const numbersChanged = lastIssues
+        .get(req.id)
+        ?.some((i) => i.code === 'NUMBER_MISMATCH' || i.code === 'CITATION_MISMATCH');
+      const results = await call(
+        parts,
+        undefined,
+        numbersChanged ? new Set(parts.map((p) => p.id)) : undefined,
+      );
+      attempts.set(req.id, (attempts.get(req.id) ?? 0) + 1);
+      const texts = parts.map((p) => results.get(p.id)?.text ?? '');
+      if (texts.some((t) => !t.trim())) {
+        unresolved.push(req);
+        continue;
+      }
+      const notes = [
+        ...new Set(['sentences', ...parts.flatMap((p) => results.get(p.id)?.notes ?? [])]),
+      ];
+      const text = texts.map((t) => t.trim()).join(' ');
+      const issues = validate(req, text, notes);
+      if (issues.some((i) => i.severity === 'error')) {
+        // Reported against the original text that is kept: not "translated sentence by sentence".
+        lastIssues.set(
+          req.id,
+          issues.filter((i) => i.severity !== 'info'),
+        );
+        unresolved.push(req);
+      } else accept(req, { id: req.id, text, notes }, issues);
+    }
+    for (const req of unresolved.concat(
+      batch.filter((b) => !outcomes.has(b.id) && !unresolved.includes(b)),
     )) {
       if (outcomes.has(req.id)) continue;
       outcomes.set(req.id, {
@@ -476,6 +523,26 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     }
   }
   return segments.map((s) => outcomes.get(s.id)!);
+}
+
+/**
+ * The sentences of a tagged paragraph, when it has several and no inline formatting spans a
+ * sentence boundary; null otherwise.
+ */
+export function sentencePieces(tagged: string): string[] | null {
+  const pieces = splitSentences(tagged)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (pieces.length < 2) return null;
+  for (const piece of pieces) {
+    const open: string[] = [];
+    for (const t of tokenize(piece)) {
+      if (t.type === 'open') open.push(t.id);
+      else if (t.type === 'close' && open.pop() !== t.id) return null;
+    }
+    if (open.length) return null;
+  }
+  return pieces;
 }
 
 export interface CostEstimate {

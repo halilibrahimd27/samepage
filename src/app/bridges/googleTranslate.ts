@@ -35,6 +35,8 @@ window.addEventListener('message', (e: MessageEvent<Message>) => {
     pending.get(m.id)?.resolve(m.texts);
     pending.delete(m.id);
   } else if (m.type === 'error') {
+    // Kept in the console for support: the batch is retried, then the manual sheet takes over.
+    console.warn(`Translation helper: ${m.message}`);
     const error = new Error(m.message);
     if (m.id === undefined) readyHooks?.reject(error);
     else {

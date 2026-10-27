@@ -177,7 +177,22 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     );
   }
   if (!sameMultiset(citations(srcPlain), citations(tgtPlain))) {
-    err('CITATION_MISMATCH', `citations ${citations(srcPlain).join(' ')} must be kept exactly`);
+    const left = [...citations(tgtPlain)];
+    const missing = citations(srcPlain).filter((c) => {
+      const i = left.indexOf(c);
+      if (i < 0) return true;
+      left.splice(i, 1);
+      return false;
+    });
+    err(
+      'CITATION_MISMATCH',
+      [
+        missing.length && `missing ${missing.join(' ')}`,
+        left.length && `unexpected ${left.join(' ')}`,
+      ]
+        .filter(Boolean)
+        .join('; '),
+    );
   }
 
   if (input.checkChatter !== false && CHATTER_RE.test(tgtPlain))
