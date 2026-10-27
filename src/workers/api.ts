@@ -11,6 +11,7 @@ import type { EngineId, LangPair } from '../engines/types';
 import type { PdfInspection, Thumbnail } from '../pdf/engine';
 import type { PageIR } from '../core/ir/types';
 import type { PaperParts } from '../core/abstract';
+import type { TermSuggestion } from '../core/glossary/detect';
 
 export interface EngineSpec {
   id: EngineId;
@@ -101,6 +102,13 @@ export interface PipelineApi {
   inspectPdf(file: Blob): Promise<PdfInspection>;
   /** Plain text of the first paragraphs of a DOCX (for language detection); '' on failure. */
   sampleDocx(file: Blob): Promise<string>;
+  /** Glossary suggestions from the document (code-font words, tool names, field terms). */
+  suggestTerms(
+    file: Blob,
+    kind: 'pdf' | 'docx',
+    pair: LangPair,
+    known: GlossaryEntry[],
+  ): Promise<TermSuggestion[]>;
   /** Title, abstract and keywords of a paper; null when no abstract was found. */
   paperParts(file: Blob, kind: 'pdf' | 'docx', sourceLang: string): Promise<PaperParts | null>;
   translateText(

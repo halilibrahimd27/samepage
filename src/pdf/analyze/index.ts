@@ -1,4 +1,5 @@
 import type { DocParagraph } from '../../core/abstract';
+import type { TermText } from '../../core/glossary/detect';
 import type { BlockIR, PageIR } from '../../core/ir/types';
 import { openPdfForExtraction } from '../engine';
 import { analyzeDocument, blockText } from './analyze';
@@ -52,6 +53,31 @@ export function pdfParagraphs(pages: PageIR[]): DocParagraph[] {
       };
       if (block.chain) byChain.set(block.chain.paragraphId, p);
       out.push(p);
+    }
+  }
+  return out;
+}
+
+/** Block texts with the pieces set in a code font (term suggestions); page furniture left out. */
+export function pdfTermTexts(pages: PageIR[]): TermText[] {
+  const out: TermText[] = [];
+  const skip = new Set(['header', 'footer', 'page-number', 'formula', 'code']);
+  for (const page of pages) {
+    for (const block of page.blocks) {
+      if (skip.has(block.role)) continue;
+      const mono: string[] = [];
+      for (const line of block.lines) {
+        let piece = '';
+        for (const span of line.spans) {
+          if (span.font.family === 'mono' && !span.font.isMath) piece += span.text;
+          else if (piece) {
+            mono.push(piece);
+            piece = '';
+          }
+        }
+        if (piece) mono.push(piece);
+      }
+      out.push({ text: blockText(block), mono });
     }
   }
   return out;

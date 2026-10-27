@@ -12,7 +12,7 @@ import { ProgressBar } from './ProgressBar';
 import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
-import { useGlossary } from '../useGlossary';
+import { useGlossary, useTermSuggestions } from '../useGlossary';
 import { DocxPreview } from './DocxPreview';
 import { DocxReportPanel } from './DocxReportPanel';
 import { GlossaryPanel } from './GlossaryPanel';
@@ -32,6 +32,7 @@ export function DocxTranslator({
   const { t, lang } = useI18n();
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
+  const suggestions = useTermSuggestions(file, 'docx', pair, glossary.entries);
   const [running, setRunning] = useState<string | null>(null);
   const [progress, setProgress] = useState<{
     done: number;
@@ -158,6 +159,7 @@ export function DocxTranslator({
         {...(config.engine === 'anthropic' ? { onExtract: () => void extract() } : {})}
         extracting={extracting}
         fileName={`glossary.${config.source}-${config.target}.csv`}
+        suggestions={suggestions}
       />
 
       <div className="flex flex-col gap-2">

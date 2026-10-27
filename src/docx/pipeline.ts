@@ -1,6 +1,7 @@
 import { REFERENCES_HEADING } from '../core/references';
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
+import type { TermText } from '../core/glossary/detect';
 import type { Role } from '../core/ir/types';
 import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
@@ -369,6 +370,34 @@ export async function translateDocx(
 }
 
 /** Plain text of the document's paragraphs, for glossary suggestions. */
+const MONO_FONT =
+  /mono|courier|consolas|menlo|monaco|inconsolata|source code|fira code|lucida console/i;
+
+/** A run set in a code font, directly or through a character style ("HTML Code", "Verbatim"). */
+function isMono(rPr: XElement | null): boolean {
+  if (!rPr) return false;
+  const font = rPr.getElementsByTagNameNS(NS.w, 'rFonts')[0]?.getAttributeNS(NS.w, 'ascii') ?? '';
+  const style = rPr.getElementsByTagNameNS(NS.w, 'rStyle')[0]?.getAttributeNS(NS.w, 'val') ?? '';
+  return MONO_FONT.test(font) || /code|verbatim|monospace/i.test(style);
+}
+
+/** Paragraph texts of the main document with the pieces set in a code font (term suggestions). */
+export async function docxTermTexts(bytes: Uint8Array): Promise<TermText[]> {
+  const pkg = await openDocx(bytes);
+  const text = await pkg.readText('word/document.xml');
+  if (!text) return [];
+  const doc = parseXml(text);
+  return Array.from(doc.getElementsByTagNameNS(NS.w, 'p'))
+    .map((para) => {
+      const ex = extractW(para, 'body');
+      const mono = decode(ex.encoded.source, ex.encoded)
+        .filter((r) => r.type === 'text' && isMono(r.style?.rPr ?? null))
+        .map((r) => r.text);
+      return { text: ex.plain, mono };
+    })
+    .filter((p) => hasLetters(p.text));
+}
+
 export async function docxParagraphs(bytes: Uint8Array): Promise<{ text: string; role: Role }[]> {
   const pkg = await openDocx(bytes);
   const text = await pkg.readText('word/document.xml');

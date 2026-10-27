@@ -11,7 +11,7 @@ import { ProgressBar } from './ProgressBar';
 import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
-import { useGlossary } from '../useGlossary';
+import { useGlossary, useTermSuggestions } from '../useGlossary';
 import { GlossaryPanel } from './GlossaryPanel';
 import { PdfPreview } from './PdfPreview';
 import { PdfReportPanel } from './PdfReportPanel';
@@ -28,6 +28,7 @@ export function PdfTranslator(props: {
   const { t } = useI18n();
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
+  const suggestions = useTermSuggestions(file, 'pdf', pair, glossary.entries);
   const [running, setRunning] = useState<string | null>(null);
   const [progress, setProgress] = useState<{
     done: number;
@@ -106,6 +107,7 @@ export function PdfTranslator(props: {
         onChange={glossary.update}
         extracting={false}
         fileName={`glossary.${config.source}-${config.target}.csv`}
+        suggestions={suggestions}
       />
       {props.pageCount > 1 && (
         <fieldset className="flex flex-wrap items-center gap-2 text-sm">

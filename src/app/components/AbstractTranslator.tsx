@@ -14,7 +14,8 @@ import { useI18n } from '../i18n';
 import type { ShownIssue } from '../issues';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
-import { useGlossary } from '../useGlossary';
+import { useGlossary, useTermSuggestions } from '../useGlossary';
+import { GlossaryPanel } from './GlossaryPanel';
 import { IssueList } from './IssueList';
 import { ProgressBar } from './ProgressBar';
 import { TranslationSheet } from './TranslationSheet';
@@ -66,6 +67,7 @@ export function AbstractTranslator({
   const { t, lang } = useI18n();
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
+  const suggestions = useTermSuggestions(file, kind, pair, glossary.entries);
   /** What the search found for a source language (bilingual papers have two abstracts). */
   const [searched, setSearched] = useState<{ source: string; parts: PaperParts | null } | null>(
     null,
@@ -252,6 +254,14 @@ export function AbstractTranslator({
         {field('abstract', 10)}
         {field('keywords', 2)}
       </section>
+
+      <GlossaryPanel
+        entries={glossary.entries}
+        onChange={glossary.update}
+        extracting={false}
+        fileName={`glossary.${config.source}-${config.target}.csv`}
+        suggestions={suggestions}
+      />
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">

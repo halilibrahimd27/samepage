@@ -13,16 +13,17 @@ import { estimateCost, translateSegments, type ProgressPhase } from '../core/pip
 import { encode, plainText, verbatimOf } from '../core/segment/codec';
 import { parsePlaygroundMarkup, styleKey } from '../core/segment/markup';
 import { findPaperParts } from '../core/abstract';
+import { suggestTerms } from '../core/glossary/detect';
 import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import { buildBilingualDocx } from '../docx/bilingual';
-import { docxParagraphs, translateDocx } from '../docx/pipeline';
+import { docxParagraphs, docxTermTexts, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
 import { inspectPdf, loadFaces, renderPagePng, type LoadedFaces } from '../pdf/engine';
 import { translatePdf } from '../pdf/pipeline';
-import { extractAndAnalyze, pdfParagraphs } from '../pdf/analyze';
+import { extractAndAnalyze, pdfParagraphs, pdfTermTexts } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
 import { LIMITS } from '../security/limits';
 import type { DocxJob, JobError, PdfJob, PipelineApi, TextJob } from './api';
@@ -30,6 +31,8 @@ import type { DocxJob, JobError, PdfJob, PipelineApi, TextJob } from './api';
 const THUMBNAIL_WIDTH = 240;
 /** Pages searched for the title, abstract and keywords. */
 const FRONT_PAGES = 3;
+/** Pages read for glossary suggestions. */
+const TERM_PAGES = 40;
 const cache = new IdbCache();
 const controllers = new Map<string, AbortController>();
 
@@ -108,6 +111,19 @@ const api: PipelineApi = {
       return text;
     } catch {
       return '';
+    }
+  },
+
+  async suggestTerms(file, kind, pair, known) {
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const texts =
+        kind === 'pdf'
+          ? pdfTermTexts(await extractAndAnalyze(bytes, TERM_PAGES))
+          : await docxTermTexts(bytes);
+      return suggestTerms(texts, pair.source, pair.target, known);
+    } catch {
+      return [];
     }
   },
 

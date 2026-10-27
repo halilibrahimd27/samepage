@@ -29,6 +29,10 @@ paying for an API — and who cannot afford a translation that quietly changes w
   translated again with the numbers locked. A **meaning check** translates the result back and
   flags lost or added negations, hedges that disappeared ("results suggest" → "results reveal")
   and changed quantifiers ("most" → "all"), with the back-translation shown next to the finding.
+- **Glossary from your document.** Words set in a code font and tool names (`Bandit`,
+  `sklearn.svm`) are offered to be kept as they are, and field terms (statistics, medicine,
+  computer science, engineering, chemistry: "confidence interval", "randomized controlled
+  trial") with their established translation. Nothing is applied until you tick it.
 - **Academic details.** Running heads, journal citation lines, author lines, page numbers,
   formulas set in text fonts and reference lists are recognised and left alone; metric terms
   (precision, recall, F1-score) stay consistent between tables and text.

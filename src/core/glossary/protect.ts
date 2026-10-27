@@ -23,6 +23,9 @@ const markup = (t: ReturnType<typeof tokenize>[number], text: (s: string) => str
  * ⟦Gn⟧; restoreTerms() puts the glossary target in its place after translation.
  * Matching is case-insensitive with the source language's casing rules; longest terms first.
  */
+/** Source languages whose case and possessive endings are attached to the term. */
+const AGGLUTINATIVE = new Set(['tr', 'hu']);
+
 export function protectTerms(
   tagged: string,
   glossary: GlossaryEntry[],
@@ -49,6 +52,9 @@ export function protectTerms(
           if (lower.startsWith(needle, i)) {
             let end = i + needle.length;
             while (end < text.length && /\p{L}/u.test(text[end]!)) end++; // attached suffix
+            // A short ending only, except in languages that stack suffixes: "test set" is not
+            // the start of "test settings".
+            if (end - i - needle.length > (AGGLUTINATIVE.has(sourceLang) ? 12 : 3)) continue;
             targets.push(e.target);
             out += `⟦G${targets.length}⟧`;
             i = end;

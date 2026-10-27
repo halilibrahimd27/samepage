@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import type { TermSuggestion } from '../../core/glossary/detect';
 import { glossaryToCsv, parseGlossaryCsv, mergeGlossaries } from '../../core/glossary/glossary';
 import type { GlossaryEntry } from '../../core/validate/validate';
 import { downloadBlob } from '../download';
@@ -12,9 +13,15 @@ export function GlossaryPanel(props: {
   onExtract?: () => void;
   extracting: boolean;
   fileName: string;
+  /** Terms found in the document, offered for the glossary. */
+  suggestions?: TermSuggestion[];
 }) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
+  const suggestions = props.suggestions ?? [];
+  /** Suggestions the user unticked. */
+  const [declined, setDeclined] = useState<ReadonlySet<string>>(new Set());
+  const chosen = suggestions.filter((s) => !declined.has(s.source));
   const update = (i: number, patch: Partial<GlossaryEntry>) =>
     props.onChange(props.entries.map((e, j) => (j === i ? { ...e, ...patch } : e)));
 
@@ -22,8 +29,66 @@ export function GlossaryPanel(props: {
     <details className="rounded-xl border border-slate-200 bg-white p-4">
       <summary className="cursor-pointer font-medium">
         {t('glossary.title')} · {t('glossary.count', { count: props.entries.length })}
+        {suggestions.length > 0 && (
+          <span className="font-normal text-violet-800" data-testid="term-suggestion-count">
+            {' '}
+            · {t('glossary.suggestionCount', { count: suggestions.length })}
+          </span>
+        )}
       </summary>
       <p className="mt-2 text-sm text-slate-600">{t('glossary.hint')}</p>
+      {suggestions.length > 0 && (
+        <section
+          className="mt-3 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm"
+          data-testid="term-suggestions"
+        >
+          <p className="font-medium text-violet-950">{t('glossary.suggested')}</p>
+          <p className="mt-1 text-xs text-slate-700">{t('glossary.suggestedHint')}</p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {suggestions.map((s) => (
+              <li key={s.source}>
+                <label className="flex flex-wrap items-baseline gap-x-2">
+                  <input
+                    type="checkbox"
+                    checked={!declined.has(s.source)}
+                    onChange={(e) =>
+                      setDeclined((d) => {
+                        const next = new Set(d);
+                        if (e.target.checked) next.delete(s.source);
+                        else next.add(s.source);
+                        return next;
+                      })
+                    }
+                  />
+                  <span className="font-medium">{s.source}</span>
+                  <span aria-hidden="true">→</span>
+                  <span>{s.target === s.source ? t('glossary.keep') : s.target}</span>
+                  <span className="rounded bg-white px-1.5 text-xs text-violet-900">
+                    {t(`glossary.reason.${s.reason}`)}
+                  </span>
+                  <span className="text-xs text-slate-500">×{s.count}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            disabled={chosen.length === 0}
+            onClick={() =>
+              props.onChange(
+                mergeGlossaries(
+                  chosen.map(({ source, target }) => ({ source, target })),
+                  props.entries,
+                ),
+              )
+            }
+            className="mt-2 rounded bg-violet-700 px-3 py-1.5 text-white hover:bg-violet-800 disabled:opacity-50"
+            data-testid="add-term-suggestions"
+          >
+            {t('glossary.addSelected', { count: chosen.length })}
+          </button>
+        </section>
+      )}
       <div className="mt-3 flex flex-wrap gap-2 text-sm">
         {props.onExtract && (
           <button
