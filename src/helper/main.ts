@@ -9,7 +9,8 @@ import { tokenize } from '../core/segment/codec';
  * fit the viewport.
  *
  * Protocol (postMessage, same origin only): parent → { type: 'translate', id, texts };
- * helper → { type: 'ready' } | { type: 'result', id, texts } | { type: 'error', id?, message }.
+ * helper → { type: 'ready' } | { type: 'result', id, texts } | { type: 'error', id?, message },
+ * each tagged with the frame's channel `ch` (from the URL).
  */
 
 interface TranslateElementCtor {
@@ -25,15 +26,16 @@ declare global {
 const params = new URLSearchParams(location.search);
 const source = params.get('sl') ?? 'en';
 const target = params.get('tl') ?? 'tr';
+const channel = params.get('ch') ?? '';
 const sheet = document.getElementById('sheet')!;
-const post = (message: object) => parent.postMessage(message, location.origin);
+const post = (message: object) => parent.postMessage({ ...message, ch: channel }, location.origin);
 
 /** Quiet period after the last change before a batch counts as done. */
 const SETTLE_MS = 2500;
 /** A batch where nothing changes in this time failed. */
 const NOTHING_MS = 20_000;
 /** Upper bound for one batch. */
-const MAX_MS = 120_000;
+const MAX_MS = 60_000;
 
 Object.assign(sheet.style, {
   position: 'fixed',
