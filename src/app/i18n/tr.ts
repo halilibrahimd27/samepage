@@ -71,6 +71,9 @@ export const tr: Record<MessageKey, string> = {
 
   'settings.title': 'Ayarlar',
   'settings.close': 'Kapat',
+  'settings.localCitations': '“et al.” ifadesini hedef dilin kuralıyla yaz',
+  'settings.localCitationsHint':
+    'Atıflarda: Türkçe “vd.”, Rusça ve Bulgarca “и др.”, Ukraynaca “та ін.”, Lehçe “i in.”, diğer dillerde “et al.”.',
   'settings.fidelityCheck': 'Anlam kontrolü',
   'settings.fidelityCheckHint':
     'Anlamı kaymış olabilecek paragrafları işaretler: kaybolan ya da eklenen olumsuzluk, güçlenen ya da zayıflayan iddia (olabilir, düşündürmektedir), değişen niceleyici (çoğu → tümü). Google ve Chrome: çeviri kaynak dile geri çevrilip karşılaştırılır (yaklaşık bir çeviri süresi kadar sürer). Claude: ikinci bir inceleme geçişi (maliyete yaklaşık %30–50 ekler).',

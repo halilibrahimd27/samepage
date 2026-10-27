@@ -33,6 +33,8 @@ export interface TextJob {
   numberLocalization: boolean;
   fidelityCheck: boolean;
   useCache: boolean;
+  /** "et al." in citations the target language's way ("vd.", "и др."). */
+  localCitations?: boolean;
 }
 
 export interface TextSegment {
@@ -67,6 +69,8 @@ export interface DocxJob {
   glossary: GlossaryEntry[];
   numberLocalization: boolean;
   fidelityCheck: boolean;
+  /** "et al." in citations the target language's way ("vd.", "и др."). */
+  localCitations?: boolean;
   translateComments: boolean;
   translateReferences: boolean;
   translateMetadata: boolean;

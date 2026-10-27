@@ -159,6 +159,7 @@ const api: PipelineApi = {
         signal: controller.signal,
         ...(job.useCache ? { cache } : {}),
         fidelityCheck: job.fidelityCheck,
+        localCitations: job.localCitations ?? false,
         ...(onProgress
           ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
           : {}),
@@ -243,6 +244,7 @@ const api: PipelineApi = {
         glossary: job.glossary,
         numberLocalization: job.numberLocalization,
         fidelityCheck: job.fidelityCheck,
+        localCitations: job.localCitations ?? false,
         translateComments: job.translateComments,
         translateReferences: job.translateReferences,
         translateMetadata: job.translateMetadata,
@@ -297,6 +299,7 @@ const api: PipelineApi = {
           glossary: job.glossary,
           numberLocalization: job.numberLocalization,
           fidelityCheck: job.fidelityCheck,
+          localCitations: job.localCitations ?? false,
           translateReferences: job.translateReferences,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           translateMetadata: job.translateMetadata,

@@ -55,6 +55,7 @@ export function DocxTranslator({
     glossary: glossary.usable,
     numberLocalization: false,
     fidelityCheck: settings.fidelityCheck,
+    localCitations: settings.localCitations,
     translateComments: settings.translateComments,
     translateReferences: settings.translateReferences,
     translateMetadata: settings.translateMetadata,

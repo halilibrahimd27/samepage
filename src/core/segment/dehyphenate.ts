@@ -8,6 +8,11 @@ import { tokenize } from './codec';
  */
 const HYPHENATED = /(?<![\p{L}\p{N}\-‐])(\p{L}\p{Ll}+)[-‐](\p{Ll}{2,})(?![\p{L}\p{N}\-‐])/gu;
 const WORD = /\p{L}+/gu;
+/**
+ * A soft hyphen (U+00AD) only marks where a word may break; PDFs keep it with the line break
+ * ("po\u00ad tencjalnego", "be\u00ad währten"), and engines then translate two halves.
+ */
+const SOFT_HYPHEN = /\u00ad\s*(?=\p{L})|\u00ad/gu;
 
 const textOf = (tagged: string) =>
   tokenize(tagged)
@@ -22,16 +27,19 @@ export function createDehyphenator(documentTexts: string[]): Dehyphenator {
   const words = new Set<string>();
   for (const tagged of documentTexts) {
     for (const text of textOf(tagged)) {
-      for (const w of text.replace(HYPHENATED, ' ').matchAll(WORD)) words.add(w[0].toLowerCase());
+      const plain = text.replace(SOFT_HYPHEN, '').replace(HYPHENATED, ' ');
+      for (const w of plain.matchAll(WORD)) words.add(w[0].toLowerCase());
     }
   }
   return (tagged) =>
     tokenize(tagged)
       .map((t) => {
         if (t.type === 'text') {
-          return t.text.replace(HYPHENATED, (whole, a: string, b: string) =>
-            words.has((a + b).toLowerCase()) ? a + b : whole,
-          );
+          return t.text
+            .replace(SOFT_HYPHEN, '')
+            .replace(HYPHENATED, (whole, a: string, b: string) =>
+              words.has((a + b).toLowerCase()) ? a + b : whole,
+            );
         }
         if (t.type === 'ph') return `⟦${t.id}⟧`;
         return t.type === 'open' ? `<${t.id}>` : `</${t.id}>`;

@@ -1,3 +1,4 @@
+import { localizeEtAl } from '../glossary/citations';
 import {
   PROMPT_VERSION,
   translationSystemPrompt,
@@ -41,6 +42,8 @@ export interface TranslateJob {
   cache?: TranslationCache;
   concurrency?: number;
   fidelityCheck?: boolean;
+  /** Write "et al." in citations the target language's way ("vd.", "и др."). */
+  localCitations?: boolean;
   /** Progress of the translation, then (phase 'check') of the meaning check. */
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
 }
@@ -466,6 +469,12 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   }
 
   if (job.cache && fresh.length) await job.cache.set(fresh);
+  // After caching: the cache keeps the engine's text, the option applies on every run.
+  if (job.localCitations) {
+    for (const o of outcomes.values()) {
+      if (!o.untranslated) o.text = localizeEtAl(o.text, ctx.pair.target);
+    }
+  }
   return segments.map((s) => outcomes.get(s.id)!);
 }
 

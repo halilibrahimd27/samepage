@@ -146,6 +146,7 @@ export function AbstractTranslator({
         glossary: glossary.usable,
         numberLocalization: false,
         fidelityCheck: settings.fidelityCheck,
+        localCitations: settings.localCitations,
         useCache: true,
       };
       const res = await pipelineClient.call<TextJobResult>(

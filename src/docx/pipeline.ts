@@ -22,6 +22,8 @@ export interface DocxOptions {
   glossary: GlossaryEntry[];
   numberLocalization: boolean;
   fidelityCheck: boolean;
+  /** "et al." in citations the target language's way. */
+  localCitations?: boolean;
   translateComments: boolean;
   translateReferences: boolean;
   translateMetadata: boolean;
@@ -244,6 +246,7 @@ export async function translateDocx(
     ctx: { pair: opts.pair, glossary: opts.glossary, numberLocalization: opts.numberLocalization },
     signal: opts.signal,
     fidelityCheck: opts.fidelityCheck,
+    localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });

@@ -13,6 +13,8 @@ export interface Settings {
   showAdvancedEngines: boolean;
   /** `browser` engine: Google's website translator does it automatically (ADR-021). */
   autoTranslate: boolean;
+  /** "et al." in citations written the target language's way ("vd.", "и др."). */
+  localCitations: boolean;
 }
 
 const STORAGE_KEY = 'samepage.settings';
@@ -28,6 +30,7 @@ export function defaultSettings(languages: readonly string[]): Settings {
     saveHistory: true,
     showAdvancedEngines: false,
     autoTranslate: true,
+    localCitations: false,
   };
 }
 
@@ -55,6 +58,7 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
     'saveHistory',
     'showAdvancedEngines',
     'autoTranslate',
+    'localCitations',
   ] as const) {
     if (typeof s[key] === 'boolean') result[key] = s[key];
   }

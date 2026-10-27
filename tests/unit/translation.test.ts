@@ -363,6 +363,10 @@ describe('helpers', () => {
     expect(fix('A state-of-the-art machine-learning model; Mal-OSS; ma-licious.')).toBe(
       'A state-of-the-art machine-learning model; Mal-OSS; malicious.',
     );
+    // Soft hyphens kept with a line break always join.
+    expect(
+      fix('Celem jest analiza jego po\u00ad tencjalnego wpływu i be\u00adwährten Standards.'),
+    ).toBe('Celem jest analiza jego potencjalnego wpływu i bewährten Standards.');
   });
 
   it('Chrome engine: sends identifiers inline and run-in headings without their full stop', async () => {

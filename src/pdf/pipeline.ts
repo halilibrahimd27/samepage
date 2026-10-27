@@ -34,6 +34,8 @@ export interface PdfOptions {
   glossary: GlossaryEntry[];
   numberLocalization: boolean;
   fidelityCheck: boolean;
+  /** "et al." in citations the target language's way. */
+  localCitations?: boolean;
   faces: LoadedFaces;
   maxPages: number;
   dual: boolean;
@@ -275,6 +277,7 @@ export async function translatePdf(
     ctx: { pair: opts.pair, glossary: opts.glossary, numberLocalization: opts.numberLocalization },
     signal: opts.signal,
     fidelityCheck: opts.fidelityCheck,
+    localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });

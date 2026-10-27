@@ -28,17 +28,18 @@ paying for an API — and who cannot afford a translation that quietly changes w
   abbreviations (`M/B`) and glossary terms are kept; a paragraph whose numbers changed is
   translated again with the numbers locked. A **meaning check** translates the result back and
   flags lost or added negations, hedges that disappeared ("results suggest" → "results reveal")
-  and changed quantifiers ("most" → "all"), with the back-translation shown next to the finding.
-  Every paragraph can be compared side by side — source | translation | back-translation,
-  sentence by sentence — with the words that differ marked, so you can check a translation into
-  a language you do not read.
+  and changed quantifiers ("most" → "all") in all 17 source languages, with the back-translation
+  shown next to the finding. Every paragraph can be compared side by side — source |
+  translation | back-translation, sentence by sentence — with the words that differ marked, so
+  you can check a translation into a language you do not read.
 - **Glossary from your document.** Words set in a code font and tool names (`Bandit`,
   `sklearn.svm`) are offered to be kept as they are, and field terms (statistics, medicine,
   computer science, engineering, chemistry: "confidence interval", "randomized controlled
   trial") with their established translation. Nothing is applied until you tick it.
 - **Academic details.** Running heads, journal citation lines, author lines, page numbers,
   formulas set in text fonts and reference lists are recognised and left alone; metric terms
-  (precision, recall, F1-score) stay consistent between tables and text.
+  (precision, recall, F1-score) stay consistent between tables and text; "et al." in citations
+  can follow the target language ("vd.", "и др.", "i in.").
 - **Abstract only.** For journals that ask for the abstract in a second language: samepage
   finds the title, abstract and keywords (labelled or not, structured, bilingual papers), lets
   you check and edit them, and translates just those — with the meaning check, word counts and a

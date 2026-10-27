@@ -68,6 +68,9 @@ export const en = {
 
   'settings.title': 'Settings',
   'settings.close': 'Close',
+  'settings.localCitations': 'Write “et al.” the target language’s way',
+  'settings.localCitationsHint':
+    'In citations: Turkish “vd.”, Russian and Bulgarian “и др.”, Ukrainian “та ін.”, Polish “i in.”, other languages “et al.”.',
   'settings.fidelityCheck': 'Meaning check',
   'settings.fidelityCheckHint':
     'Flags paragraphs whose meaning may have shifted: a lost or added negation, a claim made stronger or weaker (may, suggests), a changed quantifier (most → all). Google and Chrome: the translation is translated back and compared (takes about as long again). Claude: a second review pass (adds roughly 30–50% to the cost).',

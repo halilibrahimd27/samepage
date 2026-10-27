@@ -65,6 +65,7 @@ export function PdfTranslator(props: {
         glossary: glossary.usable,
         numberLocalization: false,
         fidelityCheck: settings.fidelityCheck,
+        localCitations: settings.localCitations,
         translateReferences: settings.translateReferences,
         saveHistory: settings.saveHistory,
         dual: true,

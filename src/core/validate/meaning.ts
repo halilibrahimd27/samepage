@@ -72,6 +72,46 @@ const TR_WEAK_HEDGE = [
   'olasılık\\p{L}*',
 ];
 
+/**
+ * Cyrillic negation "не" in lower case, or capitalised at a sentence start: "Не" alone is also
+ * helium ("t-Не/O2").
+ */
+const cyrillicNe = (cs: Cues): Cues => ({
+  ...cs,
+  negation: new RegExp(
+    `${cs.negation.source}|(?<![\\p{L}\\p{M}])(?:не|(?<=^|[.!?:]\\s+)Не(?=\\s+\\p{Ll}))(?![\\p{L}\\p{M}])`,
+    'gu',
+  ),
+});
+
+/** Cue sets from word lists; the weak hedges include the hedges. */
+function cues(c: {
+  /** Phrases that look like negation but are not ("whether or not", "not only"). */
+  ignore?: string[];
+  negation: string[];
+  soft: string[];
+  hedge: string[];
+  weak: string[];
+  all: string[];
+  most: string[];
+  some: string[];
+  few: string[];
+}): Cues {
+  return {
+    ...(c.ignore ? { ignore: words(c.ignore) } : {}),
+    negation: words(c.negation),
+    softNegation: words(c.soft),
+    hedge: words(c.hedge),
+    weakHedge: words([...c.hedge, ...c.weak]),
+    quantifiers: {
+      'all/every': words(c.all),
+      most: words(c.most),
+      some: words(c.some),
+      few: words(c.few),
+    },
+  };
+}
+
 const CUES: Record<string, Cues> = {
   en: {
     negation: words([
@@ -104,6 +144,8 @@ const CUES: Record<string, Cues> = {
       '\\p{L}+-less',
       'otherwise',
       'yet to',
+      // "were excluded" ↔ "were not included".
+      'exclu(?:de|ded|des|ding|sion)',
       'instead',
       'rather than',
       // un- adjectives ("not popular" ↔ "unpopular"), not under-, uni-, until, unless.
@@ -126,7 +168,7 @@ const CUES: Record<string, Cues> = {
       'as though',
       'almost',
     ]),
-    ignore: words(['(?:whether )?or not', 'not only']),
+    ignore: words(['(?:whether )?or not', 'not only', 'above all', 'after all']),
     quantifiers: {
       'all/every': words(['all', 'every', 'each', 'always', 'entire(?:ly)?', 'whole']),
       most: words(['most', 'majority', 'mostly', 'largely']),
@@ -151,7 +193,7 @@ const CUES: Record<string, Cues> = {
     ]),
     hedge: words(TR_HEDGE),
     // "olup olmadığı" is "whether or not"; "yok etmek" is "to destroy".
-    ignore: words(['olup olma\\p{L}*', 'yok (?:et|ed|ol|say)\\p{L}*']),
+    ignore: words(['olup olma\\p{L}*', 'yok (?:et|ed|ol|say)\\p{L}*', 'her şeyden önce']),
     weakHedge: words([...TR_HEDGE, ...TR_WEAK_HEDGE]),
     quantifiers: {
       'all/every': words([
@@ -167,29 +209,64 @@ const CUES: Record<string, Cues> = {
       few: words(['az sayıda', 'nadiren']),
     },
   },
-  de: {
-    negation: words([
-      'nicht',
-      'kein\\p{L}*',
-      'nie',
-      'niemals',
-      'nichts',
-      'niemand',
-      'ohne',
-      'weder',
-    ]),
-    softNegation: words([
+  de: cues({
+    ignore: ['vor allem', 'oder nicht', 'nicht nur'],
+    negation: ['nicht', 'kein\\p{L}*', 'nie', 'niemals', 'nichts', 'niemand', 'ohne', 'weder'],
+    soft: [
+      'ausgeschlossen',
+      'ausschl\\p{L}*',
       'verboten\\p{L}*',
       'fehl\\p{L}*',
       'mangel\\p{L}*',
       'unzureichend\\p{L}*',
       'unmöglich\\p{L}*',
       'un\\p{L}{4,}',
-    ]),
-  },
-  fr: {
-    negation: words(['ne', "n[’']", 'pas', 'jamais', 'aucun\\p{L}*', 'sans', 'ni', 'rien']),
-    softNegation: words([
+    ],
+    hedge: [
+      'möglicherweise',
+      'vermutlich',
+      'wahrscheinlich',
+      'eventuell',
+      'vielleicht',
+      'schein(?:t|en)',
+      'könnten?',
+      'dürften?',
+      'deute[nt] darauf hin',
+      'legen? nahe',
+      'lässt vermuten',
+      'potenziell',
+      'tendier\\p{L}*',
+    ],
+    weak: [
+      'kann',
+      'können',
+      'möglich\\p{L}*',
+      'potenziell\\p{L}*',
+      'wohl',
+      'fast',
+      'nahezu',
+      'anscheinend',
+      'offenbar',
+      'denkbar',
+    ],
+    all: ['alle[nmrs]?', 'jede[nmrs]?', 'immer', 'stets', 'gesamte\\p{L}*', 'sämtliche\\p{L}*'],
+    most: ['meist\\p{L}*', 'Mehrheit', 'überwiegend', 'größtenteils'],
+    some: ['einige\\p{L}*', 'manche\\p{L}*', 'mehrere\\p{L}*', 'teilweise', 'manchmal'],
+    few: ['(?<!einige )wenige\\p{L}*', 'selten', 'Minderheit'],
+  }),
+  fr: cues({
+    ignore: [
+      'avant tout',
+      'ou non',
+      'non seulement',
+      // "ne … que" is "only": "ne repose que sur" = "relies only on".
+      "n(?:e\\s+|[’'])\\p{L}+\\s+que",
+    ],
+    // Written negation always has "ne"/"n'": "pas" alone is also a step, "rien" a trifle.
+    negation: ['ne', "n[’']\\p{L}+", 'aucun\\p{L}*', 'sans', 'ni'],
+    soft: [
+      'indépend\\p{L}*',
+      'exclu\\p{L}*',
       'interdit\\p{L}*',
       'déconseill\\p{L}*',
       'manqu\\p{L}*',
@@ -197,10 +274,38 @@ const CUES: Record<string, Cues> = {
       'insuffisan\\p{L}*',
       'impossibl\\p{L}*',
       'in(?:adapt|capab|exact|valide|correct)\\p{L}*',
-    ]),
-  },
-  es: {
-    negation: words([
+    ],
+    hedge: [
+      'pourraient',
+      'pourrait',
+      'probablement',
+      'peut-être',
+      'possiblement',
+      'vraisemblablement',
+      'éventuellement',
+      'sembl\\p{L}*',
+      'suggère(?:nt)?',
+      'laisse(?:nt)? penser',
+      'tend(?:ent)? à',
+      'potentiellement',
+    ],
+    weak: [
+      'peu(?:t|vent)',
+      'possible\\p{L}*',
+      'potentiel\\p{L}*',
+      'probable\\p{L}*',
+      'apparemment',
+      'presque',
+      'quasi\\p{L}*',
+    ],
+    all: ['tous', 'toutes?', 'tout', 'chaque', 'toujours', 'enti(?:er|ère)s?'],
+    most: ['la plupart', 'majorité', 'majoritairement'],
+    some: ['certain(?:e?s)', 'quelques', 'plusieurs', 'partiellement', 'parfois'],
+    few: ['peu de', 'rarement', 'minorité'],
+  }),
+  es: cues({
+    ignore: ['sobre todo', 'o no', 'no s[oó]lo'],
+    negation: [
       'no',
       'nunca',
       'ningun\\p{L}*',
@@ -211,19 +316,45 @@ const CUES: Record<string, Cues> = {
       'ni',
       'jamás',
       'tampoco',
-    ]),
-    softNegation: words([
+    ],
+    soft: [
+      'exclu\\p{L}*',
       'prohibid\\p{L}*',
       'falta\\p{L}*',
       'ausen\\p{L}*',
       'insuficient\\p{L}*',
       'imposibl\\p{L}*',
       'inadecuad\\p{L}*',
-    ]),
-  },
-  it: {
-    negation: words(['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né']),
-    softNegation: words([
+    ],
+    hedge: [
+      'podrían?',
+      'posiblemente',
+      'probablemente',
+      'quizás?',
+      'tal vez',
+      'parec\\p{L}*',
+      'sugier\\p{L}*',
+      'potencialmente',
+      'tiende[n]? a',
+    ],
+    weak: [
+      'pued\\p{L}*',
+      'posible\\p{L}*',
+      'potencial\\p{L}*',
+      'probable\\p{L}*',
+      'aparentemente',
+      'casi',
+    ],
+    all: ['tod[oa]s?', 'cada', 'siempre', 'enter[oa]s?'],
+    most: ['la mayoría', 'mayoritariamente', 'mayormente'],
+    some: ['algun[oa]s', 'algún', 'varios', 'varias', 'parcialmente', 'a veces'],
+    few: ['poc[oa]s', 'raramente', 'rara vez', 'minoría'],
+  }),
+  it: cues({
+    ignore: ['o meno', 'non solo'],
+    negation: ['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né'],
+    soft: [
+      'esclu\\p{L}*',
       'vietat\\p{L}*',
       'mancan\\p{L}*',
       'assen\\p{L}*',
@@ -231,20 +362,386 @@ const CUES: Record<string, Cues> = {
       'insufficient\\p{L}*',
       'impossibil\\p{L}*',
       'incapac\\p{L}*',
-    ]),
-  },
-  pt: {
-    negation: words(['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais']),
-    softNegation: words([
+    ],
+    hedge: [
+      'potrebbe(?:ro)?',
+      'possibilmente',
+      'probabilmente',
+      'forse',
+      'sembr\\p{L}*',
+      'suggerisc\\p{L}*',
+      'potenzialmente',
+      'tend(?:e|ono) a',
+    ],
+    weak: [
+      'può',
+      'possono',
+      'possibil\\p{L}*',
+      'potenzial\\p{L}*',
+      'probabil\\p{L}*',
+      'apparentemente',
+      'quasi',
+    ],
+    all: ['tutt[ioae]', 'ogni', 'sempre', 'inter[oa]'],
+    most: ['la maggior parte', 'maggioranza', 'perlopiù', 'prevalentemente'],
+    some: ['alcun[ie]', 'diversi', 'diverse', 'parzialmente', 'talvolta', 'a volte'],
+    few: ['poch[ie]', 'raramente', 'minoranza'],
+  }),
+  pt: cues({
+    ignore: ['acima de tudo', 'ou não', 'não só', 'não apenas'],
+    negation: ['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais'],
+    soft: [
+      'exclu\\p{L}*',
       'proibid\\p{L}*',
       'falta\\p{L}*',
       'ausên\\p{L}*',
       'insuficient\\p{L}*',
       'impossív\\p{L}*',
       'inadequad\\p{L}*',
-    ]),
-  },
-  ru: { negation: words(['не', 'нет', 'ни', 'никогда', 'ничего', 'никто', 'без', 'нельзя']) },
+    ],
+    hedge: [
+      'poderi(?:a|am)',
+      'possivelmente',
+      'provavelmente',
+      'talvez',
+      'parec\\p{L}*',
+      'suger\\p{L}*',
+      'potencialmente',
+      'tende[m]? a',
+    ],
+    weak: [
+      'pode[m]?',
+      'possíve(?:l|is)',
+      'potencia\\p{L}*',
+      'prováve\\p{L}*',
+      'aparentemente',
+      'quase',
+    ],
+    all: ['tod[oa]s?', 'cada', 'sempre', 'inteir[oa]s?'],
+    most: ['a maioria', 'maioria', 'majoritariamente'],
+    some: ['algu(?:ns|mas)', 'vários', 'várias', 'parcialmente', 'às vezes'],
+    few: ['pouc[oa]s', 'raramente', 'minoria'],
+  }),
+  nl: cues({
+    ignore: ['al dan niet', 'of niet', 'niet alleen'],
+    negation: ['niet(?!-)', 'niét', 'g[eé][eé]n', 'nooit', 'niets', 'niemand', 'zonder', 'noch'],
+    soft: [
+      'uitgesloten',
+      'uitsluit\\p{L}*',
+      'niet-\\p{L}+',
+      'on(?!der|t|ze|s|geveer)\\p{L}{4,}',
+      'ontbre\\p{L}*',
+      'gebrek\\p{L}*',
+      'onmogelijk\\p{L}*',
+      'onvoldoende',
+      'ongeschikt\\p{L}*',
+    ],
+    hedge: [
+      'mogelijk',
+      'waarschijnlijk',
+      'misschien',
+      'wellicht',
+      'vermoedelijk',
+      'lijk(?:t|en)',
+      'zou(?:den)? kunnen',
+      'suggere(?:ert|ren)',
+      'potentieel',
+    ],
+    weak: ['kan', 'kunnen', 'mogelijk\\p{L}*', 'potentiële', 'bijna'],
+    all: ['alle', 'elk\\p{L}*', 'ieder\\p{L}*', 'altijd', 'geheel'],
+    most: ['meeste', 'meerderheid', 'grotendeels', 'overwegend'],
+    some: ['sommige', 'enkele', 'verscheidene', 'gedeeltelijk', 'soms'],
+    few: ['weinig\\p{L}*', 'zelden', 'minderheid'],
+  }),
+  pl: cues({
+    ignore: ['przede wszystkim', 'czy nie', 'nie tylko'],
+    negation: ['nie', 'nigdy', 'żad(?:en|n\\p{L}*)', 'nic', 'nikt', 'bez', 'ani'],
+    soft: [
+      'zamiast',
+      'nie(?!któr|mal|wiel|zbędn|zwykl|mniej|dawn)\\p{L}{4,}',
+      'wyklucz\\p{L}*',
+      'brak\\p{L}*',
+      'niemożliw\\p{L}*',
+      'niewystarczając\\p{L}*',
+    ],
+    hedge: [
+      'prawdopodobnie',
+      'być może',
+      'wydaj[ąe] się',
+      'sugeruj\\p{L}*',
+      'potencjalnie',
+      'mógłby',
+      'mogł(?:aby|oby|yby|iby)',
+    ],
+    weak: [
+      'sugerow\\p{L}*',
+      'może',
+      'mogą',
+      'możliw\\p{L}*',
+      'potencjaln\\p{L}*',
+      'prawie',
+      'niemal',
+    ],
+    all: ['wszyst\\p{L}*', 'każd\\p{L}*', 'zawsze', 'cał(?:y|a|e|ego|ej|kowicie)'],
+    most: ['większość', 'większości', 'przeważnie', 'głównie'],
+    some: ['niektór\\p{L}*', 'kilk(?:a|u)', 'częściowo', 'czasami'],
+    few: ['niewiel\\p{L}*', 'rzadko', 'mniejszość'],
+  }),
+  cs: cues({
+    ignore: ['především', 'či ne', 'nejen'],
+    // Verb negation is a prefix; the common forms are listed ("ne" + any word would take
+    // "nejvíce", most).
+    negation: [
+      'ne',
+      'nikdy',
+      'žádn\\p{L}*',
+      'nic',
+      'nikdo',
+      'bez',
+      'ani',
+      'není',
+      'nejsou',
+      'neby(?:l|la|lo|ly|li)',
+      'nemá(?:me|te|j[íi])?',
+      'nemůže',
+      'nemohou',
+      'nelze',
+      'neexistuje',
+    ],
+    soft: [
+      'ne(?!j|bo|ž)\\p{L}{4,}',
+      'vylouč\\p{L}*',
+      'chyb\\p{L}*',
+      'nedostat\\p{L}*',
+      'nemožn\\p{L}*',
+    ],
+    hedge: ['pravděpodobně', 'možná', 'snad', 'zřejmě', 'patrně', 'zdá se', 'mohl[aoiy]? by'],
+    weak: ['může', 'mohou', 'mož\\p{L}*', 'potenciál\\p{L}*', 'téměř'],
+    all: ['všechn\\p{L}*', 'všech', 'každ\\p{L}*', 'vždy'],
+    most: ['většin\\p{L}*', 'převážně'],
+    some: ['někter\\p{L}*', 'několik', 'částečně', 'někdy'],
+    few: ['málo', 'zřídka', 'menšin\\p{L}*'],
+  }),
+  ro: cues({
+    ignore: ['mai ales', 'sau nu', 'nu numai', 'nu doar'],
+    negation: ['nu', 'niciodată', 'niciun\\p{L}*', 'nicio', 'nimic', 'nimeni', 'fără', 'nici'],
+    soft: ['exclu\\p{L}*', 'lips\\p{L}*', 'imposibil\\p{L}*', 'insuficient\\p{L}*'],
+    hedge: [
+      'probabil',
+      'posibil',
+      'poate că',
+      'ar putea',
+      'ar fi putut',
+      'par(?:e)? să',
+      'sugerează',
+      'potențial',
+    ],
+    weak: ['poate', 'pot', 'posibil\\p{L}*', 'aproape'],
+    all: ['toț[ia]', 'toate', 'tot', 'fiecare', 'întotdeauna', 'mereu'],
+    most: ['majoritatea', 'cei mai mulți', 'în mare parte'],
+    some: ['unii', 'unele', 'câțiva', 'câteva', 'parțial', 'uneori'],
+    few: ['puțin\\p{L}*', 'rareori', 'minoritate\\p{L}*'],
+  }),
+  hu: cues({
+    ignore: ['mindenekelőtt', 'vagy sem', 'nemcsak', 'nem csak'],
+    negation: [
+      'nem',
+      'nincs\\p{L}*',
+      'sosem',
+      'soha',
+      'semmi\\p{L}*',
+      'senki\\p{L}*',
+      'nélkül',
+      'sem',
+    ],
+    soft: [
+      'kizár\\p{L}*',
+      'nem ?paraméteres\\p{L}*',
+      'hiány\\p{L}*',
+      'lehetetlen\\p{L}*',
+      'elégtelen\\p{L}*',
+    ],
+    hedge: [
+      'valószínűleg',
+      'talán',
+      'esetleg',
+      'feltehetően',
+      'feltételezhetően',
+      'lehetséges',
+      'úgy tűnik',
+      'arra utal',
+    ],
+    weak: ['lehet\\p{L}*', 'szinte', 'majdnem', 'potenciális\\p{L}*'],
+    all: ['minden\\p{L}*', 'összes\\p{L}*', 'mindig', 'egész'],
+    most: ['legtöbb\\p{L}*', 'többség\\p{L}*', 'nagyrészt', 'túlnyomó\\p{L}*'],
+    some: ['néhány', 'egyes', 'bizonyos', 'részben', 'néha'],
+    few: ['kevés', 'kevesen', 'ritkán', 'kisebbség\\p{L}*'],
+  }),
+  sv: cues({
+    ignore: ['framför allt', 'eller inte', 'inte bara'],
+    negation: ['inte', 'ej', 'ingen', 'inget', 'inga', 'aldrig', 'ingenting', 'utan', 'varken'],
+    soft: [
+      'utesl\\p{L}*',
+      'brist\\p{L}*',
+      'saknas',
+      'sakna\\p{L}*',
+      'omöjlig\\p{L}*',
+      'otillräcklig\\p{L}*',
+    ],
+    hedge: [
+      'möjligen',
+      'troligen',
+      'troligtvis',
+      'sannolikt',
+      'kanske',
+      'förmodligen',
+      'verkar',
+      'tycks',
+      'tyder på',
+      'skulle kunna',
+    ],
+    weak: ['kan', 'kunna', 'möjlig\\p{L}*', 'potentiell\\p{L}*', 'nästan'],
+    all: ['alla', 'allt', 'varje', 'alltid', 'hela'],
+    most: ['de flesta', 'flesta', 'majoritet\\p{L}*', 'övervägande'],
+    some: ['några', 'vissa', 'flera', 'delvis', 'ibland'],
+    few: ['få', 'sällan', 'minoritet\\p{L}*'],
+  }),
+  ru: cyrillicNe(
+    cues({
+      ignore: ['или нет', 'не только'],
+      negation: ['нет', 'ни', 'никогда', 'ничего', 'никто', 'без', 'нельзя'],
+      soft: [
+        'не(?!котор|скольк|мног|обходим|давн)\\p{L}{4,}',
+        'исключ\\p{L}*',
+        'отсутств\\p{L}*',
+        'недостат\\p{L}*',
+        'невозможн\\p{L}*',
+        'неспособн\\p{L}*',
+        'вместо',
+      ],
+      hedge: [
+        'возможно',
+        'вероятно',
+        'по-видимому',
+        'видимо',
+        'предположительно',
+        'может быть',
+        'по всей видимости',
+        'кажется',
+        'позволя\\p{L}* предположить',
+        'потенциально',
+      ],
+      weak: [
+        'мож\\p{L}*',
+        'мог\\p{L}*',
+        'возможн\\p{L}*',
+        'вероятн\\p{L}*',
+        'потенциальн\\p{L}*',
+        'почти',
+      ],
+      all: [
+        'все',
+        'всех',
+        'всем',
+        'всеми',
+        'весь',
+        'вся',
+        'всё',
+        'кажд\\p{L}*',
+        'всегда',
+        'целиком',
+      ],
+      most: ['большинств\\p{L}*', 'в основном', 'преимущественно'],
+      some: ['некотор\\p{L}*', 'нескольк\\p{L}*', 'частично', 'иногда'],
+      few: ['немног\\p{L}*', 'мало', 'редко', 'меньшинств\\p{L}*'],
+    }),
+  ),
+  uk: cyrillicNe(
+    cues({
+      ignore: ['чи ні', 'не тільки', 'не лише'],
+      negation: ['немає', 'ні', 'ніколи', 'нічого', 'ніхто', 'без'],
+      soft: [
+        'не(?!обхідн|давн|зважаюч)\\p{L}{4,}',
+        'виключ\\p{L}*',
+        'відсутн\\p{L}*',
+        'недостат\\p{L}*',
+        'неможлив\\p{L}*',
+        'замість',
+      ],
+      hedge: [
+        'можливо',
+        'ймовірно',
+        'імовірно',
+        'мабуть',
+        'напевно',
+        'здається',
+        'потенційно',
+        'може бути',
+      ],
+      weak: ['мож\\p{L}*', 'ймовірн\\p{L}*', 'імовірн\\p{L}*', 'потенційн\\p{L}*', 'майже'],
+      all: ['всі', 'усі', 'всіх', 'усіх', 'весь', 'вся', 'все', 'кожн\\p{L}*', 'завжди'],
+      most: ['більшість', 'більшості', 'переважно', 'здебільшого'],
+      some: ['деяк\\p{L}*', 'кілька', 'декілька', 'частково', 'іноді', 'інколи'],
+      few: ['небагат\\p{L}*', 'мало', 'рідко', 'меншість'],
+    }),
+  ),
+  bg: cyrillicNe(
+    cues({
+      ignore: ['преди всичко', 'или не', 'не само'],
+      negation: ['ням\\p{L}*', 'нито', 'никога', 'нищо', 'никой', 'без'],
+      soft: [
+        'не(?!обходим|давн)\\p{L}{4,}',
+        'изключ\\p{L}*',
+        'липс\\p{L}*',
+        'недостат\\p{L}*',
+        'невъзможн\\p{L}*',
+        'вместо',
+      ],
+      hedge: ['вероятно', 'възможно', 'може би', 'навярно', 'изглежда', 'потенциално'],
+      weak: ['може', 'могат', 'мож\\p{L}*', 'възможн\\p{L}*', 'почти'],
+      all: ['всички', 'всичк\\p{L}*', 'всеки', 'всяка', 'всяко', 'винаги'],
+      most: ['повечето', 'мнозинство\\p{L}*', 'предимно'],
+      some: ['някои', 'няколко', 'частично', 'понякога'],
+      few: ['малко', 'рядко', 'малцинство\\p{L}*'],
+    }),
+  ),
+  el: cues({
+    ignore: ['ή όχι', 'όχι μόνο'],
+    negation: [
+      'δεν',
+      'μην',
+      'μη',
+      'ποτέ',
+      'κανένα\\p{L}*',
+      'καμία',
+      'κανείς',
+      'τίποτα',
+      'χωρίς',
+      'ούτε',
+    ],
+    soft: [
+      'αποκλε\\p{L}*',
+      'εξαιρ\\p{L}*',
+      'έλλειψη',
+      'απουσία',
+      'αδύνατ\\p{L}*',
+      'ανεπαρκ\\p{L}*',
+    ],
+    hedge: [
+      'πιθανώς',
+      'πιθανόν',
+      'ίσως',
+      'ενδεχομένως',
+      'φαίν(?:εται|ονται)',
+      'θα μπορούσ(?:ε|αν)',
+      'δυνητικά',
+    ],
+    weak: ['μπορ\\p{L}*', 'πιθαν\\p{L}*', 'δυνητικ\\p{L}*', 'σχεδόν'],
+    all: ['όλ\\p{L}*', 'κάθε', 'πάντα', 'πάντοτε'],
+    most: ['οι περισσότερ\\p{L}*', 'πλειονότητα', 'κυρίως'],
+    some: ['ορισμέν\\p{L}*', 'μερικ\\p{L}*', 'κάποι\\p{L}*'],
+    few: ['λίγ\\p{L}*', 'σπάνια', 'μειοψηφία'],
+  }),
 };
 
 const has = (re: RegExp, text: string) => {
@@ -258,11 +755,15 @@ const has = (re: RegExp, text: string) => {
  */
 export function cueText(tagged: string, verbatim?: Record<string, string>): string {
   const ph = (id: string) => verbatim?.[id] ?? (/^[FC]/.test(id) ? ' X ' : ' ');
-  return tokenize(tagged)
-    .map((t) => (t.type === 'text' ? t.text : t.type === 'ph' ? ph(t.id) : ''))
-    .join('')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    tokenize(tagged)
+      .map((t) => (t.type === 'text' ? t.text : t.type === 'ph' ? ph(t.id) : ''))
+      .join('')
+      // A soft hyphen kept from a line break splits words ("nie\u00ad dokrwienia" is one word).
+      .replace(/\u00ad\s*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 interface Difference {
@@ -304,6 +805,29 @@ function differences(sourceText: string, backText: string, cues: Cues): Differen
   return out;
 }
 
+/** Stems of the longer words and the numbers of a sentence. */
+function anchors(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const w of text.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []) {
+    if (/\p{N}/u.test(w)) out.add(w);
+    else if (w.length >= 5) out.add(w.slice(0, 5));
+  }
+  return out;
+}
+
+/**
+ * Two sentences about the same thing share a good part of their long words and numbers;
+ * sentence pairs that do not were split differently and are not compared pairwise.
+ */
+function overlapping(a: string, b: string): boolean {
+  const x = anchors(a);
+  const y = anchors(b);
+  if (x.size < 2 || y.size < 2) return true;
+  let shared = 0;
+  for (const w of x) if (y.has(w)) shared++;
+  return shared / Math.min(x.size, y.size) >= 0.3;
+}
+
 /**
  * Meaning differences between a source text and the back-translation of its translation.
  * Back-translation usually keeps the sentence count; then sentences are compared pairwise and
@@ -324,7 +848,7 @@ export function compareMeaning(source: string, back: string, lang: string): Diff
     sourceSentences.length === backSentences.length &&
     sourceSentences.every((t, i) => {
       const r = words(backSentences[i]!) / words(t);
-      return r > 0.5 && r < 2;
+      return r > 0.5 && r < 2 && overlapping(t, backSentences[i]!);
     });
   if (!aligned) return differences(source, back, cues);
   const seen = new Set<string>();
@@ -349,15 +873,16 @@ export function backTranslationFindings(
 ): FidelityFinding[] {
   // A back-translation the translator left in the target language says nothing.
   const inSource = (t: string) => inSourceLanguage(t, lang, targetLang);
-  return pairs.flatMap((p, i) =>
-    (inSource(back[i] ?? '')
-      ? compareMeaning(cueText(p.source, p.verbatim), back[i] ?? '', lang)
-      : []
-    ).map((f) => ({
+  return pairs.flatMap((p, i) => {
+    const source = cueText(p.source, p.verbatim);
+    // A passage of the source already in the target language (an English abstract in a Dutch
+    // paper, a download stamp) was not translated from the source language.
+    const comparable = inSource(back[i] ?? '') && inSource(source);
+    return (comparable ? compareMeaning(source, back[i] ?? '', lang) : []).map((f) => ({
       id: p.id,
       issue: f.issue,
       severity: f.severity,
       backTranslation: f.sentence ?? back[i]!,
-    })),
-  );
+    }));
+  });
 }

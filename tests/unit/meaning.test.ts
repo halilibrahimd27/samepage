@@ -232,4 +232,126 @@ describe('back-translation meaning check', () => {
       },
     ]);
   });
+
+  it('reads hedges and quantifiers in other source languages', () => {
+    expect(
+      issues(
+        'Die Ergebnisse deuten darauf hin, dass die Methode die Genauigkeit verbessern könnte.',
+        'Die Ergebnisse zeigen, dass die Methode die Genauigkeit verbessert.',
+        'de',
+      ),
+    ).toEqual(['major: hedging lost']);
+    expect(
+      issues(
+        'La plupart des patients ont répondu au traitement après deux semaines.',
+        'Tous les patients ont répondu au traitement après deux semaines.',
+        'fr',
+      ),
+    ).toEqual(['major: quantifier changed']);
+    expect(
+      issues(
+        'Полученные данные, по-видимому, подтверждают гипотезу о влиянии температуры.',
+        'Полученные данные подтверждают гипотезу о влиянии температуры.',
+        'ru',
+      ),
+    ).toEqual(['major: hedging lost']);
+    expect(
+      issues(
+        'Model nie osiągnął zbieżności po stu epokach uczenia.',
+        'Model osiągnął zbieżność po stu epokach uczenia.',
+        'pl',
+      ),
+    ).toEqual(['major: negation lost']);
+    // A hedge kept in other words is not a finding.
+    expect(
+      issues(
+        'Los resultados sugieren que el método podría mejorar la precisión.',
+        'Los resultados indican que el método puede mejorar la precisión.',
+        'es',
+      ),
+    ).toEqual([]);
+  });
+
+  it('does not take helium, "whether or not" or non- compounds for negation', () => {
+    expect(
+      issues(
+        'Пациентам назначали t-Не/O2 20 мин/сут с индивидуальным подбором концентрации Не и О2.',
+        'Пациентам назначали t-He/O2 20 мин/день с индивидуальным подбором концентраций He и O2.',
+        'ru',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Er werd gevraagd of de hond al dan niet bekend was bij het slachtoffer.',
+        'Er werd gevraagd of de hond bekend was bij het slachtoffer.',
+        'nl',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'De meeste incidenten vonden plaats op niet-openbare locaties in de provincie.',
+        'De meeste incidenten vonden plaats op privélocaties in de provincie.',
+        'nl',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Patiënten zonder geldig antwoord werden uitgesloten van deze analyse.',
+        'Patiënten zonder geldig antwoord werden niet meegenomen in deze analyse.',
+        'nl',
+      ),
+    ).toEqual([]);
+  });
+
+  it('skips passages of the source that are already in the target language', () => {
+    const pairs = [
+      {
+        id: 'a',
+        source: 'Dogs have been part of families for centuries, but bites are not rare.',
+        target: 'x',
+      },
+    ];
+    expect(
+      backTranslationFindings(
+        pairs,
+        ['Honden zijn al eeuwen deel van gezinnen en beten komen voor.'],
+        'nl',
+        'en',
+      ),
+    ).toEqual([]);
+  });
+
+  it('takes fused negation and "above all" for what they are', () => {
+    expect(
+      issues(
+        'Mimo powszechnego używania terminu fake news nie jest on jednoznaczny pojęciowo.',
+        'Pomimo powszechnego użycia terminu fake news jest on niejednoznaczny pojęciowo.',
+        'pl',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Analiza opiera się głównie na raportach Komisji Europejskiej z lat 2017–2019.',
+        'Analiza opiera się przede wszystkim na raportach Komisji Europejskiej z lat 2017–2019.',
+        'pl',
+      ),
+    ).toEqual([]);
+  });
+
+  it('reads French negation with "n’" and leaves "ne … que" (only) alone', () => {
+    expect(
+      issues(
+        'Cette méthode n’est pas adaptée aux grandes cartes inconnues.',
+        'Cette méthode est adaptée aux grandes cartes inconnues.',
+        'fr',
+      ),
+    ).toEqual(['major: negation lost']);
+    expect(
+      issues(
+        'La dispersion des robots ne repose que sur le choix d’une cible lointaine.',
+        'La dispersion des robots repose uniquement sur le choix d’une cible lointaine.',
+        'fr',
+      ),
+    ).toEqual([]);
+  });
 });
