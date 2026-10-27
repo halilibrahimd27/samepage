@@ -131,8 +131,9 @@ meaning drift. The papers are not part of the repository.
   removed. Pages that were hard to read are flagged.
 - Inline math in PDFs is re-set in the Noto fonts (display formulas are left untouched).
 - Very long PDFs (hundreds of pages) need a lot of memory; translate them in page ranges.
-- PDFs with unusual internal glyph encodings or private-use symbols without a Unicode meaning
-  can lose a symbol or show a small change outside the text; both are reported per page.
+- Private-use symbols without a Unicode meaning can lose a symbol (reported per page). A page
+  whose text cannot be removed without moving the text around it is rewritten from a normalised
+  copy, or kept as it is with the translations as PDF notes (reported).
 - Translation quality depends on the engine. Always review academic text before publishing.
 
 ## Development

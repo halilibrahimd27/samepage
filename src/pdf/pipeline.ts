@@ -6,6 +6,7 @@ import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { extractAndAnalyze, type OcrOptions } from './analyze';
 import {
+  normalizedCopy,
   readOutlineAndTitle,
   openPdfForExtraction,
   openRenderer,
@@ -244,6 +245,37 @@ function redactRect(line: LineIR, horizontal: boolean): Rect {
   };
 }
 
+/** The pages (of `pages`) that render (nearly) the same in both documents. */
+async function pagesDrawnAlike(
+  a: Uint8Array,
+  b: Uint8Array,
+  pages: number[],
+  scale: number,
+  threshold: number,
+): Promise<number[]> {
+  const ra = await openRenderer(a);
+  const rb = await openRenderer(b);
+  try {
+    return pages.filter((p) => {
+      const x = ra.pixels(p, scale);
+      const y = rb.pixels(p, scale);
+      if (x.width !== y.width || x.height !== y.height) return false;
+      let changed = 0;
+      for (let i = 0; i < x.data.length; i += 3) {
+        const diff =
+          Math.abs(x.data[i]! - y.data[i]!) +
+          Math.abs(x.data[i + 1]! - y.data[i + 1]!) +
+          Math.abs(x.data[i + 2]! - y.data[i + 2]!);
+        if (diff > 96) changed++;
+      }
+      return changed / (x.data.length / 3) <= threshold;
+    });
+  } finally {
+    ra.close();
+    rb.close();
+  }
+}
+
 /** Units on scanned pages below this mean confidence are flagged for review. */
 const OCR_TRUSTED = 80;
 
@@ -418,9 +450,16 @@ export async function translatePdf(
   });
   const blockById = new Map(pages.flatMap((p) => p.blocks).map((b) => [b.id, b]));
   const forcedOriginal = new Set<string>();
+  /**
+   * Units on pages that cannot be rewritten without moving their other text (see below): the
+   * page stays as it is and the translation is added as a PDF note.
+   */
+  const forcedNote = new Set<string>();
   /** Why the check after writing rejected a unit (kept in the report with KEPT_ORIGINAL). */
   const failReason = new Map<string, string>();
   let postIssues: Issue[] = [];
+  /** What the translation is written on: the original, or its normalized copy (see below). */
+  let source = bytes;
   let written: Awaited<ReturnType<typeof writePdf>> | null = null;
 
   for (let attempt = 0; attempt <= policy.postApply.maxRebuilds; attempt++) {
@@ -442,6 +481,12 @@ export async function translatePdf(
       }));
     };
     for (const r of placed) {
+      if (forcedNote.has(r.unitId)) {
+        const first = blockById.get(r.layouts[0]?.blockId ?? '');
+        const text = reports.get(r.unitId)!.target;
+        if (first && text) writes[pageOf(first)]!.notes!.push({ rect: first.bbox, text });
+        continue;
+      }
       if (r.fallback === 'keep-original') continue;
       if (r.fallback === 'annotation' && r.annotation) {
         writes[r.pageIndex]!.notes!.push(r.annotation);
@@ -529,7 +574,7 @@ export async function translatePdf(
       return o && !o.untranslated ? plainText(o.text) : t;
     };
     for (const w of writes) coverOf(w);
-    written = await writePdf(bytes, writes, opts.faces, {
+    written = await writePdf(source, writes, opts.faces, {
       dual: opts.dual,
       appendix,
       ...(meta.outline.length ? { outline: meta.outline.map(translatedText) } : {}),
@@ -552,7 +597,8 @@ export async function translatePdf(
     };
     const failing: string[] = [];
     for (const r of placed) {
-      if (r.fallback === 'keep-original' || r.fallback === 'annotation') continue;
+      if (r.fallback === 'keep-original' || r.fallback === 'annotation' || forcedNote.has(r.unitId))
+        continue;
       const expected = normalize(
         r.layouts
           .flatMap((l) => l.lines.flatMap((line) => line.runs.map((run) => run.text)))
@@ -599,7 +645,7 @@ export async function translatePdf(
     }
     pdf.close();
     rawCache.clear();
-    const originalRenderer = await openRenderer(bytes);
+    const originalRenderer = await openRenderer(source);
     const outputRenderer = await openRenderer(written.mono);
     const scale = policy.postApply.renderDpi / 72;
     for (const w of writes) {
@@ -659,6 +705,34 @@ export async function translatePdf(
     }
     originalRenderer.close();
     outputRenderer.close();
+    // Some producers set a page as one text object that MuPDF's redaction mishandles (glyphs
+    // beside a removed word move). Write once more with those pages normalized, where the
+    // normalized page draws exactly like the original; a page even that moves is left as it is,
+    // with the translations as PDF notes.
+    const damaged = [
+      ...new Set(postIssues.filter((i) => i.code === 'COLLATERAL_DAMAGE').map((i) => i.pageIndex)),
+    ].sort((a, b) => a - b);
+    if (damaged.length && attempt < policy.postApply.maxRebuilds) {
+      let rest = damaged;
+      if (source === bytes) {
+        const alike = await pagesDrawnAlike(
+          bytes,
+          await normalizedCopy(bytes, damaged),
+          damaged,
+          scale,
+          policy.postApply.collateralDiffThreshold,
+        );
+        if (alike.length) source = await normalizedCopy(bytes, alike);
+        rest = damaged.filter((p) => !alike.includes(p));
+      }
+      // Pages even the rewrite moves: left as they are, translations as notes.
+      for (const r of repaired.units) {
+        const onPage = r.layouts.some((l) => rest.includes(pageOf(blockById.get(l.blockId)!)));
+        if (onPage) forcedNote.add(r.unitId);
+      }
+      failing.filter((id) => !forcedNote.has(id)).forEach((id) => forcedOriginal.add(id));
+      continue;
+    }
     if (!failing.length || attempt === policy.postApply.maxRebuilds) break;
     // Targeted rebuild: failing units keep their original text.
     failing.forEach((id) => forcedOriginal.add(id));
@@ -666,6 +740,17 @@ export async function translatePdf(
 
   // ---- Report -------------------------------------------------------------------------------
   const issues = [...preIssues, ...repaired.issues, ...postIssues];
+  for (const id of forcedNote) {
+    const r = repaired.units.find((x) => x.unitId === id)!;
+    issues.push({
+      code: 'ANNOTATION',
+      severity: 'warning',
+      pageIndex: r.pageIndex,
+      unitId: id,
+      message:
+        'this page cannot be rewritten without moving its other text; original kept, translation in a PDF note',
+    });
+  }
   for (const id of forcedOriginal) {
     const r = repaired.units.find((x) => x.unitId === id)!;
     issues.push({
@@ -689,6 +774,10 @@ export async function translatePdf(
     report.scale = r.params.scale;
     report.repairs = r.steps;
     if (r.fallback) report.fallback = r.fallback;
+    if (forcedNote.has(r.unitId)) {
+      report.fallback = 'annotation';
+      if (report.status === 'translated') report.status = 'warning';
+    }
     if (r.fallback === 'keep-original' || forcedOriginal.has(r.unitId))
       report.status = 'kept-original';
   }
