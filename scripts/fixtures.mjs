@@ -6,6 +6,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as mupdf from 'mupdf';
 import { buildDocxFixtures } from './docxFixtures.mjs';
+import { buildPptxFixtures } from './pptxFixtures.mjs';
 
 const OUT = new URL('../tests/corpus/pdf/', import.meta.url);
 mkdirSync(OUT, { recursive: true });
@@ -70,6 +71,13 @@ mkdirSync(DOCX_OUT, { recursive: true });
 for (const [name, bytes] of Object.entries(await buildDocxFixtures())) {
   writeFileSync(new URL(name, DOCX_OUT), bytes);
   console.log(`fixtures: wrote tests/corpus/docx/${name} (${bytes.length} bytes)`);
+}
+
+const PPTX_OUT = new URL('../tests/corpus/pptx/', import.meta.url);
+mkdirSync(PPTX_OUT, { recursive: true });
+for (const [name, bytes] of Object.entries(await buildPptxFixtures())) {
+  writeFileSync(new URL(name, PPTX_OUT), bytes);
+  console.log(`fixtures: wrote tests/corpus/pptx/${name} (${bytes.length} bytes)`);
 }
 
 // LaTeX corpus (TESTING.md §2): compiled with tectonic when it is installed; the PDFs are committed.

@@ -19,13 +19,20 @@ import { GlossaryPanel } from './GlossaryPanel';
 
 const LONG_JOB_MS = 2 * 60 * 60_000;
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const MIME = {
+  docx: DOCX_MIME,
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
 
+/** Word documents and PowerPoint presentations (both Office Open XML packages). */
 export function DocxTranslator({
   file,
+  format = 'docx',
   config,
   settings,
 }: {
   file: File;
+  format?: 'docx' | 'pptx';
   config: EngineConfig;
   settings: Settings;
 }) {
@@ -62,7 +69,7 @@ export function DocxTranslator({
     saveHistory: settings.saveHistory,
     ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });
-  const base = file.name.replace(/\.docx$/i, '');
+  const base = file.name.replace(/\.(docx|pptx)$/i, '');
   const jobErrorText = (e: JobError) =>
     e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
   const problem = config.problem(t);
@@ -118,7 +125,7 @@ export function DocxTranslator({
     }
   }
 
-  const outBlob = result ? new Blob([result.bytes.slice()], { type: DOCX_MIME }) : null;
+  const outBlob = result ? new Blob([result.bytes.slice()], { type: MIME[format] }) : null;
   const pendingEdits = Object.keys(edits).filter((k) => applied[k] !== edits[k]).length;
 
   async function downloadBilingual() {
@@ -219,10 +226,10 @@ export function DocxTranslator({
             <button
               type="button"
               className="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
-              onClick={() => downloadBlob(outBlob, `${base}.${config.target}.docx`)}
+              onClick={() => downloadBlob(outBlob, `${base}.${config.target}.${format}`)}
               data-testid="download-docx"
             >
-              {t('download.docx')}
+              {t(format === 'pptx' ? 'download.pptx' : 'download.docx')}
             </button>
             <button
               type="button"
@@ -265,10 +272,13 @@ export function DocxTranslator({
             edits={edits}
             onEdit={(src, tgt) => setEdits((e) => ({ ...e, [src]: tgt }))}
           />
-          <section className="grid gap-4 lg:grid-cols-2">
-            <DocxPreview data={file} label={t('preview.original')} />
-            <DocxPreview data={outBlob} label={t('preview.translated')} />
-          </section>
+          {/* The preview renders Word documents only; slides are checked in the report. */}
+          {format === 'docx' && (
+            <section className="grid gap-4 lg:grid-cols-2">
+              <DocxPreview data={file} label={t('preview.original')} />
+              <DocxPreview data={outBlob} label={t('preview.translated')} />
+            </section>
+          )}
         </>
       )}
     </div>

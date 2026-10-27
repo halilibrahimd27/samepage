@@ -142,7 +142,7 @@ export interface HistoryMeta {
   createdAt: number;
   name: string;
   outputName: string;
-  kind: 'docx' | 'pdf';
+  kind: 'docx' | 'pdf' | 'pptx';
   pair: { source: string; target: string };
   engine: string;
   model?: string;

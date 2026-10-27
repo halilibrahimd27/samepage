@@ -1,7 +1,7 @@
 # samepage
 
-**Same page, new language.** samepage translates PDF and DOCX documents in your browser and
-gives you back the same document — headings, paragraphs, tables, figures, charts, formulas,
+**Same page, new language.** samepage translates PDF, DOCX and PPTX documents in your browser
+and gives you back the same document — headings, paragraphs, tables, figures, charts, formulas,
 footnotes, colours and page geometry — in another language.
 
 [![Live](https://img.shields.io/badge/live-halilibrahimd27.github.io%2Fsamepage-0b7a3e)](https://halilibrahimd27.github.io/samepage/)
@@ -19,8 +19,9 @@ paying for an API — and who cannot afford a translation that quietly changes w
 ## Features
 
 - **Same layout.** PDFs are re-typeset into the original boxes with matching fonts; DOCX files
-  keep every style, table, equation, chart, footnote and tracked change. A side-by-side PDF
-  (original | translation) is produced as well.
+  keep every style, table, equation, chart, footnote and tracked change; PPTX presentations keep
+  their slides, tables, charts and speaker notes. A side-by-side PDF (original | translation) is
+  produced as well.
 - **Automatic, into the language you choose.** The default engine translates directly into the
   selected language on desktop and phones (iPhone, Android) — no browser setting to change. The
   source language is detected from the document.
@@ -59,8 +60,8 @@ paying for an API — and who cannot afford a translation that quietly changes w
 
 ![Demo: a Turkish paper translated into English with its quality report and side-by-side preview, then its title and abstract alone](media/demo.gif)
 
-1. Drop a **DOCX** or a **PDF** (text-based or scanned). The source language is detected; choose the target
-   language (⇄ swaps them).
+1. Drop a **DOCX**, a **PPTX** or a **PDF** (text-based or scanned). The source language is
+   detected; choose the target language (⇄ swaps them).
 2. Choose **Whole document**, or **Title, abstract and keywords** to translate only those.
    Press **Translate**. Progress shows the translation, then the meaning check.
 3. Open the **quality report**: the score and counts are in its summary line; "needs attention"
@@ -105,7 +106,8 @@ direction.
    never shortens or paraphrases body text to make it fit the page.
 2. **DOCX — structure-perfect.** Word reflows text, so samepage only swaps the text and keeps
    everything else. Fixed-size containers are repaired (rows may grow, text boxes fit their
-   text) and every repair is reported.
+   text) and every repair is reported. **PPTX** works the same way; slide text that grew is
+   fitted with PowerPoint's own "shrink text on overflow" (reported per slide).
 3. **PDF (text-based) — near-identical layout.** When a translation does not fit, the layout
    repair engine uses free space, careful typography and consistent scaling; as a last resort it
    keeps a label or table cell in the original with the translation as a PDF note, or moves the

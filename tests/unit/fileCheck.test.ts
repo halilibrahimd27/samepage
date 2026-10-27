@@ -76,6 +76,16 @@ describe('classifyFile', () => {
     expect(check('a.docm', docx)).toMatchObject({ ok: false, rejection: { reason: 'docm' } });
   });
 
+  it('recognises PowerPoint presentations and rejects macro-enabled ones', () => {
+    const pptx = zip(['[Content_Types].xml', 'ppt/presentation.xml', 'ppt/slides/slide1.xml']);
+    expect(check('talk.bin', pptx)).toEqual({ ok: true, kind: 'pptx' });
+    expect(check('talk.pptm', pptx)).toMatchObject({ ok: false, rejection: { reason: 'docm' } });
+    expect(check('talk.pptx', zip(['ppt/presentation.xml', 'ppt/vbaProject.bin']))).toMatchObject({
+      ok: false,
+      rejection: { reason: 'docm' },
+    });
+  });
+
   it('enforces size limits per kind', () => {
     expect(check('a.pdf', pdf, LIMITS.pdfMaxBytes + 1)).toMatchObject({
       ok: false,

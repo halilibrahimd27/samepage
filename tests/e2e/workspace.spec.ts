@@ -19,7 +19,7 @@ test('invalid and encrypted files fail gracefully', async ({ page }) => {
     mimeType: 'application/pdf',
     buffer: Buffer.from('not a pdf'),
   });
-  await expect(page.getByRole('alert')).toContainText('not a PDF or DOCX');
+  await expect(page.getByRole('alert')).toContainText('not a PDF, DOCX or PPTX');
 
   await page.getByRole('button', { name: 'Choose another file' }).click();
   await page.getByTestId('file-input').setInputFiles(ENCRYPTED);

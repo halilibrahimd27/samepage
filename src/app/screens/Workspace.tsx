@@ -88,8 +88,9 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
       setDoc({ status: 'error', file, message: rejectionMessage(check.rejection, t, lang) });
       return;
     }
-    if (check.kind === 'docx') {
-      setDoc({ status: 'ready', file, kind: 'docx' });
+    if (check.kind === 'docx' || check.kind === 'pptx') {
+      const kind = check.kind;
+      setDoc({ status: 'ready', file, kind });
       const sample = await pipelineClient
         .call<string>((api) => api.sampleDocx(file), 60_000)
         .catch(() => '');
@@ -97,8 +98,8 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
       const detected = applyDetected(sample);
       setDoc(
         detected
-          ? { status: 'ready', file, kind: 'docx', detected }
-          : { status: 'ready', file, kind: 'docx', undetected: true },
+          ? { status: 'ready', file, kind, detected }
+          : { status: 'ready', file, kind, undetected: true },
       );
       return;
     }
@@ -219,7 +220,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
 
       <EngineConfigPanel config={config} settings={settings} />
 
-      {doc?.status === 'ready' && (
+      {doc?.status === 'ready' && doc.kind !== 'pptx' && (
         <div role="group" aria-label={t('mode.label')} className="flex flex-wrap gap-2">
           {(['document', 'abstract'] as const).map((m) => (
             <button
@@ -240,7 +241,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
         </div>
       )}
 
-      {doc?.status === 'ready' && mode === 'abstract' ? (
+      {doc?.status === 'ready' && mode === 'abstract' && doc.kind !== 'pptx' ? (
         <AbstractTranslator
           key={`${doc.file.name}-${doc.file.size}`}
           file={doc.file}
@@ -256,10 +257,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
           config={config}
           settings={settings}
         />
-      ) : doc?.status === 'ready' && doc.kind === 'docx' ? (
+      ) : doc?.status === 'ready' && (doc.kind === 'docx' || doc.kind === 'pptx') ? (
         <DocxTranslator
           key={`${doc.file.name}-${doc.file.size}`}
           file={doc.file}
+          format={doc.kind}
           config={config}
           settings={settings}
         />

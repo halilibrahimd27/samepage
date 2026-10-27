@@ -9,6 +9,7 @@ import { pipelineClient } from '../pipelineClient';
 const MIME = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   pdf: 'application/pdf',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 } as const;
 
 export function History() {
@@ -42,7 +43,7 @@ export function History() {
     else
       downloadBlob(
         new Blob([JSON.stringify(entry.report, null, 2)], { type: 'application/json' }),
-        item.outputName.replace(/\.(docx|pdf)$/i, '.report.json'),
+        item.outputName.replace(/\.(docx|pdf|pptx)$/i, '.report.json'),
       );
   }
 

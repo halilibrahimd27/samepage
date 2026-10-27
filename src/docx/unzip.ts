@@ -53,7 +53,7 @@ export function readCentralDirectory(bytes: Uint8Array): CdEntry[] | null {
 }
 
 /** Validates the archive against SECURITY.md §3 limits before JSZip inflates anything. */
-export function checkArchive(bytes: Uint8Array): void {
+export function checkArchive(bytes: Uint8Array, kind: OfficeKind = 'docx'): void {
   const entries = readCentralDirectory(bytes);
   if (!entries) throw new DocxRejectedError({ reason: 'not-zip' });
   if (entries.length > LIMITS.docxMaxEntries) {
@@ -69,11 +69,11 @@ export function checkArchive(bytes: Uint8Array): void {
       throw new DocxRejectedError({ reason: 'zip-bomb', entry: e.name, ratio: Math.round(ratio) });
     }
   }
-  if (entries.some((e) => /^word\/vbaProject\.bin$/i.test(e.name))) {
+  if (entries.some((e) => /^(word|ppt)\/vbaProject\.bin$/i.test(e.name))) {
     throw new DocxRejectedError({ reason: 'macro-enabled' });
   }
-  if (!entries.some((e) => e.name === 'word/document.xml'))
-    throw new DocxRejectedError({ reason: 'not-docx' });
+  const main = kind === 'pptx' ? 'ppt/presentation.xml' : 'word/document.xml';
+  if (!entries.some((e) => e.name === main)) throw new DocxRejectedError({ reason: 'not-docx' });
 }
 
 /** Per-part ceiling on inflated XML (central-directory sizes can lie). */
@@ -84,8 +84,18 @@ export interface DocxPackage {
   readText(path: string): Promise<string | null>;
 }
 
-export async function openDocx(bytes: Uint8Array): Promise<DocxPackage> {
-  checkArchive(bytes);
+/** Word or PowerPoint: both are Office Open XML packages. */
+export type OfficeKind = 'docx' | 'pptx';
+
+/** The kind of an Office package, from its main part. */
+export function officeKind(bytes: Uint8Array): OfficeKind {
+  return readCentralDirectory(bytes)?.some((e) => e.name === 'ppt/presentation.xml')
+    ? 'pptx'
+    : 'docx';
+}
+
+export async function openDocx(bytes: Uint8Array, kind: OfficeKind = 'docx'): Promise<DocxPackage> {
+  checkArchive(bytes, kind);
   const zip = await JSZip.loadAsync(bytes);
   return {
     zip,

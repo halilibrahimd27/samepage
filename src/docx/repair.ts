@@ -1,7 +1,8 @@
 import type { Element as XElement } from '@xmldom/xmldom';
 import { NS } from './xml';
 
-export type DocxRepairCode = 'D1_ROW_HEIGHT' | 'D2_TEXTBOX' | 'D3_FRAME' | 'D4_LONG_TOKEN';
+export type DocxRepairCode =
+  'D1_ROW_HEIGHT' | 'D2_TEXTBOX' | 'D3_FRAME' | 'D4_LONG_TOKEN' | 'P1_SLIDE_FIT';
 
 export interface DocxRepair {
   code: DocxRepairCode;

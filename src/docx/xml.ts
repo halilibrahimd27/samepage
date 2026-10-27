@@ -17,6 +17,7 @@ export function serializeXml(doc: XDocument): string {
 export const NS = {
   w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
   a: 'http://schemas.openxmlformats.org/drawingml/2006/main',
+  p: 'http://schemas.openxmlformats.org/presentationml/2006/main',
   c: 'http://schemas.openxmlformats.org/drawingml/2006/chart',
   m: 'http://schemas.openxmlformats.org/officeDocument/2006/math',
   r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',

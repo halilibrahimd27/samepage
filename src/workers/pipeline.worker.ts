@@ -263,13 +263,14 @@ const api: PipelineApi = {
       });
       if (job.saveHistory) {
         const name = job.file instanceof File ? job.file.name : 'document.docx';
+        const format = /\.pptx$/i.test(name) ? 'pptx' : 'docx';
         await addHistory(
           {
             id: job.jobId,
             createdAt: Date.now(),
             name,
-            outputName: `${name.replace(/\.docx$/i, '')}.${job.pair.target}.docx`,
-            kind: 'docx',
+            outputName: `${name.replace(/\.(docx|pptx)$/i, '')}.${job.pair.target}.${format}`,
+            kind: format,
             pair: job.pair,
             engine: job.engine.id,
             ...(job.engine.model ? { model: job.engine.model } : {}),

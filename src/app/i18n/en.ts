@@ -3,7 +3,7 @@ export const en = {
   'header.settings': 'Settings',
   'header.uiLanguage': 'Interface language',
 
-  'drop.title': 'Drop a PDF or DOCX file here',
+  'drop.title': 'Drop a PDF, DOCX or PPTX file here',
   'drop.hint': 'or choose a file. It is processed in your browser and never uploaded.',
   'drop.choose': 'Choose file',
   'file.change': 'Choose another file',
@@ -24,9 +24,9 @@ export const en = {
   'file.thumbnail': 'First page of {name}',
 
   'error.empty': 'This file is empty.',
-  'error.unsupported': 'This file is not a PDF or DOCX document.',
+  'error.unsupported': 'This file is not a PDF, DOCX or PPTX document.',
   'error.docm':
-    'Macro-enabled Word files (.docm) are not supported. Save the document as .docx and try again.',
+    'Macro-enabled files (.docm, .pptm) are not supported. Save the document as .docx or .pptx and try again.',
   'error.tooLarge': 'This file is too large. The limit for {kind} files is {limit}.',
   'error.tooManyPages': 'This PDF has {count} pages. Up to {limit} pages can be processed at once.',
   'error.encrypted': 'This PDF is password-protected. Remove the password and try again.',
@@ -196,6 +196,8 @@ export const en = {
     'Table row height changed from exact to minimum so the text is not clipped',
   'report.repair.D2_TEXTBOX': 'Text box set to grow with its text',
   'report.repair.D3_FRAME': 'Frame height changed from exact to minimum',
+  'report.repair.P1_SLIDE_FIT':
+    'Slide text scaled down (PowerPoint “shrink text on overflow”) so the translation fits its shape',
   'report.repair.D4_LONG_TOKEN':
     'Invisible line-break opportunities added to a long word or URL in a fixed-width cell',
   'report.attention': 'Needs your attention',
@@ -230,6 +232,7 @@ export const en = {
   'report.status.warning': 'Warning',
   'report.status.untranslated': 'Untranslated — original kept',
   'report.status.skipped': 'Not translated (reference list)',
+  'download.pptx': 'Download translated PPTX',
   'download.docx': 'Download translated DOCX',
   'download.report': 'Download report (JSON)',
   'preview.title': 'Preview',

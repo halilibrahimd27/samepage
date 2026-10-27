@@ -13,7 +13,8 @@ import {
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { extractA, extractW, localeFor, rebuild, type ExtractedParagraph } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
-import { openDocx } from './unzip';
+import { fitSlideText, slideRole, textBodyOf } from './pptx';
+import { officeKind, openDocx, type OfficeKind } from './unzip';
 import { NS, parseXml, serializeXml } from './xml';
 
 export interface DocxOptions {
@@ -68,12 +69,32 @@ export interface DocxReport {
 }
 
 /** Parts that carry translatable text (ARCHITECTURE.md §4.2). */
+type PartKind = 'w' | 'chart' | 'diagram' | 'core' | 'slide' | 'notes';
+
+/** "slide10.xml" after "slide9.xml". */
+const naturalKey = (path: string) => path.replace(/\d+/g, (d) => d.padStart(6, '0'));
+
 function discoverParts(
   paths: string[],
   opts: DocxOptions,
-): { path: string; kind: 'w' | 'chart' | 'diagram' | 'core' }[] {
-  const out: { path: string; kind: 'w' | 'chart' | 'diagram' | 'core' }[] = [];
-  for (const path of [...paths].sort()) {
+  format: OfficeKind,
+): { path: string; kind: PartKind }[] {
+  const out: { path: string; kind: PartKind }[] = [];
+  const sorted = [...paths].sort((a, b) => naturalKey(a).localeCompare(naturalKey(b)));
+  if (format === 'pptx') {
+    for (const path of sorted) {
+      if (/^ppt\/slides\/slide\d+\.xml$/.test(path)) out.push({ path, kind: 'slide' });
+      else if (/^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(path))
+        out.push({ path, kind: 'notes' });
+      else if (/^ppt\/charts\/chart\d+\.xml$/.test(path)) out.push({ path, kind: 'chart' });
+      else if (/^ppt\/diagrams\/(data|drawing)\d+\.xml$/.test(path))
+        out.push({ path, kind: 'diagram' });
+      else if (path === 'docProps/core.xml' && opts.translateMetadata)
+        out.push({ path, kind: 'core' });
+    }
+    return out;
+  }
+  for (const path of sorted) {
     if (/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(path))
       out.push({ path, kind: 'w' });
     else if (path === 'word/comments.xml' && opts.translateComments) out.push({ path, kind: 'w' });
@@ -143,6 +164,8 @@ interface Unit {
   p?: ExtractedParagraph;
   /** Plain-text cells: chart string caches and document title. */
   textNode?: XElement;
+  /** The slide shape's text body (PPTX), fitted when the translation is longer. */
+  body?: XElement;
   role: Role;
   source: string;
   skipped?: 'reference';
@@ -152,8 +175,9 @@ export async function translateDocx(
   bytes: Uint8Array,
   opts: DocxOptions,
 ): Promise<{ bytes: Uint8Array; report: DocxReport }> {
-  const pkg = await openDocx(bytes);
-  const parts = discoverParts(Object.keys(pkg.zip.files), opts);
+  const format = officeKind(bytes);
+  const pkg = await openDocx(bytes, format);
+  const parts = discoverParts(Object.keys(pkg.zip.files), opts, format);
   const docs = new Map<string, XDocument>();
   const units: Unit[] = [];
 
@@ -195,6 +219,21 @@ export async function translateDocx(
           role: skipped ? 'reference' : role,
           source: p.encoded.source,
           ...(skipped ? { skipped } : {}),
+        });
+      }
+    } else if (kind === 'slide' || kind === 'notes') {
+      for (const para of Array.from(doc.getElementsByTagNameNS(NS.a, 'p'))) {
+        const role = slideRole(para);
+        const p = extractA(para, role);
+        if (!hasLetters(plainText(p.encoded.source))) continue;
+        const body = kind === 'slide' ? textBodyOf(para) : null;
+        units.push({
+          id: `u${units.length + 1}`,
+          part: path,
+          p,
+          role,
+          source: p.encoded.source,
+          ...(body ? { body } : {}),
         });
       }
     } else {
@@ -257,6 +296,18 @@ export async function translateDocx(
   const repairs: DocxRepair[] = [];
   const touched = new Set<string>();
   const translatedByPart = new Map<string, XElement[]>();
+  /** Text length of each slide text body before and after translation (PPTX fitting). */
+  const bodies = new Map<string, Map<XElement, { source: number; target: number }>>();
+  for (const u of units) {
+    if (!u.body) continue;
+    const byBody = bodies.get(u.part) ?? new Map<XElement, { source: number; target: number }>();
+    const entry = byBody.get(u.body) ?? { source: 0, target: 0 };
+    const length = plainText(u.source).length;
+    entry.source += length;
+    entry.target += length; // replaced below by the translation's length
+    byBody.set(u.body, entry);
+    bodies.set(u.part, byBody);
+  }
   const segReports: DocxSegmentReport[] = [];
   for (const u of [...units].reverse()) {
     if (u.skipped) {
@@ -309,6 +360,10 @@ export async function translateDocx(
     });
     if (o.untranslated) continue; // the original paragraph stays untouched
     touched.add(u.part);
+    if (u.body) {
+      const entry = bodies.get(u.part)!.get(u.body)!;
+      entry.target += plainText(o.text).length - plainText(u.source).length;
+    }
     if (u.textNode) {
       while (u.textNode.firstChild) u.textNode.removeChild(u.textNode.firstChild);
       u.textNode.appendChild(u.textNode.ownerDocument!.createTextNode(plainText(o.text)));
@@ -333,9 +388,13 @@ export async function translateDocx(
   segReports.reverse();
   for (const [part, paras] of [...translatedByPart].sort(([a], [b]) => a.localeCompare(b)))
     repairs.push(...repairContainers(part, paras));
+  for (const [part, byBody] of [...bodies].sort(([a], [b]) =>
+    naturalKey(a).localeCompare(naturalKey(b)),
+  ))
+    repairs.push(...fitSlideText(part, byBody));
 
   // Language of the document defaults → target (spelling/hyphenation in Word).
-  const stylesText = await pkg.readText('word/styles.xml');
+  const stylesText = format === 'docx' ? await pkg.readText('word/styles.xml') : null;
   if (stylesText) {
     const styles = parseXml(stylesText);
     for (const lang of Array.from(styles.getElementsByTagNameNS(NS.w, 'lang'))) {
@@ -383,34 +442,59 @@ const MONO_FONT =
 /** A run set in a code font, directly or through a character style ("HTML Code", "Verbatim"). */
 function isMono(rPr: XElement | null): boolean {
   if (!rPr) return false;
-  const font = rPr.getElementsByTagNameNS(NS.w, 'rFonts')[0]?.getAttributeNS(NS.w, 'ascii') ?? '';
+  const font =
+    rPr.getElementsByTagNameNS(NS.w, 'rFonts')[0]?.getAttributeNS(NS.w, 'ascii') ??
+    rPr.getElementsByTagNameNS(NS.a, 'latin')[0]?.getAttribute('typeface') ??
+    '';
   const style = rPr.getElementsByTagNameNS(NS.w, 'rStyle')[0]?.getAttributeNS(NS.w, 'val') ?? '';
   return MONO_FONT.test(font) || /code|verbatim|monospace/i.test(style);
 }
 
-/** Paragraph texts of the main document with the pieces set in a code font (term suggestions). */
+/** The text parts of a Word or PowerPoint package and their paragraphs (samples, terms, abstract). */
+async function bodyParagraphs(
+  bytes: Uint8Array,
+): Promise<{ para: XElement; extracted: ExtractedParagraph; role: Role }[]> {
+  const format = officeKind(bytes);
+  const pkg = await openDocx(bytes, format);
+  const paths =
+    format === 'docx'
+      ? ['word/document.xml']
+      : Object.keys(pkg.zip.files)
+          .filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))
+          .sort((a, b) => naturalKey(a).localeCompare(naturalKey(b)));
+  const out: { para: XElement; extracted: ExtractedParagraph; role: Role }[] = [];
+  for (const path of paths) {
+    const text = await pkg.readText(path);
+    if (!text) continue;
+    const doc = parseXml(text);
+    if (format === 'docx') {
+      for (const para of Array.from(doc.getElementsByTagNameNS(NS.w, 'p'))) {
+        const role = wRole(para, path);
+        out.push({ para, extracted: extractW(para, 'body'), role });
+      }
+    } else {
+      for (const para of Array.from(doc.getElementsByTagNameNS(NS.a, 'p'))) {
+        const role = slideRole(para);
+        out.push({ para, extracted: extractA(para, role), role });
+      }
+    }
+  }
+  return out.filter((p) => hasLetters(p.extracted.plain));
+}
+
+/** Paragraph texts with the pieces set in a code font (term suggestions). */
 export async function docxTermTexts(bytes: Uint8Array): Promise<TermText[]> {
-  const pkg = await openDocx(bytes);
-  const text = await pkg.readText('word/document.xml');
-  if (!text) return [];
-  const doc = parseXml(text);
-  return Array.from(doc.getElementsByTagNameNS(NS.w, 'p'))
-    .map((para) => {
-      const ex = extractW(para, 'body');
-      const mono = decode(ex.encoded.source, ex.encoded)
-        .filter((r) => r.type === 'text' && isMono(r.style?.rPr ?? null))
-        .map((r) => r.text);
-      return { text: ex.plain, mono };
-    })
-    .filter((p) => hasLetters(p.text));
+  return (await bodyParagraphs(bytes)).map(({ extracted }) => ({
+    text: extracted.plain,
+    mono: decode(extracted.encoded.source, extracted.encoded)
+      .filter((r) => r.type === 'text' && isMono(r.style?.rPr ?? null))
+      .map((r) => r.text),
+  }));
 }
 
 export async function docxParagraphs(bytes: Uint8Array): Promise<{ text: string; role: Role }[]> {
-  const pkg = await openDocx(bytes);
-  const text = await pkg.readText('word/document.xml');
-  if (!text) return [];
-  const doc = parseXml(text);
-  return Array.from(doc.getElementsByTagNameNS(NS.w, 'p'))
-    .map((para) => ({ text: extractW(para, 'body').plain, role: wRole(para, 'word/document.xml') }))
-    .filter((p) => hasLetters(p.text));
+  return (await bodyParagraphs(bytes)).map(({ extracted, role }) => ({
+    text: extracted.plain,
+    role,
+  }));
 }

@@ -2,7 +2,7 @@ import { useId, useState, type DragEvent } from 'react';
 import { useI18n } from '../i18n';
 
 const ACCEPT =
-  '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  '.pdf,.docx,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
 export function DropZone({ onFile }: { onFile: (file: File) => void }) {
   const { t } = useI18n();

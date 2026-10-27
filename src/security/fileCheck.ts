@@ -1,6 +1,6 @@
 import { LIMITS } from './limits';
 
-export type DocKind = 'pdf' | 'docx';
+export type DocKind = 'pdf' | 'docx' | 'pptx';
 
 export type FileRejection =
   | { reason: 'empty' }
@@ -61,8 +61,9 @@ export function zipEntryNames(tail: Uint8Array, size: number): string[] | null {
 }
 
 /**
- * Classifies a file by magic bytes, not by extension (SECURITY.md §3). DOCX is recognised by
- * its ZIP central directory containing word/document.xml; macro-enabled files are rejected.
+ * Classifies a file by magic bytes, not by extension (SECURITY.md §3). DOCX and PPTX are
+ * recognised by their ZIP central directory (word/document.xml, ppt/presentation.xml);
+ * macro-enabled files are rejected.
  * Deep checks (zip-bomb ratios, entry limits) run in the worker when the file is unzipped.
  */
 export function classifyFile(
@@ -72,7 +73,8 @@ export function classifyFile(
   tail: Uint8Array,
 ): FileCheckResult {
   if (size === 0) return { ok: false, rejection: { reason: 'empty' } };
-  if (/\.(docm|dotm)$/i.test(name)) return { ok: false, rejection: { reason: 'docm' } };
+  if (/\.(docm|dotm|pptm|potm|ppsm)$/i.test(name))
+    return { ok: false, rejection: { reason: 'docm' } };
 
   let kind: DocKind | null = null;
   if (indexOfBytes(head, PDF_MAGIC) >= 0) {
@@ -82,16 +84,26 @@ export function classifyFile(
     new DataView(head.buffer, head.byteOffset).getUint32(0, true) === ZIP_LOCAL
   ) {
     const names = zipEntryNames(tail, size);
-    if (names?.includes('word/document.xml')) {
-      if (names.some((n) => /^word\/vbaProject\.bin$/i.test(n))) {
+    const office = names?.includes('word/document.xml')
+      ? ('docx' as const)
+      : names?.includes('ppt/presentation.xml')
+        ? ('pptx' as const)
+        : null;
+    if (office) {
+      if (names!.some((n) => /^(word|ppt)\/vbaProject\.bin$/i.test(n))) {
         return { ok: false, rejection: { reason: 'docm' } };
       }
-      kind = 'docx';
+      kind = office;
     }
   }
   if (!kind) return { ok: false, rejection: { reason: 'unsupported' } };
 
-  const limitBytes = kind === 'pdf' ? LIMITS.pdfMaxBytes : LIMITS.docxMaxBytes;
+  const limitBytes =
+    kind === 'pdf'
+      ? LIMITS.pdfMaxBytes
+      : kind === 'pptx'
+        ? LIMITS.pptxMaxBytes
+        : LIMITS.docxMaxBytes;
   if (size > limitBytes) return { ok: false, rejection: { reason: 'too-large', kind, limitBytes } };
   return { ok: true, kind };
 }

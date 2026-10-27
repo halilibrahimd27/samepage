@@ -67,20 +67,36 @@ const IGNORED_RPR = new Set([
   'w',
 ]);
 
+/**
+ * DrawingML (text boxes, charts, slides) keeps bold, italic, underline, size … as attributes of
+ * a:rPr, where WordprocessingML has child elements; without them every run of a slide looked
+ * alike and its formatting was merged away.
+ */
+const A_RPR_ATTRS = new Set(['b', 'i', 'u', 'strike', 'baseline', 'cap', 'sz']);
+
 function rPrKey(rPr: XElement | null): string {
   if (!rPr) return '';
-  return elementChildren(rPr)
-    .filter((c) => !IGNORED_RPR.has(c.localName ?? ''))
-    .map((c) => {
-      const attrs: string[] = [];
-      for (let i = 0; i < c.attributes.length; i++) {
-        const a = c.attributes.item(i)!;
-        attrs.push(`${a.localName}=${a.value}`);
-      }
-      return `${c.localName}[${attrs.sort().join(',')}]`;
-    })
-    .sort()
-    .join(';');
+  const own: string[] = [];
+  if (rPr.namespaceURI === A) {
+    for (let i = 0; i < rPr.attributes.length; i++) {
+      const a = rPr.attributes.item(i)!;
+      if (A_RPR_ATTRS.has(a.localName ?? '')) own.push(`@${a.localName}=${a.value}`);
+    }
+  }
+  return [
+    ...own.sort(),
+    ...elementChildren(rPr)
+      .filter((c) => !IGNORED_RPR.has(c.localName ?? ''))
+      .map((c) => {
+        const attrs: string[] = [];
+        for (let i = 0; i < c.attributes.length; i++) {
+          const a = c.attributes.item(i)!;
+          attrs.push(`${a.localName}=${a.value}`);
+        }
+        return `${c.localName}[${attrs.sort().join(',')}]`;
+      })
+      .sort(),
+  ].join(';');
 }
 
 function wrapperKey(w: XElement): string {

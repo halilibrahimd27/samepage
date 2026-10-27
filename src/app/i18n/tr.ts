@@ -5,7 +5,7 @@ export const tr: Record<MessageKey, string> = {
   'header.settings': 'Ayarlar',
   'header.uiLanguage': 'Arayüz dili',
 
-  'drop.title': 'PDF veya DOCX dosyasını buraya bırakın',
+  'drop.title': 'PDF, DOCX veya PPTX dosyasını buraya bırakın',
   'drop.hint': 'ya da bir dosya seçin. Dosya tarayıcınızda işlenir, hiçbir yere yüklenmez.',
   'drop.choose': 'Dosya seç',
   'file.change': 'Başka dosya seç',
@@ -26,9 +26,9 @@ export const tr: Record<MessageKey, string> = {
   'file.thumbnail': '{name} belgesinin ilk sayfası',
 
   'error.empty': 'Bu dosya boş.',
-  'error.unsupported': 'Bu dosya bir PDF veya DOCX belgesi değil.',
+  'error.unsupported': 'Bu dosya bir PDF, DOCX veya PPTX belgesi değil.',
   'error.docm':
-    'Makro içeren Word dosyaları (.docm) desteklenmiyor. Belgeyi .docx olarak kaydedip tekrar deneyin.',
+    'Makro içeren dosyalar (.docm, .pptm) desteklenmiyor. Belgeyi .docx ya da .pptx olarak kaydedip tekrar deneyin.',
   'error.tooLarge': 'Bu dosya çok büyük. {kind} dosyaları için sınır {limit}.',
   'error.tooManyPages': 'Bu PDF {count} sayfa. Tek seferde en fazla {limit} sayfa işlenebilir.',
   'error.encrypted': 'Bu PDF parola korumalı. Parolayı kaldırıp tekrar deneyin.',
@@ -197,6 +197,8 @@ export const tr: Record<MessageKey, string> = {
     'Metin kesilmesin diye tablo satır yüksekliği sabitten en aza çevrildi',
   'report.repair.D2_TEXTBOX': 'Metin kutusu metne göre büyüyecek şekilde ayarlandı',
   'report.repair.D3_FRAME': 'Çerçeve yüksekliği sabitten en aza çevrildi',
+  'report.repair.P1_SLIDE_FIT':
+    'Slayt metni küçültüldü (PowerPoint “taşan metni sığdır”), çeviri şekline sığsın diye',
   'report.repair.D4_LONG_TOKEN':
     'Sabit genişlikli hücredeki uzun sözcük veya URL için görünmez satır kırma noktaları eklendi',
   'report.attention': 'İlgilenmeniz gerekenler',
@@ -231,6 +233,7 @@ export const tr: Record<MessageKey, string> = {
   'report.status.warning': 'Uyarı',
   'report.status.untranslated': 'Çevrilemedi — orijinal korundu',
   'report.status.skipped': 'Çevrilmedi (kaynakça)',
+  'download.pptx': 'Çevrilmiş PPTX’i indir',
   'download.docx': 'Çevrilmiş DOCX’i indir',
   'download.report': 'Raporu indir (JSON)',
   'preview.title': 'Önizleme',
