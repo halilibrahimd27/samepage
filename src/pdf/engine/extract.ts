@@ -38,6 +38,15 @@ const SCRIPT_CAPITALS: Record<string, number> = {
 const SYMBOL: Record<number, string> = {
   ...Object.fromEntries([...'ΑΒΧΔΕΦΓΗΙϑΚΛΜΝΟΠΘΡΣΤΥςΩΞΨΖ'].map((ch, i) => [0x41 + i, ch])),
   ...Object.fromEntries([...'αβχδεφγηιϕκλμνοπθρστυϖωξψζ'].map((ch, i) => [0x61 + i, ch])),
+  0x22: '∀',
+  0x24: '∃',
+  0x27: '∋',
+  0x2a: '∗',
+  0x2d: '−',
+  0x40: '≅',
+  0x5c: '∴',
+  0x5e: '⊥',
+  0x7e: '∼',
   0xa3: '≤',
   0xa5: '∞',
   0xac: '←',
@@ -60,6 +69,9 @@ const SYMBOL: Record<number, string> = {
   0xe5: '∑',
   0xf2: '∫',
 };
+/** U+F8EB–U+F8FE: ⎛⎜⎝ ⎡⎢⎣ ⎧⎨⎩⎪ ⎮ ⎞⎟⎠ ⎤⎥⎦ ⎫⎬⎭ (Adobe Glyph List). */
+const BRACKET_PIECES = [...'⎛⎜⎝⎡⎢⎣⎧⎨⎩⎪⎮⎞⎟⎠⎤⎥⎦⎫⎬⎭'];
+
 /** Common Wingdings bullets and marks. */
 const WINGDINGS: Record<number, string> = {
   0x6c: '●',
@@ -91,7 +103,14 @@ export function restoreChar(c: string, fontName: string): string {
     const table = /wingding/i.test(fontName) ? WINGDINGS : /symbol/i.test(fontName) ? SYMBOL : null;
     const mapped = table?.[u - 0xf000];
     if (mapped) return mapped;
+    // Other symbol-encoded fonts: printable ASCII shifted into the private use area, and the
+    // ASCII range of Symbol keeps its characters ("(", "1", "+").
+    if (u - 0xf000 <= 0x7e && (!table || table === SYMBOL)) return String.fromCharCode(u - 0xf000);
   }
+  // Adobe's serif ©, ® and ™.
+  if (u >= 0xf6d9 && u <= 0xf6db) return '©®™'[u - 0xf6d9]!;
+  // Adobe Symbol's private-use bracket pieces (big parentheses, brackets and braces).
+  if (u >= 0xf8eb && u <= 0xf8fe) return BRACKET_PIECES[u - 0xf8eb]!;
   if (u >= 0xe22d && u <= 0xe246 && /^STIX/i.test(fontName)) {
     const letter = String.fromCharCode(0x41 + u - 0xe22d);
     return String.fromCodePoint(SCRIPT_CAPITALS[letter] ?? 0x1d49c + u - 0xe22d);

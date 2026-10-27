@@ -15,5 +15,9 @@ describe('restoreChar', () => {
     expect(restoreChar('\uf061', 'SymbolMT')).toBe('α');
     expect(restoreChar('\uf0fc', 'Wingdings-Regular')).toBe('✓');
     expect(restoreChar('\uf0b7', 'Calibri')).toBe('\uf0b7');
+    expect(restoreChar('\uf8f3', 'CMEX10')).toBe('⎩');
+    expect(restoreChar('\uf02d', 'SymbolMT')).toBe('−');
+    expect(restoreChar('\uf02a', 'TimesNewRoman')).toBe('*');
+    expect(restoreChar('\uf6d9', 'Times')).toBe('©');
   });
 });

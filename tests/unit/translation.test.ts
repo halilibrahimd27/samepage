@@ -12,7 +12,7 @@ import {
   splitClauses,
   splitSentences,
 } from '../../src/engines/plainText';
-import { academicHeading, usesMetrics } from '../../src/core/glossary/academic';
+import { academicHeading, isNameList, usesMetrics } from '../../src/core/glossary/academic';
 import { validateTranslation } from '../../src/core/validate/validate';
 import { createPseudoEngine } from '../../src/engines/pseudo';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../../src/engines/types';
@@ -327,6 +327,14 @@ describe('helpers', () => {
     // Metrics only in documents that name both precision and recall.
     expect(academicHeading('Recall (%)', 'en', 'tr', true)).toBe('Duyarlılık (%)');
     expect(academicHeading('№ з/п', 'uk', 'en')).toBe('No.');
+    expect(isNameList('Haya Samaana, Diego Elias Costa, Emad Shihab and Ahmad Abdellatif')).toBe(
+      true,
+    );
+    expect(isNameList('V. I. Munerman, D. V. Munerman')).toBe(true);
+    expect(isNameList('Precision, Recall and F1-score')).toBe(false);
+    expect(isNameList('Results and Discussion')).toBe(false);
+    // Title-case keyword lists look alike: the pipeline also requires affiliation marks.
+    expect(isNameList('Machine Learning, Deep Learning and Data Mining')).toBe(true);
     expect(academicHeading('Overall', 'en', 'tr')).toBe('Genel');
     expect(academicHeading('Recall', 'en', 'tr')).toBeNull();
     expect(usesMetrics(['Precision and recall of the classifier'], 'en')).toBe(true);

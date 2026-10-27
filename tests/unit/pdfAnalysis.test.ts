@@ -12,6 +12,10 @@ describe('mathFragments', () => {
       'n z Max w x wx Min wx w x',
       'm j mj j',
       'a) b)',
+      'τ exp',
+      '�exp',
+      'max|',
+      '|Opm|',
     ])
       expect(mathFragments(t), t).toBe(true);
     for (const t of ['Да Нет', 'Table 1', 'Fig. 3', 'The', '1.2', 'et al.', 'Results'])

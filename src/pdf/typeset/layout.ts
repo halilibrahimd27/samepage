@@ -133,7 +133,7 @@ function toPieces(runs: DecodedRun<PdfStyle>[], baseStyle: PdfStyle, opts: Layou
     }
     const s = run.style ?? baseStyle;
     const size = s.size * opts.sizeFactor(s.fontName) * scale;
-    for (const part of run.text.split(/( +)/)) {
+    for (const part of run.text.replace(/\t/g, ' ').split(/( +)/)) {
       if (!part) continue;
       const piece: Piece = {
         text: part,

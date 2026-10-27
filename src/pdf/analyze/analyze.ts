@@ -7,7 +7,8 @@ import { cluster, detectTables, type TableRegion } from './tables';
 
 /** Share of the page height searched for running heads, feet and page numbers. */
 const BAND = 0.2;
-const PAGE_NUMBER = /^\s*[-–—]?\s*(\d{1,4}|[ivxlcdm]{1,7})\s*[-–—]?\s*$/i;
+const PAGE_NUMBER =
+  /^\s*(?:(?:page|p\.|seite|sayfa|страница|стр\.|página|pagina|strona|strana)\s*)?[-–—]?\s*(\d{1,4}|[ivxlcdm]{1,7})\s*(?:(?:of|von|de|di|из|\/|z|ze)\s*\d{1,4}\s*)?[-–—]?\s*$/iu;
 /** Sentence-final punctuation, optionally followed by closing quotes/brackets. */
 const TERMINAL = /[.!?…]["”»’)\]]*$/;
 
@@ -255,7 +256,16 @@ function classify(
         const citation =
           /\b(19|20)\d{2}\b/.test(text) &&
           /\d+\s*\(\d+\)|\d+\s*:\s*\d+|\b(vol|no|nr|bd|issue|cilt|sayı|том|вып)\b\.?/iu.test(text);
-        if (!/\s/.test(text.trim()) || citation) b.translatable = false;
+        // A running head with a person's name ("M.V. Naghiyeva", "V. P. Tarasik et al.").
+        const person =
+          /\p{Lu}\.\s?/u.test(text) &&
+          text
+            .replace(/\bet al\.?/g, '')
+            .trim()
+            .split(/[\s,]+/)
+            .filter(Boolean)
+            .every((w) => /^(?:\p{Lu}\.)+(?:\p{Lu}[\p{L}'’-]+)?$|^\p{Lu}[\p{L}'’-]+$/u.test(w));
+        if (!/\s/.test(text.trim()) || citation || person) b.translatable = false;
       }
       // Headings are never justified: a translated heading with fewer words would gape.
       if (role === 'heading' && b.align === 'justify') b.align = 'left';
@@ -269,11 +279,18 @@ function classify(
  * ("Max", "Min"), mostly single characters, with digits and symbols.
  */
 export function mathFragments(text: string): boolean {
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  // Function names ("exp", "max", "log") and |norms| are formula pieces, not words.
+  const tokens = text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => (MATH_FUNCTION.test(t) ? 'f' : t));
   if (!tokens.length || tokens.length > 16) return false;
-  if (/[^\p{Script=Latin}\p{Script=Greek}\p{N}\p{P}\p{S}\s]/u.test(text)) return false;
-  if (!/\p{L}/u.test(text)) return false;
-  if (tokens.some((t) => (t.match(/\p{L}/gu)?.length ?? 0) > 3)) return false;
+  const rest = tokens.join(' ');
+  if (/[^\p{Script=Latin}\p{Script=Greek}\p{N}\p{P}\p{S}\s]/u.test(rest)) return false;
+  if (!/\p{L}/u.test(rest)) return false;
+  const norm = (t: string) => /^[|‖].*[|‖]$|^[|‖]|[|‖]$/.test(t);
+  if (tokens.some((t) => (t.match(/\p{L}/gu)?.length ?? 0) > 3 && !norm(t))) return false;
   const singles = tokens.filter((t) => (t.match(/[\p{L}\p{N}]/gu)?.length ?? 0) <= 1).length;
   const letters = tokens.filter((t) =>
     t
@@ -281,8 +298,11 @@ export function mathFragments(text: string): boolean {
       ?.join('')
       .match(/^\p{L}$/u),
   );
-  return letters.length > 0 && singles > 0.5 * tokens.length;
+  return (letters.length > 0 && singles > 0.5 * tokens.length) || tokens.some(norm);
 }
+
+const MATH_FUNCTION =
+  /^[(\[|‖−\-\ufffd]*(?:exp|log|ln|lg|sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|arcsin|arccos|arctan|max|min|sup|inf|lim|det|tr|rank|dim|ker|deg|arg|mod|gcd|lcm|sgn|erf|Re|Im|Pr|var|cov|argmax|argmin)[)\]|‖,.;:]*$/;
 
 /**
  * A short equation set in a text font ("HT = 1,75⋅250", "Prev = 3.940⋅Fn", "Φ = cos−1R"): a

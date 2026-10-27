@@ -294,3 +294,24 @@ export function academicHeading(
     })
     .join('');
 }
+
+const NAME_WORD =
+  /^(?:\p{Lu}[\p{L}'’-]*\.?|\p{Lu}\.(?:-?\p{Lu}\.)*|de|da|do|dos|van|von|der|den|del|della|di|du|la|le|bin|ibn|al|el|y)$/u;
+const JOINER = /\s*(?:[,;&]|\b(?:and|ve|und|et|y|e|i|и|і|та|και)\b)\s*/u;
+
+/**
+ * An author line ("Haya Samaana, Diego Elias Costa, Emad Shihab and Ahmad Abdellatif"): two or
+ * more names of two to five capitalised words. Nothing to translate, and engines drop the commas
+ * next to the affiliation marks. A list of single terms ("Precision, Recall") is not one.
+ */
+export function isNameList(text: string): boolean {
+  const parts = text
+    .split(JOINER)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return false;
+  return parts.every((p) => {
+    const words = p.split(/\s+/);
+    return words.length >= 2 && words.length <= 5 && words.every((w) => NAME_WORD.test(w));
+  });
+}

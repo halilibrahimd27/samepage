@@ -86,7 +86,7 @@ export async function writePdf(
         let hex = '';
         for (const ch of run.text) {
           const cp = ch.codePointAt(0)!;
-          if (cp === 0x200b || cp === 0xad) continue;
+          if (cp < 0x20 || cp === 0x200b || cp === 0xad) continue;
           const gid = font.encodeCharacter(cp);
           if (gid === 0) {
             if (!missing.has(pageIndex)) missing.set(pageIndex, new Set());

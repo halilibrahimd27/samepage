@@ -45,7 +45,7 @@ export const DEFAULT_POLICY: Policy = {
   fallback: {
     default: 'overflow-note',
     label: 'annotation',
-    'table-cell': 'keep-original',
+    'table-cell': 'annotation',
     header: 'keep-original',
     footer: 'keep-original',
   },

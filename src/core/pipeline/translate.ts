@@ -12,7 +12,7 @@ import {
   type TranslationEngine,
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
-import { academicHeading, metricGlossary, usesMetrics } from '../glossary/academic';
+import { academicHeading, isNameList, metricGlossary, usesMetrics } from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
 import { protectNumbers, protectTerms, restoreTerms } from '../glossary/protect';
 import { plainText } from '../segment/codec';
@@ -190,7 +190,23 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     const heading = headings
       ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics)
       : null;
-    if (heading !== null) {
+    // Author lines with affiliation marks stay as they are (marks: superscripts, *, †).
+    const authors =
+      heading === null &&
+      /⟦N\d+⟧|[*†‡]/.test(s.text) &&
+      isNameList(plainText(s.text).replace(/[*†‡]/g, ''));
+    if (authors) {
+      outcomes.set(s.id, {
+        id: s.id,
+        text: s.text,
+        untranslated: false,
+        cached: false,
+        attempts: 0,
+        issues: [],
+        notes: ['names'],
+        findings: [],
+      });
+    } else if (heading !== null) {
       outcomes.set(s.id, {
         id: s.id,
         text: heading,
