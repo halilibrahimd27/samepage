@@ -15,7 +15,13 @@ const TOGGLES = [
   ['showTestEngine', 'settings.showTestEngine', null],
 ] as const;
 
-const UI_LANG_NAMES: Record<UiLang, string> = { en: 'English', tr: 'Türkçe' };
+const UI_LANG_NAMES: Record<UiLang, string> = {
+  en: 'English',
+  tr: 'Türkçe',
+  de: 'Deutsch',
+  fr: 'Français',
+  es: 'Español',
+};
 
 export function SettingsDrawer(props: {
   open: boolean;

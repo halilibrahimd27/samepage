@@ -23,6 +23,9 @@ All notable changes to samepage are documented here. The format follows
   for English targets.
 - AI-use statement: a ready-to-copy disclosure naming the engine and the language pair, in the
   paper's language.
+- Quality page (`#quality`): layout scores of the 88-paper corpus by language and field, with the
+  script that builds them from a corpus run.
+- Interface in German, French and Spanish (loaded when chosen), besides English and Turkish.
 - Glossary packs: every glossary as one spreadsheet with a column per language, imported for any
   of its pairs; TBX termbases (IATE) and tab-separated files imported too.
 - LaTeX: `.tex` files and project `.zip` files (Overleaf) translated with commands, mathematics,

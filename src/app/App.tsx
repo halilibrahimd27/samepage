@@ -7,6 +7,7 @@ import { I18nProvider } from './i18n/I18nProvider';
 import { useEngineConfig } from './engineConfig';
 import { PdfDebug } from './screens/PdfDebug';
 import { Playground } from './screens/Playground';
+import { Quality } from './screens/Quality';
 import { TranslateTest } from './screens/TranslateTest';
 import { Workspace } from './screens/Workspace';
 import { setAutomaticTranslation } from './bridges/browserTranslator';
@@ -84,6 +85,8 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
             <PdfDebug />
           ) : route === '#translate-test' ? (
             <TranslateTest />
+          ) : route === '#quality' ? (
+            <Quality />
           ) : route === '#playground' ? (
             <Playground config={config} settings={props.settings} />
           ) : (
@@ -96,6 +99,9 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
           className="notranslate mx-auto flex max-w-3xl flex-col gap-2 px-6 pb-10 text-sm text-slate-600"
         >
           <p>{t('footer.privacy')}</p>
+          <a href="#quality" className="underline" data-testid="quality-link">
+            {t('footer.quality')}
+          </a>
           <a href={REPO_URL} className="underline" rel="noopener noreferrer">
             {t('footer.source')}
           </a>

@@ -86,6 +86,8 @@ It works the same on a phone:
   <img src="media/phone-result.png" alt="samepage on a phone: downloads, quality report and preview after the translation" width="260">
 </p>
 
+**Interface:** English, Turkish, German, French and Spanish.
+
 **Languages:** Turkish, English, German, French, Spanish, Italian, Portuguese, Dutch, Polish,
 Czech, Romanian, Hungarian, Swedish, Russian, Ukrainian, Bulgarian and Greek — in any
 direction.
@@ -129,7 +131,8 @@ translating is sent, and only to the engine you choose:
 ## How it is tested
 
 Besides unit, golden and end-to-end tests on synthetic documents, samepage is checked against
-88 real open-access papers in 17 languages — engineering, mathematics, physics, chemistry,
+88 real open-access papers in 17 languages — the scores by language and field are on the
+[quality page](https://halilibrahimd27.github.io/samepage/#quality) — engineering, mathematics, physics, chemistry,
 medicine, nursing, public health, computer science, biology, economics and law — plus round
 trips (a paper translated into another language and back) to measure meaning drift. Those
 papers are not part of this repository; [`media/demo-paper.pdf`](media/demo-paper.pdf) is a

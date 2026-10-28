@@ -1,0 +1,886 @@
+{
+  "run": "2026-10-28",
+  "engine": "Google Translate",
+  "papers": [
+    {
+      "source": "bg",
+      "target": "en",
+      "field": "economics",
+      "pages": 14,
+      "units": 192,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "bg",
+      "target": "en",
+      "field": "engineering",
+      "pages": 8,
+      "units": 100,
+      "score": 100,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "bg",
+      "target": "en",
+      "field": "health",
+      "pages": 7,
+      "units": 101,
+      "score": 99.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "cs",
+      "target": "en",
+      "field": "social",
+      "pages": 7,
+      "units": 114,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "cs",
+      "target": "en",
+      "field": "chemistry",
+      "pages": 16,
+      "units": 315,
+      "score": 94.9,
+      "keptOriginal": 2,
+      "untranslated": 2
+    },
+    {
+      "source": "cs",
+      "target": "en",
+      "field": "mathematics",
+      "pages": 17,
+      "units": 184,
+      "score": 98.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "cs",
+      "target": "en",
+      "field": "physics",
+      "pages": 9,
+      "units": 193,
+      "score": 95.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "de",
+      "target": "en",
+      "field": "engineering",
+      "pages": 12,
+      "units": 192,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "de",
+      "target": "en",
+      "field": "computing",
+      "pages": 12,
+      "units": 131,
+      "score": 99.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "de",
+      "target": "en",
+      "field": "engineering",
+      "pages": 10,
+      "units": 106,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "de",
+      "target": "en",
+      "field": "health",
+      "pages": 13,
+      "units": 158,
+      "score": 99.8,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "de",
+      "target": "en",
+      "field": "health",
+      "pages": 8,
+      "units": 258,
+      "score": 99.6,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "de",
+      "target": "en",
+      "field": "engineering",
+      "pages": 7,
+      "units": 84,
+      "score": 99.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "el",
+      "target": "en",
+      "field": "computing",
+      "pages": 6,
+      "units": 57,
+      "score": 99.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "el",
+      "target": "en",
+      "field": "economics",
+      "pages": 26,
+      "units": 531,
+      "score": 99.7,
+      "keptOriginal": 1,
+      "untranslated": 0
+    },
+    {
+      "source": "el",
+      "target": "en",
+      "field": "health",
+      "pages": 8,
+      "units": 90,
+      "score": 100,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "el",
+      "target": "en",
+      "field": "health",
+      "pages": 15,
+      "units": 242,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "biology",
+      "pages": 11,
+      "units": 150,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "chemistry",
+      "pages": 8,
+      "units": 120,
+      "score": 99.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "engineering",
+      "pages": 22,
+      "units": 542,
+      "score": 97.8,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "computing",
+      "pages": 12,
+      "units": 440,
+      "score": 98.5,
+      "keptOriginal": 7,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "computing",
+      "pages": 10,
+      "units": 218,
+      "score": 98.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "economics",
+      "pages": 17,
+      "units": 374,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "engineering",
+      "pages": 13,
+      "units": 203,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "mathematics",
+      "pages": 23,
+      "units": 221,
+      "score": 98.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "health",
+      "pages": 15,
+      "units": 310,
+      "score": 98.8,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "physics",
+      "pages": 12,
+      "units": 176,
+      "score": 93.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "en",
+      "target": "tr",
+      "field": "health",
+      "pages": 14,
+      "units": 220,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "es",
+      "target": "en",
+      "field": "engineering",
+      "pages": 10,
+      "units": 235,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "es",
+      "target": "en",
+      "field": "economics",
+      "pages": 24,
+      "units": 208,
+      "score": 99.7,
+      "keptOriginal": 3,
+      "untranslated": 0
+    },
+    {
+      "source": "es",
+      "target": "en",
+      "field": "mathematics",
+      "pages": 22,
+      "units": 208,
+      "score": 98.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "es",
+      "target": "en",
+      "field": "health",
+      "pages": 8,
+      "units": 186,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "es",
+      "target": "en",
+      "field": "engineering",
+      "pages": 13,
+      "units": 514,
+      "score": 99.5,
+      "keptOriginal": 1,
+      "untranslated": 0
+    },
+    {
+      "source": "es",
+      "target": "en",
+      "field": "computing",
+      "pages": 17,
+      "units": 195,
+      "score": 100,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "fr",
+      "target": "en",
+      "field": "chemistry",
+      "pages": 13,
+      "units": 166,
+      "score": 99.6,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "fr",
+      "target": "en",
+      "field": "computing",
+      "pages": 20,
+      "units": 195,
+      "score": 99.7,
+      "keptOriginal": 1,
+      "untranslated": 0
+    },
+    {
+      "source": "fr",
+      "target": "en",
+      "field": "engineering",
+      "pages": 12,
+      "units": 163,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "fr",
+      "target": "en",
+      "field": "mathematics",
+      "pages": 13,
+      "units": 196,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "fr",
+      "target": "en",
+      "field": "health",
+      "pages": 15,
+      "units": 229,
+      "score": 97.8,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "fr",
+      "target": "en",
+      "field": "health",
+      "pages": 6,
+      "units": 132,
+      "score": 99.8,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "hu",
+      "target": "en",
+      "field": "chemistry",
+      "pages": 19,
+      "units": 556,
+      "score": 97.9,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "hu",
+      "target": "en",
+      "field": "economics",
+      "pages": 25,
+      "units": 543,
+      "score": 99.5,
+      "keptOriginal": 2,
+      "untranslated": 0
+    },
+    {
+      "source": "hu",
+      "target": "en",
+      "field": "health",
+      "pages": 10,
+      "units": 236,
+      "score": 95.5,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "hu",
+      "target": "en",
+      "field": "physics",
+      "pages": 6,
+      "units": 81,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "it",
+      "target": "en",
+      "field": "economics",
+      "pages": 19,
+      "units": 177,
+      "score": 98.2,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "it",
+      "target": "en",
+      "field": "economics",
+      "pages": 19,
+      "units": 150,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "it",
+      "target": "en",
+      "field": "engineering",
+      "pages": 13,
+      "units": 176,
+      "score": 99.8,
+      "keptOriginal": 3,
+      "untranslated": 0
+    },
+    {
+      "source": "it",
+      "target": "en",
+      "field": "health",
+      "pages": 11,
+      "units": 285,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "it",
+      "target": "en",
+      "field": "health",
+      "pages": 23,
+      "units": 147,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "it",
+      "target": "en",
+      "field": "biology",
+      "pages": 7,
+      "units": 86,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "nl",
+      "target": "en",
+      "field": "biology",
+      "pages": 7,
+      "units": 179,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "nl",
+      "target": "en",
+      "field": "social",
+      "pages": 15,
+      "units": 232,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "nl",
+      "target": "en",
+      "field": "economics",
+      "pages": 10,
+      "units": 108,
+      "score": 99.1,
+      "keptOriginal": 13,
+      "untranslated": 0
+    },
+    {
+      "source": "nl",
+      "target": "en",
+      "field": "health",
+      "pages": 10,
+      "units": 76,
+      "score": 100,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "nl",
+      "target": "en",
+      "field": "health",
+      "pages": 11,
+      "units": 250,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pl",
+      "target": "en",
+      "field": "biology",
+      "pages": 16,
+      "units": 220,
+      "score": 100,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pl",
+      "target": "en",
+      "field": "social",
+      "pages": 14,
+      "units": 204,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pl",
+      "target": "en",
+      "field": "engineering",
+      "pages": 10,
+      "units": 255,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pl",
+      "target": "en",
+      "field": "health",
+      "pages": 13,
+      "units": 361,
+      "score": 99.3,
+      "keptOriginal": 3,
+      "untranslated": 0
+    },
+    {
+      "source": "pl",
+      "target": "en",
+      "field": "engineering",
+      "pages": 13,
+      "units": 109,
+      "score": 99.9,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pt",
+      "target": "en",
+      "field": "social",
+      "pages": 20,
+      "units": 353,
+      "score": 99.8,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pt",
+      "target": "en",
+      "field": "chemistry",
+      "pages": 8,
+      "units": 231,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pt",
+      "target": "en",
+      "field": "health",
+      "pages": 13,
+      "units": 136,
+      "score": 99.6,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pt",
+      "target": "en",
+      "field": "health",
+      "pages": 8,
+      "units": 213,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "pt",
+      "target": "en",
+      "field": "physics",
+      "pages": 8,
+      "units": 99,
+      "score": 99.7,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ro",
+      "target": "en",
+      "field": "biology",
+      "pages": 12,
+      "units": 120,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ro",
+      "target": "en",
+      "field": "engineering",
+      "pages": 13,
+      "units": 111,
+      "score": 99.4,
+      "keptOriginal": 1,
+      "untranslated": 0
+    },
+    {
+      "source": "ro",
+      "target": "en",
+      "field": "law",
+      "pages": 21,
+      "units": 219,
+      "score": 99,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ro",
+      "target": "en",
+      "field": "health",
+      "pages": 7,
+      "units": 117,
+      "score": 99.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ru",
+      "target": "en",
+      "field": "computing",
+      "pages": 7,
+      "units": 170,
+      "score": 99.7,
+      "keptOriginal": 3,
+      "untranslated": 0
+    },
+    {
+      "source": "ru",
+      "target": "en",
+      "field": "chemistry",
+      "pages": 6,
+      "units": 135,
+      "score": 98.5,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ru",
+      "target": "en",
+      "field": "mathematics",
+      "pages": 12,
+      "units": 118,
+      "score": 99,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ru",
+      "target": "en",
+      "field": "health",
+      "pages": 8,
+      "units": 261,
+      "score": 95.6,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "ru",
+      "target": "en",
+      "field": "physics",
+      "pages": 15,
+      "units": 119,
+      "score": 99.6,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "ru",
+      "target": "en",
+      "field": "engineering",
+      "pages": 11,
+      "units": 214,
+      "score": 96,
+      "keptOriginal": 1,
+      "untranslated": 0
+    },
+    {
+      "source": "sv",
+      "target": "en",
+      "field": "chemistry",
+      "pages": 27,
+      "units": 205,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "sv",
+      "target": "en",
+      "field": "health",
+      "pages": 14,
+      "units": 275,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "sv",
+      "target": "en",
+      "field": "mathematics",
+      "pages": 25,
+      "units": 213,
+      "score": 97.9,
+      "keptOriginal": 0,
+      "untranslated": 1
+    },
+    {
+      "source": "tr",
+      "target": "en",
+      "field": "engineering",
+      "pages": 10,
+      "units": 109,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "tr",
+      "target": "en",
+      "field": "engineering",
+      "pages": 21,
+      "units": 332,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "tr",
+      "target": "en",
+      "field": "computing",
+      "pages": 11,
+      "units": 294,
+      "score": 99.2,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "tr",
+      "target": "en",
+      "field": "mathematics",
+      "pages": 7,
+      "units": 107,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "tr",
+      "target": "en",
+      "field": "health",
+      "pages": 9,
+      "units": 319,
+      "score": 95.9,
+      "keptOriginal": 3,
+      "untranslated": 1
+    },
+    {
+      "source": "tr",
+      "target": "en",
+      "field": "computing",
+      "pages": 8,
+      "units": 114,
+      "score": 99.8,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "uk",
+      "target": "en",
+      "field": "biology",
+      "pages": 10,
+      "units": 134,
+      "score": 99.3,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "uk",
+      "target": "en",
+      "field": "engineering",
+      "pages": 7,
+      "units": 104,
+      "score": 99.7,
+      "keptOriginal": 1,
+      "untranslated": 0
+    },
+    {
+      "source": "uk",
+      "target": "en",
+      "field": "health",
+      "pages": 6,
+      "units": 117,
+      "score": 99.4,
+      "keptOriginal": 0,
+      "untranslated": 0
+    },
+    {
+      "source": "uk",
+      "target": "en",
+      "field": "engineering",
+      "pages": 9,
+      "units": 169,
+      "score": 99.1,
+      "keptOriginal": 0,
+      "untranslated": 0
+    }
+  ]
+}
