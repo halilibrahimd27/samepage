@@ -1,0 +1,55 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[turkish]{babel}
+\usepackage{amsmath,graphicx,booktabs,hyperref}
+% Synthetic paper for samepage's LaTeX tests (fictional study).
+\title{Akademik Metinlerde Anlam Kaymasının Ölçülmesi}
+\author{Ayşe Yılmaz}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Makine çevirisi akademik yayıncılıkta giderek daha sık kullanılmaktadır. Bu çalışmada 412 tümce incelenmiş ve uyum katsayısı $\kappa = 0{,}81$ olarak hesaplanmıştır.
+\end{abstract}
+
+\section{Giriş}\label{sec:giris}
+Sinir ağı tabanlı sistemler daha akıcı çeviriler üretmektedir~\cite{vaswani2017,koehn2010}.
+Ne var ki \textbf{akıcılık} doğruluğun güvencesi değildir; \emph{olumsuzluk} ekinin kaybolması
+anlamı tümüyle değiştirebilir.\footnote{Örnekler derlemden alınmıştır.} Ayrıntılar
+Tablo~\ref{tab:sonuc}'de verilmiştir. Kayıp oranı \%12 düzeyindedir.
+
+% A comment inside the text stays where it is.
+Başarım, kesinlik $P$ ve duyarlılık $R$ değerlerinin harmonik ortalaması olan
+\begin{equation}
+  F_1 = \frac{2PR}{P+R}
+  \label{eq:f1}
+\end{equation}
+ölçütüyle hesaplanmıştır.
+
+\begin{itemize}
+  \item Olumsuzluk kaybı en sık görülen hatadır.
+  \item Kesinlik kaybı ikinci sıradadır.
+\end{itemize}
+
+\begin{table}[ht]
+  \centering
+  \caption{Anlam kayması türlerinin dağılımı.}
+  \label{tab:sonuc}
+  \begin{tabular}{lr}
+    \toprule
+    Tür & Oran (\%) \\
+    \midrule
+    Olumsuzluk kaybı & 41,2 \\
+    Kesinlik kaybı & 28,7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{verbatim}
+kod: bu metin çevrilmez
+\end{verbatim}
+
+\bibliographystyle{apalike}
+\bibliography{kaynaklar}
+\end{document}

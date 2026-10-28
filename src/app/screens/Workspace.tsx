@@ -52,6 +52,18 @@ function rejectionMessage(r: FileRejection, t: Translate, lang: string): string 
   }
 }
 
+/** Prose of a LaTeX file for language detection: commands, math and comments removed. */
+async function latexSample(file: File): Promise<string> {
+  // A project .zip is not read here: the language is checked by the user.
+  if (!/\.tex$/i.test(file.name)) return '';
+  const text = await file.slice(0, 200_000).text();
+  return text
+    .replace(/%.*$/gm, ' ')
+    .replace(/\$[^$]*\$/g, ' ')
+    .replace(/\\[a-zA-Z@]+\*?(\[[^\]]*\])?/g, ' ')
+    .replace(/[{}]/g, ' ');
+}
+
 export function Workspace({ settings, config }: { settings: Settings; config: EngineConfig }) {
   const { t, lang } = useI18n();
   const [doc, setDoc] = useState<DocState | null>(null);
@@ -116,12 +128,15 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     }
     // The project's language pair stands; detection runs on new documents only.
     const detect = (sample: string) => (from ? undefined : applyDetected(sample));
-    if (check.kind === 'docx' || check.kind === 'pptx') {
+    if (check.kind === 'docx' || check.kind === 'pptx' || check.kind === 'latex') {
       const kind = check.kind;
       setDoc({ status: 'ready', file, kind });
-      const sample = await pipelineClient
-        .call<string>((api) => api.sampleDocx(file), 60_000)
-        .catch(() => '');
+      const sample =
+        kind === 'latex'
+          ? await latexSample(file)
+          : await pipelineClient
+              .call<string>((api) => api.sampleDocx(file), 60_000)
+              .catch(() => '');
       if (!current()) return;
       const detected = detect(sample);
       setDoc(
@@ -254,7 +269,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
 
       <EngineConfigPanel config={config} settings={settings} />
 
-      {doc?.status === 'ready' && doc.kind !== 'pptx' && (
+      {doc?.status === 'ready' && (doc.kind === 'pdf' || doc.kind === 'docx') && (
         <div role="group" aria-label={t('mode.label')} className="flex flex-wrap gap-2">
           {(['document', 'abstract'] as const).map((m) => (
             <button
@@ -275,7 +290,9 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
         </div>
       )}
 
-      {doc?.status === 'ready' && mode === 'abstract' && doc.kind !== 'pptx' ? (
+      {doc?.status === 'ready' &&
+      mode === 'abstract' &&
+      (doc.kind === 'pdf' || doc.kind === 'docx') ? (
         <AbstractTranslator
           key={`${doc.file.name}-${doc.file.size}`}
           file={doc.file}
@@ -292,7 +309,8 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
           settings={settings}
           {...(project ? { project } : {})}
         />
-      ) : doc?.status === 'ready' && (doc.kind === 'docx' || doc.kind === 'pptx') ? (
+      ) : doc?.status === 'ready' &&
+        (doc.kind === 'docx' || doc.kind === 'pptx' || doc.kind === 'latex') ? (
         <DocxTranslator
           key={`${doc.file.name}-${doc.file.size}-${project ? 'project' : ''}`}
           file={doc.file}

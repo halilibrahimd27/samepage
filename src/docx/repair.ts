@@ -2,7 +2,15 @@ import type { Element as XElement } from '@xmldom/xmldom';
 import { NS } from './xml';
 
 export type DocxRepairCode =
-  'D1_ROW_HEIGHT' | 'D2_TEXTBOX' | 'D3_FRAME' | 'D4_LONG_TOKEN' | 'P1_SLIDE_FIT';
+  | 'D1_ROW_HEIGHT'
+  | 'D2_TEXTBOX'
+  | 'D3_FRAME'
+  | 'D4_LONG_TOKEN'
+  | 'P1_SLIDE_FIT'
+  /** LaTeX: the babel/polyglossia language switched to the target. */
+  | 'L1_LANGUAGE'
+  /** LaTeX: a file that is not UTF-8, kept as it is. */
+  | 'L2_ENCODING';
 
 export interface DocxRepair {
   code: DocxRepairCode;

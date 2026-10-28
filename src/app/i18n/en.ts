@@ -3,7 +3,7 @@ export const en = {
   'header.settings': 'Settings',
   'header.uiLanguage': 'Interface language',
 
-  'drop.title': 'Drop a PDF, DOCX or PPTX file here',
+  'drop.title': 'Drop a PDF, Word, PowerPoint or LaTeX file here',
   'drop.hint':
     'or choose a file (or a .samepage project to reopen). It is processed in your browser and never uploaded.',
   'drop.choose': 'Choose file',
@@ -25,7 +25,8 @@ export const en = {
   'file.thumbnail': 'First page of {name}',
 
   'error.empty': 'This file is empty.',
-  'error.unsupported': 'This file is not a PDF, DOCX or PPTX document.',
+  'error.unsupported':
+    'This file is not a PDF, DOCX or PPTX document, a LaTeX source (.tex or a project .zip) or a samepage project.',
   'error.docm':
     'Macro-enabled files (.docm, .pptm) are not supported. Save the document as .docx or .pptx and try again.',
   'error.tooLarge': 'This file is too large. The limit for {kind} files is {limit}.',
@@ -221,6 +222,9 @@ export const en = {
   'report.repair.D3_FRAME': 'Frame height changed from exact to minimum',
   'report.repair.P1_SLIDE_FIT':
     'Slide text scaled down (PowerPoint “shrink text on overflow”) so the translation fits its shape',
+  'report.repair.L1_LANGUAGE':
+    'Document language switched to the target in babel/polyglossia (hyphenation, “Figure”, dates)',
+  'report.repair.L2_ENCODING': 'File not in UTF-8: kept as it is, not translated',
   'report.repair.D4_LONG_TOKEN':
     'Invisible line-break opportunities added to a long word or URL in a fixed-width cell',
   'report.attention': 'Needs your attention',
@@ -258,6 +262,7 @@ export const en = {
   'report.status.untranslated': 'Untranslated — original kept',
   'report.status.skipped': 'Not translated (reference list)',
   'download.pptx': 'Download translated PPTX',
+  'download.latex': 'Download translated LaTeX',
   'download.docx': 'Download translated DOCX',
   'download.report': 'Download report (JSON)',
   'preview.title': 'Preview',

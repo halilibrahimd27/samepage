@@ -3,7 +3,7 @@ import { LIMITS, PROJECT_MAX_BYTES } from './limits';
 /** The manifest of a `.samepage` project (core/project.ts). */
 const PROJECT_MANIFEST = 'samepage.json';
 
-export type DocKind = 'pdf' | 'docx' | 'pptx';
+export type DocKind = 'pdf' | 'docx' | 'pptx' | 'latex';
 /** A document, or a samepage project file (P9.5). */
 export type FileKind = DocKind | 'project';
 
@@ -97,6 +97,8 @@ export function classifyFile(
         : null;
     // A project file holds a document of its own; its manifest marks it (checked in the worker).
     if (names?.includes(PROJECT_MANIFEST)) kind = 'project';
+    // A LaTeX project (an Overleaf download): .tex files and no Office main part.
+    else if (!office && names?.some((n) => /\.tex$/i.test(n))) kind = 'latex';
     else if (office) {
       if (names!.some((n) => /^(word|ppt)\/vbaProject\.bin$/i.test(n))) {
         return { ok: false, rejection: { reason: 'docm' } };
@@ -104,6 +106,16 @@ export function classifyFile(
       kind = office;
     }
   }
+  // A LaTeX source: text (no NUL byte) with a LaTeX command near the start.
+  if (
+    !kind &&
+    /\.tex$/i.test(name) &&
+    !head.includes(0) &&
+    /\\(documentclass|begin|section|chapter|input|usepackage|title)\b/.test(
+      new TextDecoder().decode(head),
+    )
+  )
+    kind = 'latex';
   if (!kind) return { ok: false, rejection: { reason: 'unsupported' } };
 
   const limitBytes =

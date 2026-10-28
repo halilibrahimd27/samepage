@@ -76,6 +76,17 @@ describe('classifyFile', () => {
     expect(check('a.docm', docx)).toMatchObject({ ok: false, rejection: { reason: 'docm' } });
   });
 
+  it('recognises LaTeX sources and LaTeX project archives', () => {
+    const tex = new TextEncoder().encode('\\documentclass{article}\n\\begin{document}\nMetin.');
+    expect(check('paper.tex', tex)).toEqual({ ok: true, kind: 'latex' });
+    // Not by extension alone: a .tex file must read as LaTeX.
+    expect(check('paper.tex', new TextEncoder().encode('hello'))).toMatchObject({ ok: false });
+    expect(check('overleaf.zip', zip(['main.tex', 'figures/a.png']))).toEqual({
+      ok: true,
+      kind: 'latex',
+    });
+  });
+
   it('recognises a samepage project file by its manifest', () => {
     expect(check('paper.samepage', zip(['samepage.json', 'source/paper.pdf']))).toEqual({
       ok: true,

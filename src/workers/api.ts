@@ -122,6 +122,17 @@ export type DocxJobResult =
     }
   | JobError;
 
+/** LaTeX (P9.7): a `.tex` file or a project `.zip`, returned in the same form. */
+export type LatexJobResult =
+  | {
+      ok: true;
+      bytes: Uint8Array;
+      zip: boolean;
+      report: DocxReport;
+      translations: Record<string, StoredOutcome>;
+    }
+  | JobError;
+
 export type TextJobResult =
   | { ok: true; segments: TextSegment[]; tagSurvival: { survived: number; total: number } }
   | JobError;
@@ -175,6 +186,12 @@ export interface PipelineApi {
   ): Promise<PdfJobResult>;
   /** Glossary suggestions from a DOCX file's paragraphs. */
   extractDocxGlossary(job: DocxJob): Promise<{ ok: true; entries: GlossaryEntry[] } | JobError>;
+  /** LaTeX source or project (P9.7); options as for Word documents. */
+  translateLatex(
+    job: DocxJob,
+    onProgress?: (done: number, total: number, phase?: ProgressPhase) => void,
+    chrome?: ChromeTranslatorBridge,
+  ): Promise<LatexJobResult>;
   /** A `.samepage` project file (P9.5); the buffer is transferred. */
   writeProject(manifest: ProjectManifest, source: Blob): Promise<Uint8Array>;
   /** Reads an untrusted `.samepage` file; the source buffer is transferred. */

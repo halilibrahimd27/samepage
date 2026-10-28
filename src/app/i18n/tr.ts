@@ -5,7 +5,7 @@ export const tr: Record<MessageKey, string> = {
   'header.settings': 'Ayarlar',
   'header.uiLanguage': 'Arayüz dili',
 
-  'drop.title': 'PDF, DOCX veya PPTX dosyasını buraya bırakın',
+  'drop.title': 'PDF, Word, PowerPoint veya LaTeX dosyasını buraya bırakın',
   'drop.hint':
     'ya da bir dosya (veya yeniden açmak için bir .samepage projesi) seçin. Dosya tarayıcınızda işlenir, hiçbir yere yüklenmez.',
   'drop.choose': 'Dosya seç',
@@ -27,7 +27,8 @@ export const tr: Record<MessageKey, string> = {
   'file.thumbnail': '{name} belgesinin ilk sayfası',
 
   'error.empty': 'Bu dosya boş.',
-  'error.unsupported': 'Bu dosya bir PDF, DOCX veya PPTX belgesi değil.',
+  'error.unsupported':
+    'Bu dosya bir PDF, DOCX veya PPTX belgesi, LaTeX kaynağı (.tex ya da proje .zip’i) veya samepage projesi değil.',
   'error.docm':
     'Makro içeren dosyalar (.docm, .pptm) desteklenmiyor. Belgeyi .docx ya da .pptx olarak kaydedip tekrar deneyin.',
   'error.tooLarge': 'Bu dosya çok büyük. {kind} dosyaları için sınır {limit}.',
@@ -222,6 +223,9 @@ export const tr: Record<MessageKey, string> = {
   'report.repair.D3_FRAME': 'Çerçeve yüksekliği sabitten en aza çevrildi',
   'report.repair.P1_SLIDE_FIT':
     'Slayt metni küçültüldü (PowerPoint “taşan metni sığdır”), çeviri şekline sığsın diye',
+  'report.repair.L1_LANGUAGE':
+    'Belge dili babel/polyglossia’da hedef dile çevrildi (heceleme, “Şekil”, tarihler)',
+  'report.repair.L2_ENCODING': 'UTF-8 olmayan dosya: olduğu gibi bırakıldı, çevrilmedi',
   'report.repair.D4_LONG_TOKEN':
     'Sabit genişlikli hücredeki uzun sözcük veya URL için görünmez satır kırma noktaları eklendi',
   'report.attention': 'İlgilenmeniz gerekenler',
@@ -259,6 +263,7 @@ export const tr: Record<MessageKey, string> = {
   'report.status.untranslated': 'Çevrilemedi — orijinal korundu',
   'report.status.skipped': 'Çevrilmedi (kaynakça)',
   'download.pptx': 'Çevrilmiş PPTX’i indir',
+  'download.latex': 'Çevrilmiş LaTeX’i indir',
   'download.docx': 'Çevrilmiş DOCX’i indir',
   'download.report': 'Raporu indir (JSON)',
   'preview.title': 'Önizleme',

@@ -33,6 +33,10 @@ the paper says.
 - **Same layout.** PDFs are re-typeset into their original boxes with matching fonts. Word and
   PowerPoint files keep every style, table, equation, chart, footnote and speaker note. A
   side-by-side PDF (original | translation) comes with every PDF.
+- **LaTeX and Overleaf.** Drop a `.tex` file or a project `.zip` (Overleaf: Menu → Download →
+  Source): the prose is translated and every command, formula, citation, reference and label is
+  kept, the document language switched in babel/polyglossia. The project comes back as a `.zip`
+  you can upload to Overleaf again.
 - **Editable Word file of a PDF.** Every translated PDF also downloads as a Word document in
   Word's own styles — headings, paragraphs, tables and footnotes as text you can edit, figures
   and display formulas as pictures — ready for a journal's template.
@@ -60,8 +64,8 @@ the paper says.
 
 ## How it works
 
-1. Drop a **PDF** (text-based or scanned), **DOCX** or **PPTX**. The source language is
-   detected; choose the target language.
+1. Drop a **PDF** (text-based or scanned), **DOCX**, **PPTX** or **LaTeX** (`.tex` or a project
+   `.zip`). The source language is detected; choose the target language.
 2. Choose **Whole document**, or **Title, abstract and keywords**, and press **Translate**.
 3. Read the **quality report**: its summary line gives the score; "needs attention" and
    "meaning check" list what deserves a look.

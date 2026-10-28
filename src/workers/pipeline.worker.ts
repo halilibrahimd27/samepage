@@ -16,6 +16,7 @@ import { createEngine } from '../engines';
 import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
 import { inspectPdf, loadFaces, renderPagePng, type LoadedFaces } from '../pdf/engine';
 import { translatePdf } from '../pdf/pipeline';
+import { LatexRejectedError, translateLatex } from '../latex/pipeline';
 import { browserOcrLoader } from '../pdf/ocr/assets';
 import { createOcr } from '../pdf/ocr/tesseract';
 import { extractAndAnalyze, pdfParagraphs, pdfTermTexts } from '../pdf/analyze';
@@ -87,6 +88,9 @@ function toJobError(error: unknown, signal?: AbortSignal): JobError {
   }
   if (error instanceof DocxRejectedError) {
     return { ok: false, code: 'rejected', message: error.rejection.reason };
+  }
+  if (error instanceof LatexRejectedError) {
+    return { ok: false, code: 'rejected', message: error.reason };
   }
   if (
     error instanceof EngineError &&
@@ -353,6 +357,37 @@ const api: PipelineApi = {
         controller.signal,
       );
       return { ok: true, entries };
+    } catch (error) {
+      return toJobError(error, controller.signal);
+    } finally {
+      controllers.delete(job.jobId);
+    }
+  },
+
+  async translateLatex(job, onProgress, chrome) {
+    const controller = new AbortController();
+    controllers.set(job.jobId, controller);
+    try {
+      const { bytes, zip, report, translations } = await translateLatex(
+        new Uint8Array(await job.file.arrayBuffer()),
+        {
+          engine: engineFor(job, chrome),
+          pair: job.pair,
+          glossary: job.glossary,
+          numberLocalization: job.numberLocalization,
+          fidelityCheck: job.fidelityCheck,
+          localCitations: job.localCitations ?? false,
+          // A reopened project: its translations, no engine and no polishing.
+          ...(job.replay ? { replay: job.replay } : polishOptions(job)),
+          ...(job.overrides ? { overrides: job.overrides } : {}),
+          cache,
+          signal: controller.signal,
+          ...(onProgress
+            ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
+            : {}),
+        },
+      );
+      return transfer({ ok: true as const, bytes, zip, report, translations }, [bytes.buffer]);
     } catch (error) {
       return toJobError(error, controller.signal);
     } finally {

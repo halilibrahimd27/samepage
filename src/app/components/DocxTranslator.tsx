@@ -3,7 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { ProjectManifest, ProjectOptions, StoredOutcome } from '../../core/project';
 import { languageName } from '../../core/languages';
 import type { ProgressPhase } from '../../core/pipeline/translate';
-import type { DocxJob, DocxJobResult, JobError, PipelineApi } from '../../workers/api';
+import type {
+  DocxJob,
+  DocxJobResult,
+  JobError,
+  LatexJobResult,
+  PipelineApi,
+} from '../../workers/api';
 import { sheetStore } from '../bridges/browserTranslator';
 import { engineBridge, runErrorText } from '../engineBridge';
 import { downloadBlob } from '../download';
@@ -26,9 +32,13 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 const MIME = {
   docx: DOCX_MIME,
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  latex: 'text/x-tex',
 };
 
-/** Word documents and PowerPoint presentations (both Office Open XML packages). */
+/**
+ * Word documents and PowerPoint presentations (both Office Open XML packages), and LaTeX
+ * sources or projects (P9.7), which share the paragraph report.
+ */
 export function DocxTranslator({
   file,
   format = 'docx',
@@ -37,7 +47,7 @@ export function DocxTranslator({
   project,
 }: {
   file: File;
-  format?: 'docx' | 'pptx';
+  format?: 'docx' | 'pptx' | 'latex';
   config: EngineConfig;
   settings: Settings;
   /** A reopened project (P9.5): shown without translating again. */
@@ -54,7 +64,9 @@ export function DocxTranslator({
     phase?: ProgressPhase | undefined;
   } | null>(null);
   const [download, setDownload] = useState<number | null>(null);
-  const [result, setResult] = useState<(DocxJobResult & { ok: true }) | null>(null);
+  const [result, setResult] = useState<
+    ((DocxJobResult | LatexJobResult) & { ok: true; zip?: boolean }) | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   /** Review-step corrections (tagged source → tagged target), applied on rebuild. */
@@ -91,7 +103,7 @@ export function DocxTranslator({
     translateMetadata: options.translateMetadata,
     ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });
-  const base = file.name.replace(/\.(docx|pptx)$/i, '');
+  const base = file.name.replace(/\.(docx|pptx|tex|zip)$/i, '');
   const jobErrorText = (e: JobError) =>
     e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
   const problem = config.problem(t);
@@ -112,15 +124,14 @@ export function DocxTranslator({
       const bridge = reuse ? undefined : await engineBridge(config.engine, pair, setDownload);
       const spec = config.spec();
       const options = projectFile.options(reuse !== null, current);
-      const res = await pipelineClient.call<DocxJobResult>(
+      const onProgress = proxy((done: number, total: number, phase?: ProgressPhase) =>
+        setProgress({ done, total, phase }),
+      );
+      const res = await pipelineClient.call<DocxJobResult | LatexJobResult>(
         (api) =>
-          api.translateDocx(
-            job(jobId, reuse, options),
-            proxy((done: number, total: number, phase?: ProgressPhase) =>
-              setProgress({ done, total, phase }),
-            ),
-            bridge,
-          ),
+          format === 'latex'
+            ? api.translateLatex(job(jobId, reuse, options), onProgress, bridge)
+            : api.translateDocx(job(jobId, reuse, options), onProgress, bridge),
         LONG_JOB_MS,
       );
       if (res.ok) {
@@ -164,7 +175,10 @@ export function DocxTranslator({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the project opens
   }, []);
 
-  const outBlob = result ? new Blob([result.bytes.slice()], { type: MIME[format] }) : null;
+  const outBlob = result
+    ? new Blob([result.bytes.slice()], { type: result.zip ? 'application/zip' : MIME[format] })
+    : null;
+  const outName = `${base}.${config.target}.${format === 'latex' ? (result?.zip ? 'zip' : 'tex') : format}`;
   const pendingEdits = Object.keys(edits).filter((k) => applied[k] !== edits[k]).length;
 
   async function downloadBilingual() {
@@ -213,7 +227,9 @@ export function DocxTranslator({
       <GlossaryPanel
         entries={glossary.entries}
         onChange={glossary.update}
-        {...(config.engine === 'anthropic' ? { onExtract: () => void extract() } : {})}
+        {...(config.engine === 'anthropic' && format !== 'latex'
+          ? { onExtract: () => void extract() }
+          : {})}
         extracting={extracting}
         fileName={`glossary.${config.source}-${config.target}.csv`}
         suggestions={suggestions}
@@ -268,10 +284,16 @@ export function DocxTranslator({
             <button
               type="button"
               className="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
-              onClick={() => downloadBlob(outBlob, `${base}.${config.target}.${format}`)}
+              onClick={() => downloadBlob(outBlob, outName)}
               data-testid="download-docx"
             >
-              {t(format === 'pptx' ? 'download.pptx' : 'download.docx')}
+              {t(
+                format === 'pptx'
+                  ? 'download.pptx'
+                  : format === 'latex'
+                    ? 'download.latex'
+                    : 'download.docx',
+              )}
             </button>
             <button
               type="button"

@@ -35,7 +35,7 @@ export interface ProjectOptions {
   pageRange?: { from: number; to: number };
 }
 
-export type ProjectKind = 'pdf' | 'docx' | 'pptx';
+export type ProjectKind = 'pdf' | 'docx' | 'pptx' | 'latex';
 
 export interface ProjectManifest {
   format: typeof PROJECT_FORMAT;
@@ -60,7 +60,7 @@ const ENGINES: EngineId[] = [
   'openai-compatible',
   'pseudo',
 ];
-const KINDS: ProjectKind[] = ['pdf', 'docx', 'pptx'];
+const KINDS: ProjectKind[] = ['pdf', 'docx', 'pptx', 'latex'];
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
