@@ -6,7 +6,6 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as mupdf from 'mupdf';
 import { buildDocxFixtures } from './docxFixtures.mjs';
-import { buildPptxFixtures } from './pptxFixtures.mjs';
 
 const OUT = new URL('../tests/corpus/pdf/', import.meta.url);
 mkdirSync(OUT, { recursive: true });
@@ -73,11 +72,20 @@ for (const [name, bytes] of Object.entries(await buildDocxFixtures())) {
   console.log(`fixtures: wrote tests/corpus/docx/${name} (${bytes.length} bytes)`);
 }
 
+// PPTX corpus: built with pptxgenjs when it is installed (`npm i --no-save pptxgenjs@4.0.1`); it
+// is no project dependency (its image-size dependency has open advisories), the files are
+// committed.
 const PPTX_OUT = new URL('../tests/corpus/pptx/', import.meta.url);
 mkdirSync(PPTX_OUT, { recursive: true });
-for (const [name, bytes] of Object.entries(await buildPptxFixtures())) {
-  writeFileSync(new URL(name, PPTX_OUT), bytes);
-  console.log(`fixtures: wrote tests/corpus/pptx/${name} (${bytes.length} bytes)`);
+try {
+  const { buildPptxFixtures } = await import('./pptxFixtures.mjs');
+  for (const [name, bytes] of Object.entries(await buildPptxFixtures())) {
+    writeFileSync(new URL(name, PPTX_OUT), bytes);
+    console.log(`fixtures: wrote tests/corpus/pptx/${name} (${bytes.length} bytes)`);
+  }
+} catch (error) {
+  if (error?.code !== 'ERR_MODULE_NOT_FOUND') throw error;
+  console.log('fixtures: pptxgenjs not installed — skipping PPTX corpus (committed files are used).');
 }
 
 // LaTeX corpus (TESTING.md §2): compiled with tectonic when it is installed; the PDFs are committed.
