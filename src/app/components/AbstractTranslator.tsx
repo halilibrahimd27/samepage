@@ -16,6 +16,7 @@ import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { useGlossary, useTermSuggestions } from '../useGlossary';
 import { GlossaryPanel } from './GlossaryPanel';
+import { AiStatement } from './AiStatement';
 import { BackTranslation } from './BackTranslation';
 import { IssueList } from './IssueList';
 import { ProgressBar } from './ProgressBar';
@@ -404,6 +405,7 @@ export function AbstractTranslator({
           )}
         </section>
       )}
+      {result && <AiStatement engine={config.engine} pair={pair} />}
     </div>
   );
 }

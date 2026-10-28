@@ -14,6 +14,7 @@ import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { useGlossary, useTermSuggestions } from '../useGlossary';
 import { DocxPreview } from './DocxPreview';
+import { AiStatement } from './AiStatement';
 import { DocxReportPanel } from './DocxReportPanel';
 import { GlossaryPanel } from './GlossaryPanel';
 
@@ -66,7 +67,6 @@ export function DocxTranslator({
     translateComments: settings.translateComments,
     translateReferences: settings.translateReferences,
     translateMetadata: settings.translateMetadata,
-    saveHistory: settings.saveHistory,
     ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });
   const base = file.name.replace(/\.(docx|pptx)$/i, '');
@@ -272,6 +272,7 @@ export function DocxTranslator({
             edits={edits}
             onEdit={(src, tgt) => setEdits((e) => ({ ...e, [src]: tgt }))}
           />
+          <AiStatement engine={config.engine} pair={pair} />
           {/* The preview renders Word documents only; slides are checked in the report. */}
           {format === 'docx' && (
             <section className="grid gap-4 lg:grid-cols-2">

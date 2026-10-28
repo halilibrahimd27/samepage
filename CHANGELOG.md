@@ -35,8 +35,8 @@ All notable changes to samepage are documented here. The format follows
 - Layout Repair Engine (micro-typography, expansion into free space, consistent group scaling,
   individual scaling, fallbacks with PDF notes and overflow notes), post-apply verification,
   per-page normalisation of pages whose text cannot be removed cleanly, page and document scores.
-- Quality report with in-place editing and rebuild from the cache; bilingual review DOCX;
-  translation history on the device; page ranges; bookmark and title translation.
+- Quality report with in-place editing and rebuild from the cache; bilingual review DOCX; page
+  ranges; bookmark and title translation.
 - Output sanitisation (document JavaScript and launch actions removed and reported).
 - Offline app shell (PWA), TR/EN interface, accessibility audit (axe, WCAG 2.1 AA).
 

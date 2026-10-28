@@ -3,10 +3,11 @@ import type { CacheEntry, TranslationCache } from './cache';
 
 /** IndexedDB persistence (works in workers): translation cache with an LRU size cap + glossaries. */
 const DB_NAME = 'samepage';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const T = 'translations';
 const G = 'glossaries';
-const H = 'history';
+/** The translation history store of version 2 is dropped (the feature was removed). */
+const OLD_HISTORY = 'history';
 
 interface Row {
   entry: CacheEntry;
@@ -24,8 +25,7 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(T))
         db.createObjectStore(T).createIndex('lastUsed', 'lastUsed');
       if (!db.objectStoreNames.contains(G)) db.createObjectStore(G);
-      if (!db.objectStoreNames.contains(H))
-        db.createObjectStore(H).createIndex('createdAt', 'meta.createdAt');
+      if (db.objectStoreNames.contains(OLD_HISTORY)) db.deleteObjectStore(OLD_HISTORY);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('IndexedDB unavailable'));
@@ -133,82 +133,5 @@ export async function saveGlossary(
   const db = await openDb();
   const tx = db.transaction(G, 'readwrite');
   tx.objectStore(G).put(entries, glossaryKey(source, target));
-  await done(tx);
-}
-
-/** Translation history (P1b.8): kept on this device only. */
-export interface HistoryMeta {
-  id: string;
-  createdAt: number;
-  name: string;
-  outputName: string;
-  kind: 'docx' | 'pdf' | 'pptx';
-  pair: { source: string; target: string };
-  engine: string;
-  model?: string;
-  summary: { segments: number; translated: number; warnings: number; untranslated: number };
-  sizeBytes: number;
-}
-
-interface HistoryRow {
-  meta: HistoryMeta;
-  bytes: Uint8Array;
-  report: unknown;
-}
-
-const HISTORY_MAX_BYTES = 300 * 1024 * 1024;
-
-export async function addHistory(
-  meta: HistoryMeta,
-  bytes: Uint8Array,
-  report: unknown,
-): Promise<void> {
-  const metas = await listHistory();
-  const db = await openDb();
-  const tx = db.transaction(H, 'readwrite');
-  const store = tx.objectStore(H);
-  store.put({ meta, bytes, report } satisfies HistoryRow, meta.id);
-  // Evict the oldest entries beyond the cap.
-  let total = meta.sizeBytes;
-  for (const m of metas) {
-    if (m.id === meta.id) continue;
-    total += m.sizeBytes;
-    if (total > HISTORY_MAX_BYTES) store.delete(m.id);
-  }
-  await done(tx);
-}
-
-/**
- * Entry metadata, newest first. A cursor reads one row at a time: getAll() would hold every
- * stored document in memory at once, which fails after many large translations.
- */
-export async function listHistory(): Promise<HistoryMeta[]> {
-  const db = await openDb();
-  const tx = db.transaction(H, 'readonly');
-  const metas: HistoryMeta[] = [];
-  await new Promise<void>((resolve, reject) => {
-    const cursor = tx.objectStore(H).openCursor();
-    cursor.onsuccess = () => {
-      const c = cursor.result;
-      if (!c) return resolve();
-      metas.push((c.value as HistoryRow).meta);
-      c.continue();
-    };
-    cursor.onerror = () => reject(cursor.error ?? new Error('IndexedDB cursor failed'));
-  });
-  return metas.sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export async function getHistoryEntry(id: string): Promise<HistoryRow | null> {
-  const db = await openDb();
-  const tx = db.transaction(H, 'readonly');
-  return ((await request(tx.objectStore(H).get(id))) as HistoryRow | undefined) ?? null;
-}
-
-export async function deleteHistory(id: string | null): Promise<void> {
-  const db = await openDb();
-  const tx = db.transaction(H, 'readwrite');
-  if (id === null) tx.objectStore(H).clear();
-  else tx.objectStore(H).delete(id);
   await done(tx);
 }

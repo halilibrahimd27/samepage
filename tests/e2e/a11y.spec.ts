@@ -29,6 +29,4 @@ test('main screens have no serious accessibility violations', async ({ page }) =
   await audit(page, 'docx result');
   await page.goto('./#playground');
   await audit(page, 'playground');
-  await page.goto('./#history');
-  await audit(page, 'history');
 });

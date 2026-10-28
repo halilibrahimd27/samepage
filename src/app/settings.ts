@@ -9,7 +9,6 @@ export interface Settings {
   translateComments: boolean;
   translateMetadata: boolean;
   showTestEngine: boolean;
-  saveHistory: boolean;
   showAdvancedEngines: boolean;
   /** `browser` engine: Google's website translator does it automatically (ADR-021). */
   autoTranslate: boolean;
@@ -27,7 +26,6 @@ export function defaultSettings(languages: readonly string[]): Settings {
     translateComments: false,
     translateMetadata: false,
     showTestEngine: false,
-    saveHistory: true,
     showAdvancedEngines: false,
     autoTranslate: true,
     localCitations: false,
@@ -55,7 +53,6 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
     'translateComments',
     'translateMetadata',
     'showTestEngine',
-    'saveHistory',
     'showAdvancedEngines',
     'autoTranslate',
     'localCitations',

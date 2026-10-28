@@ -45,8 +45,8 @@ the paper says.
 - **An honest quality report.** A layout score per page and every compromise listed — nothing is
   dropped or shrunk silently. Correct any paragraph and rebuild the document in place.
 - **Scanned papers too.** PDFs without a text layer are read with OCR on your device.
-- **Private by design.** No backend, no account, no analytics. History, glossary and cache stay
-  in your browser.
+- **Private by design.** No backend, no account, no analytics. Your glossary and the translation
+  cache stay in your browser.
 
 ## How it works
 
@@ -55,8 +55,7 @@ the paper says.
 2. Choose **Whole document**, or **Title, abstract and keywords**, and press **Translate**.
 3. Read the **quality report**: its summary line gives the score; "needs attention" and
    "meaning check" list what deserves a look.
-4. Download the translated document, the side-by-side PDF or the report. Finished translations
-   stay in **History** on your device.
+4. Download the translated document, the side-by-side PDF or the report.
 
 <p align="center">
   <img src="media/demo.gif" alt="Demo: the Turkish demo paper translated into English, its quality report and side-by-side preview, then its title and abstract alone" width="880">
@@ -91,8 +90,8 @@ translating is sent, and only to the engine you choose:
   connections. The one exception is the Google engine: Google's translator script runs in a
   separate, invisible helper page (`translate.html`, same site, its own stricter policy), loaded
   only when you translate with Google. It may set Google's own `googtrans` cookie.
-- **History, glossary and the translation cache** live only in this browser (IndexedDB) and can
-  be cleared in Settings. API keys for the advanced engines are kept in memory unless you choose
+- **The glossary and the translation cache** live only in this browser (IndexedDB) and can be
+  cleared in Settings. API keys for the advanced engines are kept in memory unless you choose
   to remember them on this device.
 
 ## Quality contract

@@ -10,7 +10,6 @@ const TOGGLES = [
   ['localCitations', 'settings.localCitations', 'settings.localCitationsHint'],
   ['translateComments', 'settings.translateComments', null],
   ['translateMetadata', 'settings.translateMetadata', null],
-  ['saveHistory', 'settings.saveHistory', 'settings.saveHistoryHint'],
   ['showAdvancedEngines', 'settings.showAdvancedEngines', null],
   ['showTestEngine', 'settings.showTestEngine', null],
 ] as const;

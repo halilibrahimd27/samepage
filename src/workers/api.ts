@@ -1,5 +1,4 @@
 import type { SegmentOutcome, CostEstimate, ProgressPhase } from '../core/pipeline/translate';
-import type { HistoryMeta } from '../core/cache/idb';
 import type { BilingualRow } from '../docx/bilingual';
 import type { DocxReport } from '../docx/pipeline';
 import type { PdfReport } from '../pdf/pipeline';
@@ -74,8 +73,6 @@ export interface DocxJob {
   translateComments: boolean;
   translateReferences: boolean;
   translateMetadata: boolean;
-  /** Store the finished job in this device's translation history. */
-  saveHistory: boolean;
   /** Review-step corrections: tagged source → tagged target. */
   overrides?: Record<string, string>;
 }
@@ -140,11 +137,6 @@ export interface PipelineApi {
   analyzePdf(file: Blob, maxPages: number): Promise<PageIR[]>;
   /** One page as PNG at `scale` (1 = 72 dpi); the buffer is transferred. */
   renderPdfPage(file: Blob, index: number, scale: number): Promise<Thumbnail>;
-  listHistory(): Promise<HistoryMeta[]>;
-  /** Translated file and report of a history entry (the file buffer is transferred). */
-  getHistoryEntry(id: string): Promise<{ bytes: Uint8Array; report: unknown } | null>;
-  /** Deletes one entry, or everything when id is null. */
-  deleteHistory(id: string | null): Promise<void>;
   translatePdf(
     job: PdfJob,
     onProgress?: (done: number, total: number, phase?: ProgressPhase) => void,

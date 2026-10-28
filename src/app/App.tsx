@@ -5,7 +5,6 @@ import { WorkerStatus } from './components/WorkerStatus';
 import { useI18n } from './i18n';
 import { I18nProvider } from './i18n/I18nProvider';
 import { useEngineConfig } from './engineConfig';
-import { History } from './screens/History';
 import { PdfDebug } from './screens/PdfDebug';
 import { Playground } from './screens/Playground';
 import { TranslateTest } from './screens/TranslateTest';
@@ -66,9 +65,6 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
             <p className="mt-1 text-slate-600">{t('app.tagline')}</p>
           </div>
           <nav className="flex items-center gap-2">
-            <a href="#history" className="rounded-md px-3 py-1.5 text-sm hover:bg-slate-100">
-              {t('header.history')}
-            </a>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
@@ -86,8 +82,6 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
         >
           {route === '#pdf-debug' ? (
             <PdfDebug />
-          ) : route === '#history' ? (
-            <History />
           ) : route === '#translate-test' ? (
             <TranslateTest />
           ) : route === '#playground' ? (

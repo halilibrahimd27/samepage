@@ -14,6 +14,7 @@ import type { Settings } from '../settings';
 import { useGlossary, useTermSuggestions } from '../useGlossary';
 import { GlossaryPanel } from './GlossaryPanel';
 import { PdfPreview } from './PdfPreview';
+import { AiStatement } from './AiStatement';
 import { PdfReportPanel } from './PdfReportPanel';
 
 const LONG_JOB_MS = 2 * 60 * 60_000;
@@ -67,7 +68,6 @@ export function PdfTranslator(props: {
         fidelityCheck: settings.fidelityCheck,
         localCitations: settings.localCitations,
         translateReferences: settings.translateReferences,
-        saveHistory: settings.saveHistory,
         dual: true,
         translateMetadata: settings.translateMetadata,
         ...(from > 1 || to < props.pageCount
@@ -253,6 +253,7 @@ export function PdfTranslator(props: {
             edits={edits}
             onEdit={(src, tgt) => setEdits((e) => ({ ...e, [src]: tgt }))}
           />
+          <AiStatement engine={config.engine} pair={pair} />
           <PdfPreview original={file} translated={mono} pageCount={result.report.summary.pages} />
         </>
       )}

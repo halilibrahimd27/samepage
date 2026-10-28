@@ -186,6 +186,9 @@ export const tr: Record<MessageKey, string> = {
   'abstract.copyAll': 'Tümünü kopyala',
   'abstract.copied': 'Kopyalandı',
   'abstract.copyFailed': 'Tarayıcı kopyalamaya izin vermedi; metni seçip kopyalayın.',
+  'statement.title': 'Dergi için yapay zekâ kullanım beyanı',
+  'statement.hint':
+    'Çoğu dergi makine çevirisinin beyan edilmesini istiyor. Bunu teşekkür ya da yöntem bölümüne yapıştırın ve gerektiği gibi düzenleyin.',
   'abstract.download': 'İndir (.txt)',
   'workspace.pdfSoon':
     'PDF çevirisi yakında gelecek bir sürümde. DOCX çevirisi şimdiden çalışıyor.',
@@ -241,25 +244,6 @@ export const tr: Record<MessageKey, string> = {
   'preview.translated': 'Çeviri',
   'preview.loading': 'Önizleme hazırlanıyor…',
   'preview.failed': 'Önizleme oluşturulamadı. İndirme etkilenmez.',
-  'settings.saveHistory': 'Çeviri geçmişini bu cihazda sakla',
-  'settings.saveHistoryHint':
-    'Biten çeviriler (dosya ve rapor) yalnızca bu tarayıcıda saklanır, tekrar indirebilirsiniz.',
-  'header.history': 'Geçmiş',
-  'history.title': 'Çeviri geçmişi',
-  'history.hint':
-    'Yalnızca bu tarayıcıda saklanır. Tarayıcı verilerini silerseniz kaybolur; gizli pencere de kapanınca unutur.',
-  'history.empty': 'Henüz çeviri yok.',
-  'history.failed': 'Geçmiş bu tarayıcıda okunamadı (depolama engelli ya da dolu).',
-  'history.download': 'İndir',
-  'history.report': 'Rapor',
-  'history.delete': 'Sil',
-  'history.clear': 'Geçmişi temizle',
-  'history.confirmClear': '{count} kaydın tümü silinsin mi? Geri alınamaz.',
-  'history.confirm': 'Evet, tümünü sil',
-  'history.cancel': 'Vazgeç',
-  'history.summary':
-    '{translated}/{segments} çevrildi · {warnings} uyarı · {untranslated} çevrilemedi',
-  'history.back': '← Geri',
   'engine.browser.label': 'Google Çeviri',
   'engine.browser.description':
     'Seçtiğiniz dile kendiliğinden çevirir — telefonda da. Google’ın web sitesi çevirmenini kullanır; yalnızca çeviri sırasında yüklenir.',

@@ -185,6 +185,9 @@ export const en = {
   'abstract.copyAll': 'Copy all',
   'abstract.copied': 'Copied',
   'abstract.copyFailed': 'The browser did not allow copying; select the text and copy it.',
+  'statement.title': 'AI-use statement for the journal',
+  'statement.hint':
+    'Most journals ask authors to declare machine translation. Paste this into the acknowledgements or the methods section and edit it as needed.',
   'abstract.download': 'Download (.txt)',
   'workspace.pdfSoon':
     'PDF translation arrives in an upcoming release. DOCX translation works today.',
@@ -240,25 +243,6 @@ export const en = {
   'preview.translated': 'Translated',
   'preview.loading': 'Rendering preview…',
   'preview.failed': 'The preview could not be rendered. The download is not affected.',
-  'settings.saveHistory': 'Keep a translation history on this device',
-  'settings.saveHistoryHint':
-    'Finished translations (file and report) are stored only in this browser so you can download them again.',
-  'header.history': 'History',
-  'history.title': 'Translation history',
-  'history.hint':
-    'Stored only in this browser. Clearing your browser data removes it, and a private (incognito) window forgets it when it is closed.',
-  'history.empty': 'No translations yet.',
-  'history.failed': 'The history could not be read in this browser (storage blocked or full).',
-  'history.download': 'Download',
-  'history.report': 'Report',
-  'history.delete': 'Delete',
-  'history.clear': 'Clear history',
-  'history.confirmClear': 'Delete all {count} entries? This cannot be undone.',
-  'history.confirm': 'Yes, delete all',
-  'history.cancel': 'Cancel',
-  'history.summary':
-    '{translated}/{segments} translated · {warnings} warnings · {untranslated} untranslated',
-  'history.back': '← Back',
   'engine.browser.label': 'Google Translate',
   'engine.browser.description':
     'Translates automatically into the language you choose — also on phones. Uses Google’s website translator, loaded only while you translate.',
