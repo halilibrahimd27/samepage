@@ -9,6 +9,7 @@ import { parseJsonLoose } from '../../src/engines/openaiCompatible';
 import {
   matchInitialCase,
   placeTags,
+  restoreInline,
   splitClauses,
   splitSentences,
 } from '../../src/engines/plainText';
@@ -113,6 +114,17 @@ describe('translateSegments', () => {
     expect(sent[0]).toEqual(['We use the permutation_importance function', 'the bandit tool']);
     expect(sent[1]).toEqual(['the ⟦U1⟧ tool']);
     expect(out.map((r) => r.text)).toEqual(['Kullanıyoruz: ⟦U1⟧ fonksiyonunu', 'the ⟦U1⟧ tool']);
+  });
+
+  it('puts an inlined formula back where its text is, never inside a kept placeholder', () => {
+    // "F" also stands in "⟦F2⟧": the formula is the F after it.
+    expect(restoreInline('⟦F2⟧ ile F kümesi', [{ id: 'F1', text: 'F' }])).toBe(
+      '⟦F2⟧ ile ⟦F1⟧ kümesi',
+    );
+    expect(restoreInline('<t1>D</t1> ve ⟦D1⟧', [{ id: 'F1', text: 'D' }])).toBe(
+      '<t1>⟦F1⟧</t1> ve ⟦D1⟧',
+    );
+    expect(restoreInline('⟦F2⟧ kümesi', [{ id: 'F1', text: 'F' }])).toBeNull();
   });
 
   it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {

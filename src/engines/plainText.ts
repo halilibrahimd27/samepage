@@ -401,17 +401,22 @@ export function matchInitialCase(source: string, target: string, lang: string): 
  * Rebuilds the tagged translation from the engine's answers (one per text piece). Returns null
  * when a piece came back empty, so the pipeline retries instead of dropping text.
  */
-/** Puts inlined placeholders back where their text survived (any letter case), or null. */
+/**
+ * Puts inlined placeholders back where their text survived (any letter case), or null. Never
+ * inside the placeholders and tags the engine kept: a formula "F" is not the F of "⟦F1⟧".
+ */
 export function restoreInline(t: string, inlined: InnerTag[]): string | null {
+  const markup = [...t.matchAll(/⟦[A-Z]\d+⟧|<\/?t\d+>/gu)].map((m): [number, number] => [
+    m.index,
+    m.index + m[0].length,
+  ]);
   const spans: { at: number; end: number; id: string }[] = [];
   let cursor = 0;
   for (const it of inlined) {
-    const at = findFree(
-      t,
-      it.text,
-      cursor,
-      spans.map((s) => [s.at, s.end]),
-    );
+    const at = findFree(t, it.text, cursor, [
+      ...markup,
+      ...spans.map((s): [number, number] => [s.at, s.end]),
+    ]);
     if (at < 0) return null;
     spans.push({ at, end: at + it.text.length, id: it.id });
     cursor = at + it.text.length;
