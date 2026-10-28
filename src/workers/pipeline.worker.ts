@@ -156,7 +156,7 @@ const api: PipelineApi = {
         id: e.id,
         text: e.source,
         role: 'body',
-        ...verbatimOf(e.placeholders),
+        ...verbatimOf(e.placeholders, job.pair),
       }));
       const outcomes = await translateSegments({
         engine,

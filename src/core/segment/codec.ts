@@ -145,9 +145,34 @@ export function readableText(tagged: string, placeholders: PlaceholderDef[] = []
     .trim();
 }
 
-/** Text of the ⟦U⟧ placeholders by id (for SegmentRequest.verbatim), or nothing. */
-export function verbatimOf(placeholders: PlaceholderDef[]): { verbatim?: Record<string, string> } {
-  const entries = placeholders.filter((p) => p.kind === 'U').map((p) => [p.id, p.text] as const);
+/**
+ * Whether an inline formula can travel to the engine as its own text: one short token that is
+ * no word of either language. A one-letter formula as a no-translate span reads as a sentence
+ * break ("uyum katsayısı κ = 0,81" became "…was calculated. κ The accuracy was 0.81"). Not
+ * lower-case Latin letters ("e", "a", "y" are words) nor letters of the pair's own script.
+ */
+function inlineFormula(text: string, pair?: { source: string; target: string }): boolean {
+  if (!/^\S{1,12}$/u.test(text) || [...text].length > 12 || !/\p{L}/u.test(text)) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/^[\x00-\x7f]+$/.test(text)) return /^(?:[B-HJ-NP-XZ]|[A-Za-z]{1,3}\d+)$/.test(text);
+  const langs = pair ? [pair.source, pair.target] : [];
+  if (langs.includes('el') && /\p{Script=Greek}/u.test(text)) return false;
+  if (langs.some((l) => ['ru', 'uk', 'bg'].includes(l)) && /\p{Script=Cyrillic}/u.test(text))
+    return false;
+  return true;
+}
+
+/**
+ * Text of the placeholders that travel as text (for SegmentRequest.verbatim): identifiers and
+ * URLs (⟦U⟧), and short inline formulas (⟦F⟧) for the given language pair.
+ */
+export function verbatimOf(
+  placeholders: PlaceholderDef[],
+  pair?: { source: string; target: string },
+): { verbatim?: Record<string, string> } {
+  const entries = placeholders
+    .filter((p) => p.kind === 'U' || (p.kind === 'F' && inlineFormula(p.text, pair)))
+    .map((p) => [p.id, p.text] as const);
   return entries.length ? { verbatim: Object.fromEntries(entries) } : {};
 }
 

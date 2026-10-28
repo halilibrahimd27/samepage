@@ -3,10 +3,10 @@ import { restoreInline, type InnerTag } from './plainText';
 import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
 
 /**
- * Single-word identifiers ("permutation_importance", "RQ3", URLs) and glossary terms travel as
- * text: Google reads a no-translate span as a sentence break ("Biz bunu kullanıyoruz.
- * permutation_importance …"). Frozen numbers (⟦D⟧) stay spans — they are frozen because the
- * engine changed them.
+ * Single-word identifiers ("permutation_importance", "RQ3", URLs), short inline formulas ("κ")
+ * and glossary terms travel as text: Google reads a no-translate span as a sentence break ("Biz
+ * bunu kullanıyoruz. permutation_importance …"). Frozen numbers (⟦D⟧) stay spans — they are
+ * frozen because the engine changed them.
  */
 function inlineIdentifiers(req: SegmentRequest): { text: string; inlined: InnerTag[] } {
   const inlined: InnerTag[] = [];
@@ -64,8 +64,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       fidelityCheck: true,
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
-    // sentence-level meaning check, 4: identifiers inline).
-    model: 'browser-page-4',
+    // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline).
+    model: 'browser-page-5',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

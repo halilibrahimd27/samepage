@@ -275,7 +275,7 @@ export async function translateDocx(
         id: `s${uniqueBySource.size + 1}`,
         text: u.source,
         role: u.role,
-        ...(u.p ? verbatimOf(u.p.encoded.placeholders) : {}),
+        ...(u.p ? verbatimOf(u.p.encoded.placeholders, opts.pair) : {}),
       });
   }
   const requests = [...uniqueBySource.values()];

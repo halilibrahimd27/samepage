@@ -354,7 +354,7 @@ export async function translatePdf(
         id: `s${unique.size + 1}`,
         text: u.encoded.source,
         role: u.role,
-        ...verbatimOf(u.encoded.placeholders),
+        ...verbatimOf(u.encoded.placeholders, opts.pair),
       });
   // Bookmarks and the document title are translated as plain segments (no layout).
   for (const t of [...meta.outline, meta.title]) {

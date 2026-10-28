@@ -46,6 +46,32 @@ function styleOf(span: SpanIR): PdfStyle {
   return style;
 }
 
+/**
+ * A line ending in a hyphen, joined with the next line's start: hyphenation is dropped before a
+ * lower-case letter ("ge-" + "lişme"); a word's own hyphen stays, without a space ("Von-Neumann").
+ */
+function joinHyphen(text: string, next: string): string {
+  if (/^\p{Ll}/u.test(next)) return text.slice(0, -1);
+  return /^\s/u.test(next) ? `${text} ` : text;
+}
+
+/** A unit symbol at the end of the text ("кг/м", "10 cm", "Вт/(м"). */
+const UNIT_END = /(?:^|[\s/·⋅(×*])(?:[kcmdμn]?m|[кмсдн]?м|s|с|mol|моль|L|л)$/u;
+const SUPERSCRIPT: Record<string, string> = {
+  '0': '⁰',
+  '1': '¹',
+  '2': '²',
+  '3': '³',
+  '4': '⁴',
+  '5': '⁵',
+  '6': '⁶',
+  '7': '⁷',
+  '8': '⁸',
+  '9': '⁹',
+  '-': '⁻',
+  '−': '⁻',
+};
+
 /** Superscript marks (footnote numbers, ordinals): small and raised above the line's baseline. */
 function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolean {
   const spanBaseline = span.baseline ?? span.bbox.y1 - span.size * 0.2;
@@ -57,6 +83,28 @@ function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolea
 }
 
 function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[]): void {
+  // Spaces at the edges of a formula belong to the text around it ("katsayısı ⟦F1⟧ = 0,81"):
+  // a formula that carries them reads as glued to its neighbours, and cannot travel as text.
+  const spaceBefore = (space: string, span: SpanIR) => {
+    const last = runs[runs.length - 1];
+    if (last?.type === 'text') last.text += space;
+    else runs.push({ type: 'text', text: space, style: styleOf(span) });
+  };
+  const atomTail = (): string => {
+    const last = runs[runs.length - 1];
+    if (last?.type !== 'atom' || last.kind !== 'F' || !last.ref) return '';
+    const tail = /\s+$/u.exec(last.text)?.[0] ?? '';
+    if (!tail) return '';
+    const parts = JSON.parse(last.ref) as MathPart[];
+    while (parts.length && /\s$/u.test(parts[parts.length - 1]!.t)) {
+      const p = parts[parts.length - 1]!;
+      p.t = p.t.trimEnd();
+      if (p.t) break;
+      parts.pop();
+    }
+    runs[runs.length - 1] = { ...last, text: last.text.trimEnd(), ref: JSON.stringify(parts) };
+    return tail;
+  };
   block.lines.forEach((line, li) => {
     const lineSize =
       Math.max(...line.spans.filter((s) => !s.font.isMath).map((s) => s.size), 0) ||
@@ -65,41 +113,63 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[]): void {
       let text = span.text;
       const isLastSpan = si === line.spans.length - 1;
       const nextLine = block.lines[li + 1];
-      // Join hyphenated line ends: "ge-" + "lişme" → "gelişme".
-      if (
-        isLastSpan &&
-        nextLine &&
-        /\p{L}-$/u.test(text) &&
-        /^\p{Ll}/u.test(nextLine.spans[0]?.text ?? '')
-      )
-        text = text.slice(0, -1);
+      // Join hyphenated line ends: "ge-" + "lişme" → "gelişme"; a hyphen before a capital or a
+      // digit belongs to the word ("Von-" + "Neumann", "COVID-" + "19").
+      if (isLastSpan && nextLine && /\p{L}-$/u.test(text))
+        text = joinHyphen(text, nextLine.spans[0]?.text ?? '');
       else if (isLastSpan && li < block.lines.length - 1 && !text.endsWith(' ')) text += ' ';
+      const before = runs[runs.length - 1];
+      if (
+        span.font.isMath &&
+        /^[.,]$/.test(text) &&
+        before?.type === 'text' &&
+        /\d$/.test(before.text) &&
+        /^\d/.test(line.spans[si + 1]?.text ?? '')
+      ) {
+        // A decimal separator set in a math font ("0{,}81") belongs to its number: as a formula
+        // piece it would split "0,81" in two, and an engine may tear the halves apart.
+        before.text += text;
+        return;
+      }
       if (span.font.isMath) {
         // Adjacent math spans form one formula atom; each part keeps its relative size and
         // baseline shift so sub/superscripts are re-set correctly.
+        const prev = runs[runs.length - 1];
+        const continues = prev?.type === 'atom' && prev.kind === 'F' && !!prev.ref;
+        let t = text;
+        const lead = continues ? '' : (/^\s+/u.exec(t)?.[0] ?? '');
+        if (lead) {
+          spaceBefore(lead, span);
+          t = t.slice(lead.length);
+        }
+        if (!t) return;
         const part: MathPart = {
-          t: span.text,
+          t,
           r: Math.round((span.size / lineSize) * 100) / 100,
           d:
             Math.round(((line.baseline - (span.baseline ?? line.baseline)) / lineSize) * 100) / 100,
         };
-        const prev = runs[runs.length - 1];
-        if (prev?.type === 'atom' && prev.kind === 'F' && prev.ref) {
+        if (continues && prev.type === 'atom' && prev.ref) {
           const parts = JSON.parse(prev.ref) as MathPart[];
           parts.push(part);
-          runs[runs.length - 1] = {
-            ...prev,
-            text: prev.text + span.text,
-            ref: JSON.stringify(parts),
-          };
+          runs[runs.length - 1] = { ...prev, text: prev.text + t, ref: JSON.stringify(parts) };
         } else {
-          runs.push({ type: 'atom', kind: 'F', text: span.text, ref: JSON.stringify([part]) });
+          runs.push({ type: 'atom', kind: 'F', text: t, ref: JSON.stringify([part]) });
         }
-      } else if (isSuperscript(span, lineSize, line.baseline))
-        runs.push({ type: 'atom', kind: 'N', text: span.text.trim() });
-      else runs.push({ type: 'text', text, style: styleOf(span) });
+      } else if (isSuperscript(span, lineSize, line.baseline)) {
+        // A unit's exponent ("кг/м³", "s⁻¹") is part of the text, not a footnote mark: as a mark
+        // engines write it as a plain digit ("kg/m3") and the number check fails.
+        if (before?.type === 'text' && UNIT_END.test(before.text) && /^[\d−-]+$/.test(text.trim()))
+          before.text += [...text.trim()].map((c) => SUPERSCRIPT[c] ?? c).join('');
+        else {
+          const tail = atomTail();
+          if (tail) spaceBefore(tail, span);
+          runs.push({ type: 'atom', kind: 'N', text: span.text.trim() });
+        }
+      } else runs.push({ type: 'text', text: atomTail() + text, style: styleOf(span) });
     });
   });
+  atomTail();
 }
 
 /** Builds translation units from analysed pages: one per chain (head first) or translatable block. */
@@ -121,10 +191,14 @@ export function buildPdfUnits(pages: PageIR[]): PdfUnit[] {
       blocks.forEach((b, i) => {
         blockRuns(b, runs);
         const last = runs[runs.length - 1];
-        if (i < blocks.length - 1 && last?.type === 'text' && !last.text.endsWith(' ')) {
+        const next = blocks[i + 1]?.lines[0]?.spans[0];
+        if (next && last?.type === 'text' && !last.text.endsWith(' ')) {
           // A chain continues in the next box: hyphenated words are joined, otherwise a space.
-          if (/\p{L}-$/u.test(last.text)) last.text = last.text.slice(0, -1);
+          if (/\p{L}-$/u.test(last.text)) last.text = joinHyphen(last.text, next.text);
           else last.text += ' ';
+        } else if (next && last && last.type !== 'text') {
+          // After a formula or a mark at the end of the box ("… vn" | "= rkeinθ …").
+          runs.push({ type: 'text', text: ' ', style: styleOf(next) });
         }
       });
       const last = runs[runs.length - 1];

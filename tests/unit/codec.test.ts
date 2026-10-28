@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { decode, encode, plainText, type InlineRun } from '../../src/core/segment/codec';
+import {
+  decode,
+  encode,
+  plainText,
+  verbatimOf,
+  type InlineRun,
+} from '../../src/core/segment/codec';
 
 type Style = { b?: boolean; i?: boolean; sup?: boolean };
 const key = (s: Style) => JSON.stringify(s);
@@ -83,5 +89,29 @@ describe('tag/placeholder codec', () => {
     ]);
     expect(plainText('a <t1>b</t1> ⟦F1⟧c')).toBe('a b c');
     expect(() => decode('<t1>x', enc)).toThrow(/Unclosed/);
+  });
+
+  it('lets identifiers and short formulas travel as text, not words or the pair’s own letters', () => {
+    const ph = (id: string, text: string) => ({ id, kind: id[0] as 'F' | 'U', text });
+    const tr = { source: 'tr', target: 'en' };
+    expect(
+      verbatimOf(
+        [
+          ph('U1', 'PyPI'),
+          ph('F1', 'κ'),
+          ph('F2', 'P'),
+          ph('F3', '𝑣𝑛𝑘'),
+          ph('F4', 'x2'),
+          // Words in some language, or not one token: kept as no-translate spans.
+          ph('F5', 'e'),
+          ph('F6', 'A'),
+          ph('F7', 'p < 0'),
+          ph('F8', '2'),
+        ],
+        tr,
+      ).verbatim,
+    ).toEqual({ U1: 'PyPI', F1: 'κ', F2: 'P', F3: '𝑣𝑛𝑘', F4: 'x2' });
+    // A Greek paper's letters are Greek words too.
+    expect(verbatimOf([ph('F1', 'η')], { source: 'el', target: 'en' })).toEqual({});
   });
 });

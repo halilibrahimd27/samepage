@@ -13,8 +13,8 @@ export interface SegmentRequest {
   /** Soft length limit (PDF only). */
   budgetChars?: number;
   /**
-   * Text of the ⟦U⟧ placeholders (URLs, identifiers). Engines that cannot keep placeholders may
-   * send it inline and put the placeholder back.
+   * Text of the ⟦U⟧ placeholders (URLs, identifiers) and of short ⟦F⟧ formulas ("κ"). Engines
+   * that cannot keep placeholders may send it inline and put the placeholder back.
    */
   verbatim?: Record<string, string>;
 }
@@ -67,7 +67,7 @@ export interface FidelityPair {
   id: string;
   source: string;
   target: string;
-  /** Text of the ⟦U⟧ placeholders (identifiers, URLs), as in SegmentRequest.verbatim. */
+  /** Text of the placeholders that travel as text, as in SegmentRequest.verbatim. */
   verbatim?: Record<string, string>;
 }
 
