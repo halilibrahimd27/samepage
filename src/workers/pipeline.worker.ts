@@ -1,5 +1,6 @@
 import { expose, transfer } from 'comlink';
-import { IdbCache, loadGlossary, saveGlossary } from '../core/cache/idb';
+import { IdbCache, loadAllGlossaries, loadGlossary, saveGlossary } from '../core/cache/idb';
+import { glossariesToPack, readGlossaryFile, termbaseToCsv } from '../core/glossary/pack';
 import { buildGlossarySample } from '../core/glossary/glossary';
 import { estimateCost, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { encode, plainText, verbatimOf } from '../core/segment/codec';
@@ -419,6 +420,18 @@ const api: PipelineApi = {
 
   loadGlossary: (pair) => loadGlossary(pair.source, pair.target),
   saveGlossary: (pair, entries) => saveGlossary(pair.source, pair.target, entries),
+  async readGlossaryFile(file, pair) {
+    // A pack is a small text file; anything larger than a few megabytes is not one.
+    if (file.size > 20 * 1024 * 1024) return { entries: [] };
+    try {
+      return readGlossaryFile(await file.text(), pair);
+    } catch {
+      return { entries: [] };
+    }
+  },
+  async glossaryPack() {
+    return termbaseToCsv(glossariesToPack(await loadAllGlossaries()));
+  },
   clearCache: () => cache.clear(),
 };
 

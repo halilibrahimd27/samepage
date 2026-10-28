@@ -125,6 +125,23 @@ export async function loadGlossary(source: string, target: string): Promise<Glos
   return value ?? [];
 }
 
+/** Every stored glossary with its pair (for a glossary pack). */
+export async function loadAllGlossaries(): Promise<
+  { pair: { source: string; target: string }; entries: GlossaryEntry[] }[]
+> {
+  const db = await openDb();
+  const tx = db.transaction(G, 'readonly');
+  const store = tx.objectStore(G);
+  const keys = (await request(store.getAllKeys())) as string[];
+  const values = (await request(store.getAll())) as GlossaryEntry[][];
+  return keys.flatMap((k, i) => {
+    const [source, target] = String(k).split('>');
+    return source && target && values[i]?.length
+      ? [{ pair: { source, target }, entries: values[i] }]
+      : [];
+  });
+}
+
 export async function saveGlossary(
   source: string,
   target: string,

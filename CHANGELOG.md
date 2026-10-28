@@ -23,6 +23,8 @@ All notable changes to samepage are documented here. The format follows
   for English targets.
 - AI-use statement: a ready-to-copy disclosure naming the engine and the language pair, in the
   paper's language.
+- Glossary packs: every glossary as one spreadsheet with a column per language, imported for any
+  of its pairs; TBX termbases (IATE) and tab-separated files imported too.
 - LaTeX: `.tex` files and project `.zip` files (Overleaf) translated with commands, mathematics,
   citations, references, labels, comments and verbatim text kept; footnotes, captions, section
   titles and table cells translated; babel/polyglossia switched to the target language.

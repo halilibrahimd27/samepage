@@ -53,6 +53,8 @@ the paper says.
 - **A glossary from your paper.** Tool names, code and field terms ("confidence interval",
   "randomized controlled trial") are suggested to keep or translate consistently. Nothing is
   applied until you tick it.
+  Share a glossary with your lab as a pack (one spreadsheet with a column per language) or import
+  a TBX termbase (IATE exports one); each person takes the columns of their own language pair.
 - **Save your work as a project.** A `.samepage` file keeps the document, its translation, your
   corrections and glossary. Open it later — in any browser, on any computer — and carry on
   without translating again. API keys are never saved in it.

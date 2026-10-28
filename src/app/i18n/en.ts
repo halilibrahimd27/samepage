@@ -145,6 +145,12 @@ export const en = {
   'glossary.extracting': 'Suggesting terms…',
   'glossary.import': 'Import CSV',
   'glossary.export': 'Export CSV',
+  'glossary.exportPack': 'Export all as a pack',
+  'glossary.packHint':
+    'One file with a column per language for every glossary in this browser — share it with your lab or department; anyone can import it for any of its language pairs.',
+  'glossary.imported': 'Terms imported: {count}.',
+  'glossary.packImported':
+    'Terms imported for this language pair from a pack ({languages}): {count}.',
   'glossary.add': 'Add term',
   'glossary.clear': 'Clear',
   'glossary.source': 'Source term',

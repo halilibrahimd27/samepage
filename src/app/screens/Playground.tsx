@@ -261,7 +261,7 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
         onChange={changeGlossary}
         {...(config.engine === 'anthropic' ? { onExtract: () => void extract() } : {})}
         extracting={extracting}
-        fileName={`glossary.${config.source}-${config.target}.csv`}
+        pair={{ source: config.source, target: config.target }}
       />
 
       <div className="flex flex-col gap-2">

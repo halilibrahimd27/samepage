@@ -231,7 +231,7 @@ export function DocxTranslator({
           ? { onExtract: () => void extract() }
           : {})}
         extracting={extracting}
-        fileName={`glossary.${config.source}-${config.target}.csv`}
+        pair={{ source: config.source, target: config.target }}
         suggestions={suggestions}
       />
 

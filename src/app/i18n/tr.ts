@@ -147,6 +147,11 @@ export const tr: Record<MessageKey, string> = {
   'glossary.extracting': 'Terimler öneriliyor…',
   'glossary.import': 'CSV içe aktar',
   'glossary.export': 'CSV dışa aktar',
+  'glossary.exportPack': 'Tümünü paket olarak dışa aktar',
+  'glossary.packHint':
+    'Bu tarayıcıdaki tüm sözlükler, her dil için bir sütunla tek dosyada — laboratuvarınız ya da bölümünüzle paylaşın; herkes kendi dil çifti için içe aktarabilir.',
+  'glossary.imported': 'İçe aktarılan terim: {count}.',
+  'glossary.packImported': 'Paketten ({languages}) bu dil çifti için içe aktarılan terim: {count}.',
   'glossary.add': 'Terim ekle',
   'glossary.clear': 'Temizle',
   'glossary.source': 'Kaynak terim',

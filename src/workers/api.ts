@@ -164,6 +164,13 @@ export interface PipelineApi {
   extractGlossary(job: TextJob): Promise<{ ok: true; entries: GlossaryEntry[] } | JobError>;
   loadGlossary(pair: LangPair): Promise<GlossaryEntry[]>;
   saveGlossary(pair: LangPair, entries: GlossaryEntry[]): Promise<void>;
+  /** A glossary file for a pair: a pack (CSV with language columns, TBX) or a plain CSV. */
+  readGlossaryFile(
+    file: Blob,
+    pair: LangPair,
+  ): Promise<{ entries: GlossaryEntry[]; languages?: string[] }>;
+  /** Every stored glossary as one pack (CSV with a column per language, P9.9). */
+  glossaryPack(): Promise<string>;
   clearCache(): Promise<void>;
   translateDocx(
     job: DocxJob,

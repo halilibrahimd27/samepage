@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react';
 import type { TermSuggestion } from '../../core/glossary/detect';
-import { glossaryToCsv, parseGlossaryCsv, mergeGlossaries } from '../../core/glossary/glossary';
+import { mergeGlossaries } from '../../core/glossary/glossary';
+import { termbaseToCsv } from '../../core/glossary/pack';
 import type { GlossaryEntry } from '../../core/validate/validate';
+import type { LangPair } from '../../engines/types';
 import { downloadBlob } from '../download';
 import { useI18n } from '../i18n';
+import { pipelineClient } from '../pipelineClient';
 
 const cell = 'w-full rounded border border-slate-300 px-2 py-1 text-sm';
 
@@ -12,12 +15,15 @@ export function GlossaryPanel(props: {
   onChange: (entries: GlossaryEntry[]) => void;
   onExtract?: () => void;
   extracting: boolean;
-  fileName: string;
+  pair: LangPair;
   /** Terms found in the document, offered for the glossary. */
   suggestions?: TermSuggestion[];
 }) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { source, target } = props.pair;
+  /** What the last import brought (a pack may lack the pair's columns). */
+  const [imported, setImported] = useState<string | null>(null);
   const suggestions = props.suggestions ?? [];
   /** Suggestions the user unticked. */
   const [declined, setDeclined] = useState<ReadonlySet<string>>(new Set());
@@ -117,17 +123,29 @@ export function GlossaryPanel(props: {
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.tsv,.txt,.tbx,.xml,text/csv,text/tab-separated-values"
           className="sr-only"
+          data-testid="glossary-file"
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
             if (file)
-              void file
-                .text()
-                .then((csv) =>
-                  props.onChange(mergeGlossaries(props.entries, parseGlossaryCsv(csv))),
-                );
+              void pipelineClient
+                .call<{ entries: GlossaryEntry[]; languages?: string[] }>(
+                  (api) => api.readGlossaryFile(file, props.pair),
+                  60_000,
+                )
+                .then(({ entries, languages }) => {
+                  props.onChange(mergeGlossaries(props.entries, entries));
+                  setImported(
+                    languages
+                      ? t('glossary.packImported', {
+                          count: entries.length,
+                          languages: languages.join(', '),
+                        })
+                      : t('glossary.imported', { count: entries.length }),
+                  );
+                });
           }}
         />
         <button
@@ -135,8 +153,21 @@ export function GlossaryPanel(props: {
           disabled={props.entries.length === 0}
           onClick={() =>
             downloadBlob(
-              new Blob([glossaryToCsv(props.entries)], { type: 'text/csv' }),
-              props.fileName,
+              new Blob(
+                [
+                  termbaseToCsv({
+                    languages: [source, target],
+                    rows: props.entries
+                      .filter((e) => e.source.trim() && e.target.trim())
+                      .map((e) => ({
+                        terms: { [source]: e.source, [target]: e.target },
+                        ...(e.note ? { note: e.note } : {}),
+                      })),
+                  }),
+                ],
+                { type: 'text/csv' },
+              ),
+              `glossary.${source}-${target}.csv`,
             )
           }
           className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100 disabled:opacity-50"
@@ -151,7 +182,27 @@ export function GlossaryPanel(props: {
         >
           {t('glossary.clear')}
         </button>
+        <button
+          type="button"
+          onClick={() =>
+            void pipelineClient
+              .call<string>((api) => api.glossaryPack(), 60_000)
+              .then((csv) =>
+                downloadBlob(new Blob([csv], { type: 'text/csv' }), 'glossary-pack.csv'),
+              )
+          }
+          title={t('glossary.packHint')}
+          className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
+          data-testid="glossary-pack"
+        >
+          {t('glossary.exportPack')}
+        </button>
       </div>
+      {imported && (
+        <p role="status" className="mt-2 text-sm text-slate-700" data-testid="glossary-imported">
+          {imported}
+        </p>
+      )}
       {props.entries.length > 0 && (
         <table className="mt-3 w-full border-separate border-spacing-1">
           <thead>

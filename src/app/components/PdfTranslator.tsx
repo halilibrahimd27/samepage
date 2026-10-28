@@ -156,7 +156,7 @@ export function PdfTranslator(props: {
         entries={glossary.entries}
         onChange={glossary.update}
         extracting={false}
-        fileName={`glossary.${config.source}-${config.target}.csv`}
+        pair={{ source: config.source, target: config.target }}
         suggestions={suggestions}
       />
       {props.pageCount > 1 && (
