@@ -238,7 +238,7 @@ function classify(
           b.translatable = false;
         }
         // An equation in a cell ("Prev = 3.940⋅Fn") stays as it is.
-        if (equationLike(blockText(b))) b.translatable = false;
+        if (equationBlock(b)) b.translatable = false;
         continue;
       }
       const text = blockText(b);
@@ -297,7 +297,7 @@ function classify(
       else if (inReferences && (role === 'body' || role === 'footnote')) role = 'reference';
       // Formulas set in a text font (Times italic variables, Symbol operators) come out as
       // scattered letters ("O m m", "j j j", "(W"): nothing to translate, and engines glue them.
-      if (role !== 'caption' && (mathFragments(text) || equationLike(text) || mathLike(text)))
+      if (role !== 'caption' && (mathFragments(text) || equationBlock(b) || mathLike(text)))
         role = 'formula';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);
@@ -363,6 +363,17 @@ const MATH_FUNCTION =
 export function equationLike(text: string): boolean {
   if (text.length > 60 || !/[=≤≥≈]/.test(text)) return false;
   return !text.split(/\s+/).some((t) => (t.match(/\p{L}/gu)?.length ?? 0) >= 5);
+}
+
+/**
+ * An equation set in a text font, read with its span boundaries too: a subscript set apart is
+ * not part of a word ("F" + "head" is not "Fhead"; Google turned the "E" beside it into "AND").
+ */
+export function equationBlock(b: BlockIR): boolean {
+  return (
+    equationLike(blockText(b)) ||
+    equationLike(b.lines.map((l) => l.spans.map((s) => s.text).join(' ')).join(' '))
+  );
 }
 
 /**

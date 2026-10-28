@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CAPTION } from '../../src/core/references';
-import { equationLike, mathFragments, mathLike } from '../../src/pdf/analyze/analyze';
+import type { BlockIR, SpanIR } from '../../src/core/ir/types';
+import {
+  equationBlock,
+  equationLike,
+  mathFragments,
+  mathLike,
+} from '../../src/pdf/analyze/analyze';
 
 describe('mathFragments', () => {
   it('recognises formula pieces set in a text font, not words or labels', () => {
@@ -28,6 +34,51 @@ describe('mathFragments', () => {
       expect(equationLike(t), t).toBe(true);
     for (const t of ['p = 0.05 was considered significant', 'Total = 100 students', 'Results'])
       expect(equationLike(t), t).toBe(false);
+  });
+
+  it('reads a subscript set apart as part of an equation, not of a word', () => {
+    const font = {
+      name: 'Georgia-Italic',
+      family: 'serif' as const,
+      bold: false,
+      italic: true,
+      isMath: false,
+    };
+    const span = (text: string, x: number, size = 10, isMath = false): SpanIR => ({
+      text,
+      bbox: { x0: x, y0: 100, x1: x + 6 * text.length, y1: 112 },
+      font: { ...font, isMath },
+      size,
+      color: [0, 0, 0],
+    });
+    // F_head = E − E_r1 − E_r2 [1], as the Spanish microtunnelling paper sets it.
+    const spans = [
+      span('F', 50),
+      span('head', 56, 7),
+      span(' =', 80, 10, true),
+      span(' E', 92),
+      span(' −', 104, 10, true),
+      span('E', 116),
+      span('r', 122, 7),
+      span('1', 126, 7),
+      span(' \t', 130),
+      span('[1]', 300),
+    ];
+    const block = (s: SpanIR[]): BlockIR => ({
+      id: 'p0-b0',
+      bbox: { x0: 50, y0: 100, x1: 320, y1: 112 },
+      role: 'body',
+      translatable: true,
+      lines: [{ bbox: { x0: 50, y0: 100, x1: 320, y1: 112 }, baseline: 110, spans: s }],
+      align: 'left',
+      direction: [1, 0],
+      columnIndex: 0,
+      readingOrder: 0,
+    });
+    expect(equationLike('Fhead = E −Er1 [1]')).toBe(false);
+    expect(equationBlock(block(spans))).toBe(true);
+    // A sentence keeps its words whatever its spans.
+    expect(equationBlock(block([span('Total', 50), span(' = 100 students', 80)]))).toBe(false);
   });
 
   it('recognises lines of mathematics in a text font', () => {
