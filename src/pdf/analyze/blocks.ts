@@ -117,6 +117,30 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
   return { bbox: unionAll(spans.map((s) => s.bbox)), baseline, spans };
 }
 
+/**
+ * Text printed twice at almost the same place (a shadow or an embossed heading: "Rapporti
+ * Tecnici" in black, then in white half a point off) is one line, not two: the copy drawn last
+ * is the one on top.
+ */
+function dropShadowLines(lines: RawLine[]): RawLine[] {
+  const text = (l: RawLine) =>
+    l.chars
+      .map((c) => c.c)
+      .join('')
+      .trim();
+  return lines.filter(
+    (l, i) =>
+      !text(l) ||
+      !lines.some(
+        (o, j) =>
+          j > i &&
+          text(o) === text(l) &&
+          Math.abs(o.bbox.x0 - l.bbox.x0) < 1.5 &&
+          Math.abs(o.bbox.y0 - l.bbox.y0) < 1.5,
+      ),
+  );
+}
+
 /** Lines on the same baseline with a small gap are one visual line (MuPDF splits at large gaps). */
 function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
   const out: RawLine[] = [];
@@ -432,7 +456,7 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
       ...cellLines.map((l) => [l]),
       ...(flowLines.length
         ? splitParagraphs(
-            mergeBaselines(flowLines, 3 * em),
+            mergeBaselines(dropShadowLines(flowLines), 3 * em),
             raw.bbox,
             backgroundOf,
             page.fonts,
