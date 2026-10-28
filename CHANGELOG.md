@@ -8,23 +8,33 @@ All notable changes to samepage are documented here. The format follows
 
 ### Added
 
-- Fully client-side translation of DOCX and text-based PDF documents, hosted on GitHub Pages.
-- Free default engine: the browser's own page translation (Google in Chrome, Microsoft in Edge,
-  Apple in Safari), driven through a translation sheet; works on phones.
-- Chrome built-in on-device translator; advanced engines: Anthropic Claude (bring your own key,
-  with a fidelity check) and local OpenAI-compatible servers; deterministic pseudo engine.
+- Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
+  languages, hosted on GitHub Pages.
+- Default engine: Google Translate through Google's website translator in a same-site helper
+  page — automatic, into the chosen language, on desktop and phones — with retries and a manual
+  translation sheet as the fallback.
+- Chrome built-in on-device translator; advanced engines: Anthropic Claude (bring your own key)
+  and local OpenAI-compatible servers; deterministic pseudo engine.
+- Meaning check: back-translation compared for negation, hedging and quantifier cues in all 17
+  source languages; sentence-aligned review of source, translation and back-translation with the
+  differing words marked.
+- Abstract mode: title, abstract and keywords found (labelled or not, structured, bilingual
+  papers), editable, and translated on their own.
+- Glossary with suggestions from the document (code-font words, tool names, field terms), CSV
+  import/export and term protection for engines without glossary support.
 - Tag/placeholder codec, validators (numbers, citations, placeholders, glossary terms, language,
-  chatter, length) with retries, translation cache and token estimates.
-- Glossary with term suggestions, CSV import/export and term protection for engines without
-  glossary support.
-- DOCX: structure-preserving rebuild (runs, hyperlinks, fields, OMML, footnotes, comments,
-  tracked changes, charts, SmartArt, text boxes), structural repairs D1–D4, sandboxed previews.
-- PDF: MuPDF-based extraction and analysis (roles, columns, reading order, paragraph chains,
-  tables, formulas, figure labels), Noto typesetting into the original boxes, text-only redaction,
-  selectable output text, moved links, side-by-side output.
+  chatter, length) with retries — numbers locked, then sentence by sentence — and a translation
+  cache.
+- DOCX and PPTX: structure-preserving rebuild (runs, hyperlinks, fields, OMML, footnotes,
+  comments, tracked changes, charts, SmartArt, text boxes, slides and speaker notes), structural
+  repairs, slide text fitted with PowerPoint's shrink-on-overflow, sandboxed previews.
+- PDF: MuPDF-based extraction and analysis (roles, columns, reading order, paragraph chains
+  across columns, pages and display formulas, tables, formulas, figure labels), Noto typesetting
+  into the original boxes, text-only redaction, selectable output text, moved links,
+  side-by-side output; OCR of scanned pages with Tesseract (self-hosted models).
 - Layout Repair Engine (micro-typography, expansion into free space, consistent group scaling,
   individual scaling, fallbacks with PDF notes and overflow notes), post-apply verification,
-  page and document scores.
+  per-page normalisation of pages whose text cannot be removed cleanly, page and document scores.
 - Quality report with in-place editing and rebuild from the cache; bilingual review DOCX;
   translation history on the device; page ranges; bookmark and title translation.
 - Output sanitisation (document JavaScript and launch actions removed and reported).

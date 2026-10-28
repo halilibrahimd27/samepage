@@ -1,7 +1,7 @@
 {
   "name": "samepage — translate documents, keep the layout",
   "short_name": "samepage",
-  "description": "Translate PDF and DOCX documents in your browser while keeping their layout.",
+  "description": "Translate PDF, Word and PowerPoint documents in your browser while keeping their layout.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

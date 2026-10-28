@@ -1,5 +1,5 @@
 export const en = {
-  'app.tagline': 'Translate PDF and DOCX documents while keeping their layout.',
+  'app.tagline': 'Translate PDF, Word and PowerPoint documents while keeping their layout.',
   'header.settings': 'Settings',
   'header.uiLanguage': 'Interface language',
 

@@ -1,7 +1,7 @@
 import type { MessageKey } from './en';
 
 export const tr: Record<MessageKey, string> = {
-  'app.tagline': 'PDF ve DOCX belgelerini düzenini koruyarak çevirin.',
+  'app.tagline': 'PDF, Word ve PowerPoint belgelerini düzenini koruyarak çevirin.',
   'header.settings': 'Ayarlar',
   'header.uiLanguage': 'Arayüz dili',
 
