@@ -85,7 +85,9 @@ try {
   }
 } catch (error) {
   if (error?.code !== 'ERR_MODULE_NOT_FOUND') throw error;
-  console.log('fixtures: pptxgenjs not installed — skipping PPTX corpus (committed files are used).');
+  console.log(
+    'fixtures: pptxgenjs not installed — skipping PPTX corpus (committed files are used).',
+  );
 }
 
 // LaTeX corpus (TESTING.md §2): compiled with tectonic when it is installed; the PDFs are committed.
