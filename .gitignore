@@ -26,3 +26,6 @@ test-results/
 !.vscode/extensions.json
 .idea/
 tests/golden/__out__/
+
+# Browser extension package (npm run extension)
+dist-extension/

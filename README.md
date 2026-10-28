@@ -92,6 +92,12 @@ It works the same on a phone:
 Czech, Romanian, Hungarian, Swedish, Russian, Ukrainian, Bulgarian and Greek — in any
 direction.
 
+## Browser extension
+
+[`extension/`](extension/) adds **Translate this PDF with samepage** to the context menu of a PDF
+tab or link (Chrome, Edge, Firefox): the PDF opens in samepage without saving it first. From
+Zotero, drag a PDF attachment onto the samepage page.
+
 ## Privacy and engines
 
 samepage is a static site with **no backend**. Your document is opened, analysed and rebuilt

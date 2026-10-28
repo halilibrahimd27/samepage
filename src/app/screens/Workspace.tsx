@@ -13,6 +13,7 @@ import { PdfTranslator } from '../components/PdfTranslator';
 import { DropZone } from '../components/DropZone';
 import { EngineConfigPanel } from '../components/EngineConfigPanel';
 import type { EngineConfig } from '../engineConfig';
+import { extensionFile } from '../extension';
 import { formatBytes } from '../format';
 import { useI18n, type Translate } from '../i18n';
 import { pipelineClient } from '../pipelineClient';
@@ -72,6 +73,23 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
   /** The project file the document came from (P9.5): its translations are reopened. */
   const [project, setProject] = useState<ProjectManifest | null>(null);
   const request = useRef(0);
+
+  // The samepage browser extension (P9.12) hands over the PDF the user chose: a message from this
+  // window and this origin only (the extension's script runs in this page). The file then goes
+  // through the same checks as a dropped one.
+  const openRef = useRef<(file: File) => void>(() => {});
+  useEffect(() => {
+    openRef.current = (file) => void openFile(file);
+  });
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== window || e.origin !== window.location.origin) return;
+      const file = extensionFile(e.data);
+      if (file) openRef.current(file);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   const thumbUrl = doc?.status === 'ready' ? doc.thumb?.url : undefined;
   useEffect(() => {

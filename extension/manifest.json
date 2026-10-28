@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "samepage — translate this paper",
+  "short_name": "samepage",
+  "version": "1.0.0",
+  "description": "Opens the PDF you are reading in samepage, the in-browser translator that keeps the layout. The file goes to samepage only; nothing is uploaded.",
+  "homepage_url": "https://halilibrahimd27.github.io/samepage/",
+  "icons": { "16": "icons/icon-16.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "permissions": ["contextMenus", "activeTab", "scripting"],
+  "host_permissions": ["https://halilibrahimd27.github.io/samepage/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "background.js", "scripts": ["background.js"] },
+  "browser_specific_settings": {
+    "gecko": { "id": "samepage@halilibrahimd27.github.io", "strict_min_version": "121.0" }
+  }
+}

@@ -23,6 +23,8 @@ All notable changes to samepage are documented here. The format follows
   for English targets.
 - AI-use statement: a ready-to-copy disclosure naming the engine and the language pair, in the
   paper's language.
+- Browser extension (`extension/`, Chrome/Edge/Firefox): "Translate this PDF with samepage" on a
+  PDF tab or link hands the file to samepage in a new tab; `npm run extension` packs it.
 - Quality page (`#quality`): layout scores of the 88-paper corpus by language and field, with the
   script that builds them from a corpus run.
 - Interface in German, French and Spanish (loaded when chosen), besides English and Turkish.

@@ -63,5 +63,10 @@ export default tseslint.config(
     files: ['public/sw.js'],
     languageOptions: { globals: { ...globals.serviceworker } },
   },
+  {
+    // The browser extension: a service worker that also injects functions into pages.
+    files: ['extension/**/*.js'],
+    languageOptions: { globals: { ...globals.serviceworker, ...globals.browser } },
+  },
   prettier,
 );

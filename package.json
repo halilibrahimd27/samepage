@@ -18,7 +18,8 @@
     "test": "vitest run --project unit",
     "test:golden": "vitest run --project golden --passWithNoTests",
     "test:e2e": "playwright test",
-    "fixtures": "node scripts/fixtures.mjs"
+    "fixtures": "node scripts/fixtures.mjs",
+    "extension": "node scripts/packExtension.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
