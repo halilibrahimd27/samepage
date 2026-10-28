@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BlockIR, PageIR, SpanIR } from '../../src/core/ir/types';
+import { decode } from '../../src/core/segment/codec';
+import { layoutUnit } from '../../src/pdf/typeset/layout';
 import { buildPdfUnits } from '../../src/pdf/typeset/segments';
 
 const font = (name: string, isMath = false): SpanIR['font'] => ({
@@ -103,6 +105,23 @@ describe('PDF translation units', () => {
     const [unit] = buildPdfUnits([page([b])]);
     expect(unit!.encoded.source).toBe(
       'Yoğunluk 7800 kg/m³ olarak alınır, bkz. Ek⟦N1⟧ Bu değer sabittir.',
+    );
+  });
+
+  it('marks a display formula inside a chained sentence, and draws nothing for it', () => {
+    const before = block('p0-b0', [[span('Von-Neumann yöntemi kullanılırsa', 50)]]);
+    const after = block('p0-b1', [[span('elde edilir.', 50)]]);
+    before.chain = { paragraphId: 'p0-b0', index: 0, next: 'p0-b1' };
+    after.chain = { paragraphId: 'p0-b0', index: 1, afterFormula: true };
+    const [unit] = buildPdfUnits([page([before, after])]);
+    expect(unit!.encoded.source).toBe('Von-Neumann yöntemi kullanılırsa ⟦I1⟧ elde edilir.');
+    const runs = decode('Taking the method, ⟦I1⟧ is obtained.', unit!.encoded);
+    const measurer = { width: (t: string) => t.length * 5, covers: () => true } as never;
+    const lines = layoutUnit('u', [before, after], runs, unit!.encoded.baseStyle, measurer, {
+      sizeFactor: () => 1,
+    }).flatMap((l) => l.lines);
+    expect(lines.flatMap((l) => l.runs.map((r) => r.text)).join(' ')).toBe(
+      'Taking the method, is obtained.',
     );
   });
 

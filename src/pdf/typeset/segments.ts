@@ -1,4 +1,4 @@
-import { encode, type Encoded, type InlineRun } from '../../core/segment/codec';
+import { DISPLAY_FORMULA, encode, type Encoded, type InlineRun } from '../../core/segment/codec';
 import type { BlockIR, PageIR, Role, SpanIR } from '../../core/ir/types';
 import type { Family } from './types';
 
@@ -201,6 +201,11 @@ export function buildPdfUnits(pages: PageIR[]): PdfUnit[] {
           else last.text += ' ';
         } else if (next && last && last.type !== 'text') {
           // After a formula or a mark at the end of the box ("… vn" | "= rkeinθ …").
+          runs.push({ type: 'text', text: ' ', style: styleOf(next) });
+        }
+        if (next && blocks[i + 1]!.chain?.afterFormula) {
+          // The display formula between the two boxes, as a marker the engine reads in place.
+          runs.push({ type: 'atom', kind: 'I', text: '', ref: DISPLAY_FORMULA });
           runs.push({ type: 'text', text: ' ', style: styleOf(next) });
         }
       });

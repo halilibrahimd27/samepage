@@ -534,15 +534,21 @@ function linkChains(pages: BlockIR[][]): void {
     !a.chain?.next &&
     !(b.chain && b.chain.index > 0) &&
     (a.chain?.paragraphId ?? a.id) !== (b.chain?.paragraphId ?? b.id);
-  const link = (a: BlockIR, b: BlockIR) => {
+  const link = (a: BlockIR, b: BlockIR, afterFormula = false) => {
     const paragraphId = a.chain?.paragraphId ?? a.id;
     const index = a.chain?.index ?? 0;
-    a.chain = { paragraphId, index, next: b.id };
+    a.chain = { ...a.chain, paragraphId, index, next: b.id };
     // `b` may head a chain of its own: its blocks continue `a`'s.
     let k = index + 1;
     for (let cur: BlockIR | undefined = b; cur; k++) {
       const next: string | undefined = cur.chain?.next;
-      cur.chain = next ? { paragraphId, index: k, next } : { paragraphId, index: k };
+      const formula = cur === b ? afterFormula : !!cur.chain?.afterFormula;
+      cur.chain = {
+        paragraphId,
+        index: k,
+        ...(next ? { next } : {}),
+        ...(formula ? { afterFormula: true } : {}),
+      };
       cur = next ? byId.get(next) : undefined;
     }
   };
@@ -566,7 +572,12 @@ function linkChains(pages: BlockIR[][]): void {
       !TERMINAL.test(blockText(a)) &&
       /^\p{Ll}/u.test(blockText(b))
     )
-      link(a, b);
+      // The formula is part of the sentence ("…alınırsa [formula] olur"); a float is not.
+      link(
+        a,
+        b,
+        ordered.slice(i + 1, j).some((x) => x.role === 'formula'),
+      );
   }
 
   // Paragraphs split inside a column that the block builder could not rejoin: a list item's

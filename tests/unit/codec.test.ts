@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DISPLAY_FORMULA,
   decode,
   encode,
   plainText,
@@ -113,5 +114,9 @@ describe('tag/placeholder codec', () => {
     ).toEqual({ U1: 'PyPI', F1: 'κ', F2: 'P', F3: '𝑣𝑛𝑘', F4: 'x2' });
     // A Greek paper's letters are Greek words too.
     expect(verbatimOf([ph('F1', 'η')], { source: 'el', target: 'en' })).toEqual({});
+    // A display formula's marker reads as a formula symbol.
+    expect(
+      verbatimOf([{ id: 'I1', kind: 'I', text: '', ref: DISPLAY_FORMULA }], tr).verbatim,
+    ).toEqual({ I1: '𝛯' });
   });
 });

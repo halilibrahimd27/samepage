@@ -54,7 +54,13 @@ export interface BlockIR {
   direction: [number, number];
   columnIndex: number;
   readingOrder: number;
-  chain?: { paragraphId: string; index: number; next?: string };
+  chain?: {
+    paragraphId: string;
+    index: number;
+    next?: string;
+    /** This block goes on with a sentence that a display formula interrupted. */
+    afterFormula?: boolean;
+  };
   tableCell?: { tableId: string; row: number; col: number; cellRect: Rect };
   /** Underline rules drawn under this block's text (removed with it when translated). */
   underlines?: Rect[];

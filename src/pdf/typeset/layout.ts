@@ -1,4 +1,4 @@
-import type { DecodedRun } from '../../core/segment/codec';
+import { DISPLAY_FORMULA, type DecodedRun } from '../../core/segment/codec';
 import type { BlockIR, Rect } from '../../core/ir/types';
 import type { MathPart, PdfStyle } from './segments';
 import { faceKey, type FaceKey, type Family, type Measurer } from './types';
@@ -88,6 +88,8 @@ function toPieces(runs: DecodedRun<PdfStyle>[], baseStyle: PdfStyle, opts: Layou
   const pieces: Piece[] = [];
   for (const run of runs) {
     if (run.type === 'atom') {
+      // A display formula's marker: the formula is drawn where it is, not in the line.
+      if (run.placeholder?.ref === DISPLAY_FORMULA) continue;
       const kind = run.placeholder!.kind;
       const size = baseStyle.size * opts.sizeFactor(baseStyle.fontName) * scale;
       if (kind === 'N') {
@@ -135,6 +137,8 @@ function toPieces(runs: DecodedRun<PdfStyle>[], baseStyle: PdfStyle, opts: Layou
     const size = s.size * opts.sizeFactor(s.fontName) * scale;
     for (const part of run.text.replace(/\t/g, ' ').split(/( +)/)) {
       if (!part) continue;
+      // One space where a marker left two.
+      if (/^ +$/.test(part) && pieces[pieces.length - 1]?.space) continue;
       const piece: Piece = {
         text: part,
         face: faceKey(s.family, s.bold, s.italic),

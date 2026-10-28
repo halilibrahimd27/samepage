@@ -163,16 +163,30 @@ function inlineFormula(text: string, pair?: { source: string; target: string }):
 }
 
 /**
+ * Ref of the ⟦I⟧ placeholder that marks a display formula inside a sentence (PDF): nothing is
+ * drawn for it, the formula stays where it is on the page.
+ */
+export const DISPLAY_FORMULA = 'display-formula';
+/**
+ * What engines read for that marker: a formula symbol, so that a verb after the formula keeps
+ * its object ("…alınırsa [formula] olur" is "taking …, [formula] is obtained", not "It will
+ * work if taken").
+ */
+const DISPLAY_STAND_IN = '𝛯';
+
+/**
  * Text of the placeholders that travel as text (for SegmentRequest.verbatim): identifiers and
- * URLs (⟦U⟧), and short inline formulas (⟦F⟧) for the given language pair.
+ * URLs (⟦U⟧), short inline formulas (⟦F⟧) for the given language pair, and display-formula
+ * markers as a symbol.
  */
 export function verbatimOf(
   placeholders: PlaceholderDef[],
   pair?: { source: string; target: string },
 ): { verbatim?: Record<string, string> } {
-  const entries = placeholders
-    .filter((p) => p.kind === 'U' || (p.kind === 'F' && inlineFormula(p.text, pair)))
-    .map((p) => [p.id, p.text] as const);
+  const entries = placeholders.flatMap((p): [string, string][] => {
+    if (p.kind === 'U' || (p.kind === 'F' && inlineFormula(p.text, pair))) return [[p.id, p.text]];
+    return p.kind === 'I' && p.ref === DISPLAY_FORMULA ? [[p.id, DISPLAY_STAND_IN]] : [];
+  });
   return entries.length ? { verbatim: Object.fromEntries(entries) } : {};
 }
 
