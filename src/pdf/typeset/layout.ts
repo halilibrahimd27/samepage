@@ -68,6 +68,11 @@ interface Piece {
   underline?: boolean;
   /** Whitespace piece (a break opportunity). */
   space: boolean;
+  /**
+   * A display formula's marker: the text after it goes on in this box of the unit (the box
+   * after the formula), unless the text has got there already.
+   */
+  boxBreak?: number;
 }
 
 const MATH_LETTER = /\p{L}/u;
@@ -83,13 +88,32 @@ const COMBINING: Record<string, string> = Object.fromEntries(
 );
 
 /** Decoded runs → styled pieces split at spaces (each space is its own piece). */
-function toPieces(runs: DecodedRun<PdfStyle>[], baseStyle: PdfStyle, opts: LayoutOptions): Piece[] {
+function toPieces(
+  runs: DecodedRun<PdfStyle>[],
+  baseStyle: PdfStyle,
+  opts: LayoutOptions,
+  breakTarget: (markerId: string) => number | undefined,
+): Piece[] {
   const scale = opts.scale ?? 1;
   const pieces: Piece[] = [];
   for (const run of runs) {
     if (run.type === 'atom') {
-      // A display formula's marker: the formula is drawn where it is, not in the line.
-      if (run.placeholder?.ref === DISPLAY_FORMULA) continue;
+      // A display formula's marker: the formula is drawn where it is, not in the line; the text
+      // after it goes on in the box after the formula.
+      if (run.placeholder?.ref === DISPLAY_FORMULA) {
+        const target = breakTarget(run.placeholder.id);
+        if (target !== undefined)
+          pieces.push({
+            text: '',
+            face: faceKey(baseStyle.family, false, false),
+            size: 0,
+            color: baseStyle.color,
+            rise: 0,
+            space: false,
+            boxBreak: target,
+          });
+        continue;
+      }
       const kind = run.placeholder!.kind;
       const size = baseStyle.size * opts.sizeFactor(baseStyle.fontName) * scale;
       if (kind === 'N') {
@@ -138,7 +162,9 @@ function toPieces(runs: DecodedRun<PdfStyle>[], baseStyle: PdfStyle, opts: Layou
     for (const part of run.text.replace(/\t/g, ' ').split(/( +)/)) {
       if (!part) continue;
       // One space where a marker left two.
-      if (/^ +$/.test(part) && pieces[pieces.length - 1]?.space) continue;
+      const prev = pieces[pieces.length - 1];
+      const before = prev?.boxBreak !== undefined ? pieces[pieces.length - 2] : prev;
+      if (/^ +$/.test(part) && before?.space) continue;
       const piece: Piece = {
         text: part,
         face: faceKey(s.family, s.bold, s.italic),
@@ -197,7 +223,7 @@ function mathStyle(cp: number): { bold: boolean; italic: boolean } {
 function resolveGlyphs(pieces: Piece[], measurer: Measurer): Piece[] {
   const out: Piece[] = [];
   for (const p of pieces) {
-    if (p.space || measurer.covers(p.text, p.face)) {
+    if (p.space || p.boxBreak !== undefined || measurer.covers(p.text, p.face)) {
       out.push(p);
       continue;
     }
@@ -260,7 +286,12 @@ export function layoutUnit(
   measurer: Measurer,
   opts: LayoutOptions,
 ): BlockLayout[] {
-  const pieces = resolveGlyphs(toPieces(runs, baseStyle, opts), measurer);
+  // The n-th display-formula marker (⟦In⟧) stands before the n-th box that follows a formula.
+  const breakTargets = blocks.flatMap((b, k) => (b.chain?.afterFormula ? [k] : []));
+  const pieces = resolveGlyphs(
+    toPieces(runs, baseStyle, opts, (id) => breakTargets[Number(id.slice(1)) - 1]),
+    measurer,
+  );
   const tracking = opts.trackingEm ?? 0;
   const spaceFactor = opts.spaceFactor ?? 1;
   const widthOf = (p: Piece) => {
@@ -268,159 +299,187 @@ export function layoutUnit(
     if (p.space) return w * spaceFactor;
     return w + tracking * p.size * [...p.text].length;
   };
-  const out: BlockLayout[] = [];
-  let i = 0;
-  while (i < pieces.length && pieces[i]!.space) i++;
+  // A display formula's marker keeps the text after the formula after it, as long as that
+  // costs no room: a box break the text cannot afford would shrink it (and with it every
+  // paragraph of the same size), so the text then flows on as before.
+  const laid = place(pieces);
+  if (!pieces.some((p) => p.boxBreak !== undefined) || !laid.some((l) => l.overflow)) return laid;
+  return place(pieces.filter((p) => p.boxBreak === undefined));
 
-  for (const block of blocks) {
-    const box = opts.boxes?.[block.id] ?? block.bbox;
-    if (block.direction[1] !== 0) {
-      // Rotated text (chart axis labels): one line along the block's long side, centred.
-      const [dx, dy] = block.direction;
-      const line: Piece[] = [];
-      while (i < pieces.length) line.push(pieces[i++]!);
-      const length = Math.abs(dy) > Math.abs(dx) ? box.y1 - box.y0 : box.x1 - box.x0;
-      const width = line.reduce((w, p) => w + widthOf(p), 0);
-      const size = line.find((p) => !p.space)?.size ?? baseStyle.size;
-      const descent = size * 0.22;
-      // Glyph "up" is perpendicular to the direction; the baseline sits on the opposite side.
-      const origin =
-        dy < 0 ? { x: box.x1 - descent, y: box.y1 } : { x: box.x0 + descent, y: box.y0 };
-      let x = Math.max(0, (length - width) / 2);
-      const laid: LayoutRun[] = [];
-      for (const p of line) {
-        const w = widthOf(p);
-        if (!p.space)
-          laid.push({
-            text: p.text,
-            face: p.face,
-            size: p.size,
-            color: p.color,
-            x,
-            width: w,
-            rise: p.rise,
-            tracking,
-          });
-        x += w;
-      }
-      const overflow = width > length + 0.5;
-      out.push({
-        blockId: block.id,
-        unitId,
-        lines: [
-          {
-            dir: [dx, dy],
-            origin,
-            baseline: origin.y,
-            x0: 0,
-            x1: length,
-            runs: laid,
-            wordSpacing: 0,
-          },
-        ],
-        overflow,
-        scale: opts.scale ?? 1,
-        ...(overflow ? { remaining: line.map((p) => p.text).join('') } : {}),
-      });
-      continue;
-    }
+  function place(pieces: Piece[]): BlockLayout[] {
+    const out: BlockLayout[] = [];
+    let i = 0;
+    while (i < pieces.length && pieces[i]!.space) i++;
+    // Boxes before this index stay empty: a marker sent the text past them.
+    let jumpTo = -1;
 
-    const lines: LayoutLine[] = [];
-    const scale = opts.scale ?? 1;
-    // Smaller type gets a proportionally smaller line advance, so scaling frees vertical space too.
-    const lineFactor = (opts.leading ?? 1) * scale;
-    const lead = leading(block, baseStyle.size * 1.2) * lineFactor;
-    // Original line slots keep indents; with a smaller line advance they are recomputed (the first
-    // baseline moves up with the smaller ascent so the block keeps its top edge).
-    const original = slots(block);
-    const first = original[0]!;
-    const firstBaseline = first.baseline - (1 - scale) * baseStyle.size * 0.7;
-    const boxSlots =
-      lineFactor < 0.999
-        ? original.map((s, k) => ({ x0: s.x0, baseline: firstBaseline + lead * k }))
-        : original;
-    const lastLine = block.lines[block.lines.length - 1]!;
-    const descent = (lastLine.bbox.y1 - lastLine.baseline) * scale;
-    const lastBaseline = box.y1 - descent;
-    for (let slot = 0; i < pieces.length; slot++) {
-      const s = boxSlots[slot] ?? {
-        baseline: boxSlots[boxSlots.length - 1]!.baseline + lead * (slot - boxSlots.length + 1),
-        x0: box.x0,
-      };
-      if (s.baseline > lastBaseline + 0.5) break;
-      // Left/justified lines keep their original start (indents); centred and right-aligned
-      // lines use the whole box, whatever the length of the original line in that slot.
-      const x0 =
-        block.align === 'center' || block.align === 'right'
-          ? box.x0
-          : Math.max(box.x0, Math.min(s.x0, box.x1 - 1));
-      const maxWidth = box.x1 - x0;
-      const line: Piece[] = [];
-      let width = 0;
-      // Lines break only at spaces: a "word" is every non-space piece up to the next space, so
-      // inline math and the text glued to it ("0,01", "ŷᵢ'nin") stay together.
-      while (i < pieces.length) {
-        if (pieces[i]!.space) {
-          line.push(pieces[i]!);
-          width += widthOf(pieces[i]!);
-          i++;
-          continue;
-        }
-        let end = i;
-        let w = 0;
-        while (end < pieces.length && !pieces[end]!.space) w += widthOf(pieces[end++]!);
-        if (width + w > maxWidth + 0.01 && line.some((x) => !x.space)) break;
-        if (width + w > maxWidth + 0.01 && !line.length) {
-          // A single word wider than the line: it cannot be placed here.
-          break;
-        }
-        for (; i < end; i++) line.push(pieces[i]!);
-        width += w;
+    for (const [bi, block] of blocks.entries()) {
+      const box = opts.boxes?.[block.id] ?? block.bbox;
+      if (bi < jumpTo) {
+        out.push({ blockId: block.id, unitId, lines: [], overflow: false, scale: opts.scale ?? 1 });
+        continue;
       }
-      while (line.length && line[line.length - 1]!.space) width -= widthOf(line.pop()!);
-      if (!line.length) break;
-      while (i < pieces.length && pieces[i]!.space) i++;
-      const isLast = i >= pieces.length;
-      const gaps = line.filter((p) => p.space).length;
-      const justify = block.align === 'justify' && !isLast && gaps > 0;
-      const wordSpacing = justify ? (maxWidth - width) / gaps : 0;
-      let x = x0;
-      if (block.align === 'center') x = x0 + (box.x1 - x0 - width) / 2;
-      else if (block.align === 'right') x = box.x1 - width;
-      const laid: LayoutRun[] = [];
-      for (const p of line) {
-        const w = widthOf(p) + (p.space ? wordSpacing : 0);
-        if (!p.space) {
-          const run: LayoutRun = {
-            text: p.text,
-            face: p.face,
-            size: p.size,
-            color: p.color,
-            x,
-            width: w,
-            rise: p.rise,
-            tracking,
-          };
-          if (p.linkUri) run.linkUri = p.linkUri;
-          if (p.underline) run.underline = true;
-          laid.push(run);
+      if (block.direction[1] !== 0) {
+        // Rotated text (chart axis labels): one line along the block's long side, centred.
+        const [dx, dy] = block.direction;
+        const line: Piece[] = [];
+        while (i < pieces.length) line.push(pieces[i++]!);
+        const length = Math.abs(dy) > Math.abs(dx) ? box.y1 - box.y0 : box.x1 - box.x0;
+        const width = line.reduce((w, p) => w + widthOf(p), 0);
+        const size = line.find((p) => !p.space)?.size ?? baseStyle.size;
+        const descent = size * 0.22;
+        // Glyph "up" is perpendicular to the direction; the baseline sits on the opposite side.
+        const origin =
+          dy < 0 ? { x: box.x1 - descent, y: box.y1 } : { x: box.x0 + descent, y: box.y0 };
+        let x = Math.max(0, (length - width) / 2);
+        const laid: LayoutRun[] = [];
+        for (const p of line) {
+          const w = widthOf(p);
+          if (!p.space)
+            laid.push({
+              text: p.text,
+              face: p.face,
+              size: p.size,
+              color: p.color,
+              x,
+              width: w,
+              rise: p.rise,
+              tracking,
+            });
+          x += w;
         }
-        x += w;
+        const overflow = width > length + 0.5;
+        out.push({
+          blockId: block.id,
+          unitId,
+          lines: [
+            {
+              dir: [dx, dy],
+              origin,
+              baseline: origin.y,
+              x0: 0,
+              x1: length,
+              runs: laid,
+              wordSpacing: 0,
+            },
+          ],
+          overflow,
+          scale: opts.scale ?? 1,
+          ...(overflow ? { remaining: line.map((p) => p.text).join('') } : {}),
+        });
+        continue;
       }
-      lines.push({ baseline: s.baseline, x0, x1: box.x1, runs: laid, wordSpacing });
+
+      const lines: LayoutLine[] = [];
+      const scale = opts.scale ?? 1;
+      // Smaller type gets a proportionally smaller line advance, so scaling frees vertical space too.
+      const lineFactor = (opts.leading ?? 1) * scale;
+      const lead = leading(block, baseStyle.size * 1.2) * lineFactor;
+      // Original line slots keep indents; with a smaller line advance they are recomputed (the first
+      // baseline moves up with the smaller ascent so the block keeps its top edge).
+      const original = slots(block);
+      const first = original[0]!;
+      const firstBaseline = first.baseline - (1 - scale) * baseStyle.size * 0.7;
+      const boxSlots =
+        lineFactor < 0.999
+          ? original.map((s, k) => ({ x0: s.x0, baseline: firstBaseline + lead * k }))
+          : original;
+      const lastLine = block.lines[block.lines.length - 1]!;
+      const descent = (lastLine.bbox.y1 - lastLine.baseline) * scale;
+      const lastBaseline = box.y1 - descent;
+      for (let slot = 0; i < pieces.length; slot++) {
+        const s = boxSlots[slot] ?? {
+          baseline: boxSlots[boxSlots.length - 1]!.baseline + lead * (slot - boxSlots.length + 1),
+          x0: box.x0,
+        };
+        if (s.baseline > lastBaseline + 0.5) break;
+        // Left/justified lines keep their original start (indents); centred and right-aligned
+        // lines use the whole box, whatever the length of the original line in that slot.
+        const x0 =
+          block.align === 'center' || block.align === 'right'
+            ? box.x0
+            : Math.max(box.x0, Math.min(s.x0, box.x1 - 1));
+        const maxWidth = box.x1 - x0;
+        const line: Piece[] = [];
+        let width = 0;
+        // Lines break only at spaces: a "word" is every non-space piece up to the next space, so
+        // inline math and the text glued to it ("0,01", "ŷᵢ'nin") stay together.
+        while (i < pieces.length) {
+          const target = pieces[i]!.boxBreak;
+          if (target !== undefined) {
+            // The formula's place: the line, and the box, end here.
+            if (target > bi) {
+              jumpTo = target;
+              break;
+            }
+            i++;
+            continue;
+          }
+          if (pieces[i]!.space) {
+            line.push(pieces[i]!);
+            width += widthOf(pieces[i]!);
+            i++;
+            continue;
+          }
+          let end = i;
+          let w = 0;
+          while (end < pieces.length && !pieces[end]!.space && pieces[end]!.boxBreak === undefined)
+            w += widthOf(pieces[end++]!);
+          if (width + w > maxWidth + 0.01 && line.some((x) => !x.space)) break;
+          if (width + w > maxWidth + 0.01 && !line.length) {
+            // A single word wider than the line: it cannot be placed here.
+            break;
+          }
+          for (; i < end; i++) line.push(pieces[i]!);
+          width += w;
+        }
+        while (line.length && line[line.length - 1]!.space) width -= widthOf(line.pop()!);
+        if (!line.length) break;
+        while (i < pieces.length && pieces[i]!.space) i++;
+        const ends = jumpTo > bi;
+        const isLast = i >= pieces.length;
+        const gaps = line.filter((p) => p.space).length;
+        const justify = block.align === 'justify' && !isLast && !ends && gaps > 0;
+        const wordSpacing = justify ? (maxWidth - width) / gaps : 0;
+        let x = x0;
+        if (block.align === 'center') x = x0 + (box.x1 - x0 - width) / 2;
+        else if (block.align === 'right') x = box.x1 - width;
+        const laid: LayoutRun[] = [];
+        for (const p of line) {
+          const w = widthOf(p) + (p.space ? wordSpacing : 0);
+          if (!p.space) {
+            const run: LayoutRun = {
+              text: p.text,
+              face: p.face,
+              size: p.size,
+              color: p.color,
+              x,
+              width: w,
+              rise: p.rise,
+              tracking,
+            };
+            if (p.linkUri) run.linkUri = p.linkUri;
+            if (p.underline) run.underline = true;
+            laid.push(run);
+          }
+          x += w;
+        }
+        lines.push({ baseline: s.baseline, x0, x1: box.x1, runs: laid, wordSpacing });
+        if (ends) break;
+      }
+      out.push({ blockId: block.id, unitId, lines, overflow: false, scale });
     }
-    out.push({ blockId: block.id, unitId, lines, overflow: false, scale });
+    if (i < pieces.length && out.length) {
+      const last = out[out.length - 1]!;
+      last.overflow = true;
+      last.remaining = pieces
+        .slice(i)
+        .map((p) => p.text)
+        .join('')
+        .trim();
+    }
+    return out;
   }
-  if (i < pieces.length && out.length) {
-    const last = out[out.length - 1]!;
-    last.overflow = true;
-    last.remaining = pieces
-      .slice(i)
-      .map((p) => p.text)
-      .join('')
-      .trim();
-  }
-  return out;
 }
 
 /**

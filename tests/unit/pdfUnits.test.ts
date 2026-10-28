@@ -108,7 +108,7 @@ describe('PDF translation units', () => {
     );
   });
 
-  it('marks a display formula inside a chained sentence, and draws nothing for it', () => {
+  it('marks a display formula inside a chained sentence and keeps the text around it', () => {
     const before = block('p0-b0', [[span('Von-Neumann yöntemi kullanılırsa', 50)]]);
     const after = block('p0-b1', [[span('elde edilir.', 50)]]);
     before.chain = { paragraphId: 'p0-b0', index: 0, next: 'p0-b1' };
@@ -117,12 +117,45 @@ describe('PDF translation units', () => {
     expect(unit!.encoded.source).toBe('Von-Neumann yöntemi kullanılırsa ⟦I1⟧ elde edilir.');
     const runs = decode('Taking the method, ⟦I1⟧ is obtained.', unit!.encoded);
     const measurer = { width: (t: string) => t.length * 5, covers: () => true } as never;
-    const lines = layoutUnit('u', [before, after], runs, unit!.encoded.baseStyle, measurer, {
+    const layouts = layoutUnit('u', [before, after], runs, unit!.encoded.baseStyle, measurer, {
       sizeFactor: () => 1,
-    }).flatMap((l) => l.lines);
-    expect(lines.flatMap((l) => l.runs.map((r) => r.text)).join(' ')).toBe(
-      'Taking the method, is obtained.',
-    );
+    });
+    const text = (k: number) =>
+      layouts[k]!.lines.flatMap((l) => l.runs.map((r) => r.text)).join(' ');
+    // The text after the formula stays after it, in the next box, though the first had room.
+    expect(text(0)).toBe('Taking the method,');
+    expect(text(1)).toBe('is obtained.');
+  });
+
+  it('lets the text flow on when keeping it after the formula would cost room', () => {
+    const before = block('p0-b0', [[span('Von-Neumann yöntemi kullanılırsa', 50)]]);
+    // A narrow box after the formula: one short line.
+    const after = block('p0-b1', [[span('elde edilir.', 50)]]);
+    after.bbox = { ...after.bbox, x1: 110 };
+    after.lines[0]!.bbox = { ...after.lines[0]!.bbox, x1: 110 };
+    before.chain = { paragraphId: 'p0-b0', index: 0, next: 'p0-b1' };
+    after.chain = { paragraphId: 'p0-b0', index: 1, afterFormula: true };
+    const [unit] = buildPdfUnits([page([before, after])]);
+    const measurer = { width: (t: string) => t.length * 5, covers: () => true } as never;
+    const lay = (target: string) =>
+      layoutUnit(
+        'u',
+        [before, after],
+        decode(target, unit!.encoded),
+        unit!.encoded.baseStyle,
+        measurer,
+        {
+          sizeFactor: () => 1,
+        },
+      );
+    const text = (l: ReturnType<typeof lay>, k: number) =>
+      l[k]!.lines.flatMap((x) => x.runs.map((r) => r.text)).join(' ');
+    // Fits after the formula: kept there.
+    expect(text(lay('Taking the method, ⟦I1⟧ is obtained.'), 1)).toBe('is obtained.');
+    // Does not fit there: the first box's room is used instead of shrinking the text.
+    const flowed = lay('Taking the method, ⟦I1⟧ is obtained as shown.');
+    expect(text(flowed, 0)).toBe('Taking the method, is obtained as shown.');
+    expect(flowed.some((l) => l.overflow)).toBe(false);
   });
 
   it('drops hyphenation at line ends but keeps a word’s own hyphen', () => {
