@@ -38,7 +38,9 @@ test('UI language and settings persist; engines show privacy badges', async ({ p
   await page.getByRole('button', { name: 'Kapat' }).click();
 
   await page.reload();
-  await expect(page.getByText('PDF ve DOCX belgelerini düzenini koruyarak çevirin.')).toBeVisible();
+  await expect(
+    page.getByText('PDF, Word ve PowerPoint belgelerini düzenini koruyarak çevirin.'),
+  ).toBeVisible();
   await expect(page.getByTestId('privacy-pseudo')).toHaveText('Cihazda');
   await expect(page.locator('html')).toHaveAttribute('lang', 'tr');
 });
