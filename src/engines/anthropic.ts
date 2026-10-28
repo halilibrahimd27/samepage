@@ -8,6 +8,8 @@ import {
   fidelityUserMessage,
   GLOSSARY_SCHEMA,
   glossaryPrompt,
+  postEditSystemPrompt,
+  postEditUserMessage,
   TRANSLATION_SCHEMA,
   translationSystemPrompt,
   translationUserMessage,
@@ -151,6 +153,20 @@ export function createAnthropicEngine(config: {
       );
       const ids = new Set(pairs.map((p) => p.id));
       return { findings: out.findings.filter((f) => ids.has(f.id)) };
+    },
+
+    async postEdit(items, ctx, signal) {
+      const out = await callJson<{ segments: { id: string; text: string; over: boolean }[] }>(
+        postEditSystemPrompt(ctx),
+        postEditUserMessage(items),
+        TRANSLATION_SCHEMA,
+        'medium',
+        signal,
+      );
+      const ids = new Set(items.map((i) => i.id));
+      return out.segments
+        .filter((s) => ids.has(s.id))
+        .map((s) => ({ id: s.id, text: unescapeXml(s.text) }));
     },
 
     async extractGlossary(sample, ctx, signal) {

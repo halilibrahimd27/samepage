@@ -18,6 +18,11 @@ All notable changes to samepage are documented here. The format follows
 - Meaning check: back-translation compared for negation, hedging and quantifier cues in all 17
   source languages; sentence-aligned review of source, translation and back-translation with the
   differing words marked.
+- Hybrid quality: with the user's own Claude key, the sentences the meaning check flags are
+  revised by Claude, validated like any translation and reported; British or American spelling
+  for English targets.
+- AI-use statement: a ready-to-copy disclosure naming the engine and the language pair, in the
+  paper's language.
 - Abstract mode: title, abstract and keywords found (labelled or not, structured, bilingual
   papers), editable, and translated on their own.
 - Glossary with suggestions from the document (code-font words, tool names, field terms), CSV

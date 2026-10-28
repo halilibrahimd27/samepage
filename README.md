@@ -36,7 +36,8 @@ the paper says.
 - **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. A meaning
   check translates the result back and flags lost negations, softened or hardened claims
   ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"). You can
-  compare every paragraph sentence by sentence, even in a language you do not read.
+  compare every paragraph sentence by sentence, even in a language you do not read. With your own
+  Claude key, the flagged sentences are revised automatically (British or American spelling).
 - **Abstract only.** For journals that ask for a second-language abstract: samepage finds the
   title, abstract and keywords, lets you edit them and translates just those.
 - **A glossary from your paper.** Tool names, code and field terms ("confidence interval",
@@ -79,11 +80,12 @@ samepage is a static site with **no backend**. Your document is opened, analysed
 entirely inside your browser; the file itself never leaves your device. Only the text that needs
 translating is sent, and only to the engine you choose:
 
-| Engine                           | Where your text goes                                             |
-| -------------------------------- | ---------------------------------------------------------------- |
-| **Google Translate** (default)   | Google, through Google's website translator. Works on phones.    |
-| Chrome built-in translator       | Nowhere — translated on your device (desktop Chrome and Edge)    |
-| Advanced: Claude API / local LLM | Anthropic under your own key, or your own computer (`localhost`) |
+| Engine                           | Where your text goes                                                        |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| **Google Translate** (default)   | Google, through Google's website translator. Works on phones.               |
+| Chrome built-in translator       | Nowhere — translated on your device (desktop Chrome and Edge)               |
+| Advanced: Claude API / local LLM | Anthropic under your own key, or your own computer (`localhost`)            |
+| Optional: polish with Claude     | Only the sentences the meaning check flags, to Anthropic under your own key |
 
 - **No analytics, no telemetry, no third-party scripts in the app.** Fonts, OCR models and
   WebAssembly are served from this site, and a Content Security Policy limits the app's own

@@ -56,56 +56,47 @@ export function EngineConfigPanel({
         showAdvanced={settings.showAdvancedEngines}
       />
 
-      {config.engine === 'anthropic' && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="anthropic-model" className="text-sm font-medium">
-              {t('model.label')}
-            </label>
-            <select
-              id="anthropic-model"
-              value={config.anthropicModel}
-              onChange={(e) => config.setAnthropicModel(e.target.value)}
-              className={input}
-            >
-              {ANTHROPIC_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id} — {t(`model.${m.tier}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="api-key" className="text-sm font-medium">
-              {t('key.label')}
-            </label>
+      {config.engine === 'anthropic' && <ClaudeFields config={config} />}
+
+      {(config.engine === 'browser' || config.engine === 'chrome-builtin') && (
+        <div
+          className="flex flex-col gap-3 rounded-lg border border-violet-200 bg-violet-50/40 p-3"
+          data-testid="polish"
+        >
+          <label className="flex items-start gap-2 text-sm">
             <input
-              id="api-key"
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={config.apiKey.key}
-              onChange={(e) => config.apiKey.setKey(e.target.value)}
-              className={`${input} font-mono`}
+              type="checkbox"
+              className="mt-1"
+              checked={config.polish}
+              onChange={(e) => config.setPolish(e.target.checked)}
+              data-testid="polish-toggle"
             />
-          </div>
-          <div className="flex flex-col gap-1 text-sm text-slate-600 sm:col-span-2">
-            <p>{t('key.hint')}</p>
-            <label className="flex items-center gap-2 text-slate-800">
-              <input
-                type="checkbox"
-                checked={config.apiKey.remember}
-                onChange={(e) => config.apiKey.setRemember(e.target.checked)}
-              />
-              {t('key.remember')}
-            </label>
-            {config.apiKey.remember && <p className="text-amber-800">{t('key.rememberWarning')}</p>}
-            {config.apiKey.key && (
-              <button type="button" className="self-start underline" onClick={config.apiKey.forget}>
-                {t('key.forget')}
-              </button>
-            )}
-          </div>
+            <span>
+              <span className="font-medium">{t('polish.label')}</span>
+              <span className="block text-slate-600">{t('polish.hint')}</span>
+            </span>
+          </label>
+          {config.polish && <ClaudeFields config={config} />}
+        </div>
+      )}
+
+      {config.target === 'en' && (config.engine === 'anthropic' || config.polishing) && (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="english-spelling" className="text-sm font-medium">
+            {t('spelling.label')}
+          </label>
+          <select
+            id="english-spelling"
+            value={config.englishSpelling}
+            onChange={(e) =>
+              config.setEnglishSpelling(e.target.value as '' | 'american' | 'british')
+            }
+            className={input}
+          >
+            <option value="">{t('spelling.default')}</option>
+            <option value="american">{t('spelling.american')}</option>
+            <option value="british">{t('spelling.british')}</option>
+          </select>
         </div>
       )}
 
@@ -139,6 +130,63 @@ export function EngineConfigPanel({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Claude's model and the user's own API key (the Claude engine, or polishing with Claude). */
+function ClaudeFields({ config }: { config: EngineConfig }) {
+  const { t } = useI18n();
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="anthropic-model" className="text-sm font-medium">
+          {t('model.label')}
+        </label>
+        <select
+          id="anthropic-model"
+          value={config.anthropicModel}
+          onChange={(e) => config.setAnthropicModel(e.target.value)}
+          className={input}
+        >
+          {ANTHROPIC_MODELS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.id} — {t(`model.${m.tier}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="api-key" className="text-sm font-medium">
+          {t('key.label')}
+        </label>
+        <input
+          id="api-key"
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          value={config.apiKey.key}
+          onChange={(e) => config.apiKey.setKey(e.target.value)}
+          className={`${input} font-mono`}
+        />
+      </div>
+      <div className="flex flex-col gap-1 text-sm text-slate-600 sm:col-span-2">
+        <p>{t('key.hint')}</p>
+        <label className="flex items-center gap-2 text-slate-800">
+          <input
+            type="checkbox"
+            checked={config.apiKey.remember}
+            onChange={(e) => config.apiKey.setRemember(e.target.checked)}
+          />
+          {t('key.remember')}
+        </label>
+        {config.apiKey.remember && <p className="text-amber-800">{t('key.rememberWarning')}</p>}
+        {config.apiKey.key && (
+          <button type="button" className="self-start underline" onClick={config.apiKey.forget}>
+            {t('key.forget')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

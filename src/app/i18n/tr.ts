@@ -166,6 +166,14 @@ export const tr: Record<MessageKey, string> = {
   'workspace.translating': 'Çevriliyor… {done} / {total} paragraf',
   'workspace.ocr': 'Metin tanınıyor (OCR)… sayfa {done} / {total}',
   'workspace.checking': 'Anlam kontrol ediliyor… {done} / {total} paragraf',
+  'workspace.polishing': 'Claude işaretlenen cümleleri düzeltiyor… {done} / {total}',
+  'polish.label': 'İşaretlenen cümleleri Claude ile düzelt',
+  'polish.hint':
+    'Anlam denetiminin işaretlediği cümleler, kendi Anthropic API anahtarınızla Claude tarafından düzeltilir. Anthropic’e yalnızca bu cümleler gönderilir.',
+  'spelling.label': 'İngilizce yazım',
+  'spelling.default': 'Motorun tercihi',
+  'spelling.american': 'Amerikan (color, analyze, modeling)',
+  'spelling.british': 'İngiliz (colour, analyse, modelling)',
   'mode.label': 'Ne çevrilsin',
   'mode.document': 'Tüm belge',
   'mode.abstract': 'Başlık, özet ve anahtar kelimeler',
@@ -219,6 +227,8 @@ export const tr: Record<MessageKey, string> = {
     'bir ihtimal ifadesi ("olabilir", "düşündürmektedir") kaybolmuş olabilir — iddia kaynaktakinden güçlü okunabilir.',
   'meaning.hedgingAdded': 'bir ihtimal ifadesi eklenmiş olabilir — iddia daha zayıf okunabilir.',
   'meaning.quantifier': 'bir niceleyici değişmiş olabilir ("çoğu" → "tümü", "bazı" → "az").',
+  'issue.POST_EDITED':
+    'Anlam denetimi ilk çeviriyi işaretledi; Claude kaynağı ve bulguyu görerek düzeltti.',
   'issue.OCR_LOW_CONFIDENCE': 'Tarama burada zor okundu; tanınan metinde hata olabilir.',
   'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
   'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',

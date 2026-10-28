@@ -7,6 +7,7 @@ import {
 import {
   EngineError,
   type FidelityFinding,
+  type PostEditItem,
   type SegmentRequest,
   type SegmentResult,
   type TranslateContext,
@@ -45,12 +46,20 @@ export interface TranslateJob {
   fidelityCheck?: boolean;
   /** Write "et al." in citations the target language's way ("vd.", "и др."). */
   localCitations?: boolean;
+  /**
+   * Hybrid quality (P9.3): translations the meaning check flags are revised by this engine (an
+   * LLM under the user's own key), with the source, the finding and the back-translation.
+   */
+  postEditor?: TranslationEngine;
   /** Progress of the translation, then (phase 'check') of the meaning check. */
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
 }
 
-/** 'check': the meaning check after translation (back-translation or Claude review). */
-export type ProgressPhase = 'check' | 'ocr';
+/**
+ * 'check': the meaning check after translation (back-translation or Claude review); 'polish':
+ * flagged translations revised by an LLM.
+ */
+export type ProgressPhase = 'check' | 'ocr' | 'polish';
 
 const MAX_SEGMENTS_PER_BATCH = 40;
 const FIDELITY_BATCH_CHARS = 8000;
@@ -109,6 +118,12 @@ const FATAL: EngineError['code'][] = [
  * failing segment alone) → keep the source and report (TRANSLATION.md §6). Optionally runs the
  * fidelity check (ADR-008) on accepted translations.
  */
+/** The prompt version in the cache key: LLM engines write the chosen English spelling. */
+const promptVersion = (engine: TranslationEngine, ctx: TranslateContext) =>
+  engine.capabilities.glossary && ctx.pair.target === 'en' && ctx.englishSpelling
+    ? `${PROMPT_VERSION}:${ctx.englishSpelling}`
+    : PROMPT_VERSION;
+
 export async function translateSegments(job: TranslateJob): Promise<SegmentOutcome[]> {
   const { engine, signal } = job;
   // Line-end hyphens left inside words by PDF converters are joined before translating.
@@ -143,7 +158,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         model: engine.model ?? '',
         source: ctx.pair.source,
         target: ctx.pair.target,
-        promptVersion: PROMPT_VERSION,
+        promptVersion: promptVersion(engine, ctx),
         glossaryHash: gHash,
         numberLocalization: ctx.numberLocalization,
         role: s.role,
@@ -514,6 +529,91 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       }
     }
   }
+
+  /**
+   * Hybrid quality (P9.3): what the meaning check flagged goes to the post-editor with the
+   * source, the finding and the back-translation. A revision replaces the draft only if it
+   * passes the same validation; the finding stays in the report as revised.
+   */
+  async function postEdit(editor: TranslationEngine) {
+    const flagged = segments
+      .map((s) => ({ s, o: outcomes.get(s.id)! }))
+      .filter(({ o }) => !o.untranslated && o.findings.length > 0);
+    if (!flagged.length) return;
+    const peKeys = await Promise.all(
+      flagged.map(({ s, o }) =>
+        cacheKey({
+          engineId: `post-edit/${editor.id}`,
+          model: editor.model ?? '',
+          source: ctx.pair.source,
+          target: ctx.pair.target,
+          promptVersion: promptVersion(editor, ctx),
+          glossaryHash: gHash,
+          numberLocalization: ctx.numberLocalization,
+          role: s.role,
+          text: `${s.text}\u2028${o.text}`,
+        }),
+      ),
+    );
+    const peHits = job.cache ? await job.cache.get(peKeys) : new Map<string, CacheEntry>();
+    const revised = new Map<string, string>();
+    const todo: (PostEditItem & { text: string })[] = [];
+    flagged.forEach(({ s, o }, k) => {
+      const hit = peHits.get(peKeys[k]!);
+      if (hit) revised.set(s.id, hit.text);
+      else
+        todo.push({
+          id: s.id,
+          role: s.role,
+          source: s.text,
+          draft: o.text,
+          findings: o.findings.map((f) => `${f.severity}: ${f.issue}`),
+          ...(o.back ? { back: o.back } : {}),
+          text: s.text + o.text,
+        });
+    });
+    let polished = 0;
+    job.onProgress?.(0, todo.length, 'polish');
+    await pool(makeBatches(todo, editor.maxBatchChars), 1, async (batch) => {
+      signal.throwIfAborted();
+      const results = await editor.postEdit!(
+        batch.map(({ text: _, ...item }) => item),
+        ctx,
+        signal,
+      );
+      for (const r of results) revised.set(r.id, r.text);
+      polished += batch.length;
+      job.onProgress?.(polished, todo.length, 'polish');
+    });
+    flagged.forEach(({ s, o }, k) => {
+      const text = revised.get(s.id);
+      if (text === undefined) return;
+      const problems = validateTranslation({
+        source: s.text,
+        target: text,
+        sourceLang: ctx.pair.source,
+        targetLang: ctx.pair.target,
+        glossary: ctx.glossary,
+        checkLanguage,
+        checkChatter: true,
+      }).filter((i) => i.severity === 'error');
+      if (problems.length) return;
+      if (!peHits.has(peKeys[k]!)) fresh.push([peKeys[k]!, { text }]);
+      const findings = o.findings.map((f) => f.issue).join('; ');
+      o.text = text;
+      o.notes.push('post-edited');
+      // The back-translation was of the draft.
+      delete o.back;
+      o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
+      o.issues.push({
+        code: 'POST_EDITED',
+        severity: 'info',
+        detail: `revised by ${editor.label} after the meaning check found: ${findings}`,
+      });
+    });
+  }
+
+  if (job.postEditor?.postEdit) await postEdit(job.postEditor);
 
   if (job.cache && fresh.length) await job.cache.set(fresh);
   // After caching: the cache keeps the engine's text, the option applies on every run.

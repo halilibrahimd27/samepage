@@ -34,6 +34,10 @@ export interface TextJob {
   useCache: boolean;
   /** "et al." in citations the target language's way ("vd.", "и др."). */
   localCitations?: boolean;
+  /** Hybrid quality (P9.3): flagged translations revised by Claude under the user's own key. */
+  polish?: { apiKey: string; model: string };
+  /** English targets: the spelling LLM engines write. */
+  englishSpelling?: 'american' | 'british';
 }
 
 export interface TextSegment {
@@ -75,6 +79,10 @@ export interface DocxJob {
   translateMetadata: boolean;
   /** Review-step corrections: tagged source → tagged target. */
   overrides?: Record<string, string>;
+  /** Hybrid quality (P9.3): flagged translations revised by Claude under the user's own key. */
+  polish?: { apiKey: string; model: string };
+  /** English targets: the spelling LLM engines write. */
+  englishSpelling?: 'american' | 'british';
 }
 
 export interface PdfJob extends Omit<DocxJob, 'translateComments' | 'translateMetadata'> {

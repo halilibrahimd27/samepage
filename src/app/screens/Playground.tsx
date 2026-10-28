@@ -70,6 +70,7 @@ export function Playground({ config, settings }: { config: EngineConfig; setting
   const job = (jobId: string, paragraphs: string[]): TextJob => ({
     jobId,
     engine: config.spec(),
+    ...config.extras(),
     pair,
     paragraphs,
     glossary: glossary.filter((g) => g.source.trim() && g.target.trim()),

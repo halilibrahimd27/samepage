@@ -8,6 +8,7 @@ import { downloadBlob } from '../download';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
 import { ProgressBar } from './ProgressBar';
+import { phaseMessage } from '../format';
 import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
@@ -62,6 +63,7 @@ export function PdfTranslator(props: {
         jobId,
         file,
         engine: config.spec(),
+        ...config.extras(),
         pair,
         glossary: glossary.usable,
         numberLocalization: false,
@@ -171,14 +173,7 @@ export function PdfTranslator(props: {
               {download !== null
                 ? t('playground.downloading', { percent: download })
                 : progress
-                  ? t(
-                      progress.phase === 'check'
-                        ? 'workspace.checking'
-                        : progress.phase === 'ocr'
-                          ? 'workspace.ocr'
-                          : 'workspace.translating',
-                      progress,
-                    )
+                  ? t(phaseMessage(progress.phase), progress)
                   : t('file.reading')}
             </span>
           )}

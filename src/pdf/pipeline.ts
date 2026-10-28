@@ -37,6 +37,10 @@ export interface PdfOptions {
   fidelityCheck: boolean;
   /** "et al." in citations the target language's way. */
   localCitations?: boolean;
+  /** Hybrid quality (P9.3): an LLM revises what the meaning check flags. */
+  postEditor?: TranslationEngine;
+  /** English targets: the spelling LLM engines write. */
+  englishSpelling?: 'american' | 'british';
   faces: LoadedFaces;
   maxPages: number;
   dual: boolean;
@@ -366,9 +370,15 @@ export async function translatePdf(
   const outcomes = await translateSegments({
     engine: opts.engine,
     segments: requests,
-    ctx: { pair: opts.pair, glossary: opts.glossary, numberLocalization: opts.numberLocalization },
+    ctx: {
+      pair: opts.pair,
+      glossary: opts.glossary,
+      numberLocalization: opts.numberLocalization,
+      ...(opts.englishSpelling ? { englishSpelling: opts.englishSpelling } : {}),
+    },
     signal: opts.signal,
     fidelityCheck: opts.fidelityCheck,
+    ...(opts.postEditor ? { postEditor: opts.postEditor } : {}),
     localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),

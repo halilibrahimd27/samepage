@@ -52,6 +52,21 @@ function engineFor(
   return createEngine(job.engine.id, job.engine);
 }
 
+/** Hybrid quality (P9.3): Claude under the user's own key revises what the check flags. */
+function polishOptions(job: TextJob | DocxJob | PdfJob) {
+  return {
+    ...(job.polish
+      ? {
+          postEditor: createEngine('anthropic', {
+            apiKey: job.polish.apiKey,
+            model: job.polish.model,
+          }),
+        }
+      : {}),
+    ...(job.englishSpelling ? { englishSpelling: job.englishSpelling } : {}),
+  };
+}
+
 function encodeParagraphs(job: TextJob) {
   return job.paragraphs.map((p, i) => ({
     id: `s${i + 1}`,
@@ -153,8 +168,14 @@ const api: PipelineApi = {
       const outcomes = await translateSegments({
         engine,
         segments: requests,
-        ctx: { pair: job.pair, glossary: job.glossary, numberLocalization: job.numberLocalization },
+        ctx: {
+          pair: job.pair,
+          glossary: job.glossary,
+          numberLocalization: job.numberLocalization,
+          ...(job.englishSpelling ? { englishSpelling: job.englishSpelling } : {}),
+        },
         signal: controller.signal,
+        ...(job.polish ? { postEditor: polishOptions(job).postEditor } : {}),
         ...(job.useCache ? { cache } : {}),
         fidelityCheck: job.fidelityCheck,
         localCitations: job.localCitations ?? false,
@@ -243,6 +264,7 @@ const api: PipelineApi = {
         numberLocalization: job.numberLocalization,
         fidelityCheck: job.fidelityCheck,
         localCitations: job.localCitations ?? false,
+        ...polishOptions(job),
         translateComments: job.translateComments,
         translateReferences: job.translateReferences,
         translateMetadata: job.translateMetadata,
@@ -274,6 +296,7 @@ const api: PipelineApi = {
           numberLocalization: job.numberLocalization,
           fidelityCheck: job.fidelityCheck,
           localCitations: job.localCitations ?? false,
+          ...polishOptions(job),
           translateReferences: job.translateReferences,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           translateMetadata: job.translateMetadata,

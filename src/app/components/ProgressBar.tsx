@@ -21,7 +21,11 @@ export function ProgressBar({
     >
       <div
         className={`h-full rounded-full transition-[width] duration-300 ${
-          phase === 'check' ? 'bg-violet-600' : phase === 'ocr' ? 'bg-amber-500' : 'bg-blue-600'
+          phase === 'check' || phase === 'polish'
+            ? 'bg-violet-600'
+            : phase === 'ocr'
+              ? 'bg-amber-500'
+              : 'bg-blue-600'
         }`}
         style={{ width: `${percent}%` }}
       />

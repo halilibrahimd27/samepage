@@ -16,7 +16,12 @@ import {
 import { academicHeading, isNameList, usesMetrics } from '../../src/core/glossary/academic';
 import { validateTranslation } from '../../src/core/validate/validate';
 import { createPseudoEngine } from '../../src/engines/pseudo';
-import { EngineError, type SegmentRequest, type TranslationEngine } from '../../src/engines/types';
+import {
+  EngineError,
+  type PostEditItem,
+  type SegmentRequest,
+  type TranslationEngine,
+} from '../../src/engines/types';
 import { redactSecrets } from '../../src/security/redact';
 
 const ctx = { pair: { source: 'tr', target: 'en' }, glossary: [], numberLocalization: false };
@@ -58,6 +63,55 @@ describe('translateSegments', () => {
     seg('a', 'Bu yöntem 3,5 kat daha hızlıdır [2].'),
     seg('b', 'Sonuçlar genellenebilir olabilir.'),
   ];
+
+  /** A post-editor that answers every item with `text`, recording what it was given. */
+  const editor = (text: string, seen: PostEditItem[]): TranslationEngine => ({
+    ...createPseudoEngine(),
+    id: 'anthropic',
+    label: 'Claude (Anthropic)',
+    model: 'test-editor',
+    maxBatchChars: 10_000,
+    postEdit(items) {
+      seen.push(...items);
+      return Promise.resolve(items.map((i) => ({ id: i.id, text })));
+    },
+  });
+  const drafts = (id: string) =>
+    id === 'a' ? 'This method is 3.5 times faster [2].' : 'The results are generalisable.';
+
+  it('hybrid quality: what the meaning check flags is revised by the post-editor', async () => {
+    const seen: PostEditItem[] = [];
+    const out = await translateSegments({
+      engine: scripted([drafts]),
+      segments,
+      ctx,
+      signal: new AbortController().signal,
+      fidelityCheck: true,
+      postEditor: editor('The results may be generalisable.', seen),
+    });
+    expect(seen.map((i) => [i.id, i.draft, i.findings])).toEqual([
+      ['b', 'The results are generalisable.', ['major: hedging lost']],
+    ]);
+    expect(out[1]!.text).toBe('The results may be generalisable.');
+    expect(out[1]!.notes).toContain('post-edited');
+    expect(out[1]!.issues.map((i) => [i.code, i.severity])).toEqual([['POST_EDITED', 'info']]);
+    expect(out[0]!.text).toBe('This method is 3.5 times faster [2].');
+  });
+
+  it('hybrid quality: a revision that fails validation leaves the draft and the finding', async () => {
+    const out = await translateSegments({
+      engine: scripted([drafts]),
+      segments,
+      ctx,
+      signal: new AbortController().signal,
+      fidelityCheck: true,
+      // An invented citation.
+      postEditor: editor('The results may be generalisable [9].', []),
+    });
+    expect(out[1]!.text).toBe('The results are generalisable.');
+    expect(out[1]!.issues.map((i) => i.code)).toContain('MEANING_DRIFT');
+    expect(out[1]!.notes).not.toContain('post-edited');
+  });
 
   it('retries the failing segment with feedback, then individually, then keeps the source', async () => {
     const engine = scripted([

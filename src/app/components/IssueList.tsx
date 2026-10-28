@@ -17,6 +17,7 @@ const EXPLAINED = new Set([
   'KEPT_ORIGINAL',
   'BELOW_MIN_SIZE',
   'OCR_LOW_CONFIDENCE',
+  'POST_EDITED',
 ]);
 
 /** Issues of one paragraph: meaning findings with their back-translation, then the others. */

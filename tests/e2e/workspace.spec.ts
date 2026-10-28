@@ -44,3 +44,19 @@ test('UI language and settings persist; engines show privacy badges', async ({ p
   await expect(page.getByTestId('privacy-pseudo')).toHaveText('Cihazda');
   await expect(page.locator('html')).toHaveAttribute('lang', 'tr');
 });
+
+test('polishing flagged sentences with Claude asks for the user’s own key', async ({ page }) => {
+  await page.goto('./');
+  await page.getByTestId('file-input').setInputFiles('tests/corpus/pdf/one-column-basic.pdf');
+  await expect(page.getByTestId('thumbnail')).toBeVisible({ timeout: 30_000 });
+  // Offered with the default engine (Google), off until chosen.
+  const toggle = page.getByTestId('polish-toggle');
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(page.getByLabel('Anthropic API key', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Translate', exact: true }).click();
+  await expect(page.getByText('Enter your Anthropic API key first.')).toBeVisible();
+  // English spelling can be chosen once Claude writes English.
+  await page.getByLabel('Target language', { exact: true }).selectOption('en');
+  await expect(page.getByLabel('English spelling')).toBeVisible();
+});

@@ -37,6 +37,22 @@ export interface TranslateContext {
   numberLocalization: boolean;
   /** Validator feedback from a failed attempt, appended to the retry prompt. */
   retryFeedback?: string;
+  /** English targets: the spelling LLM engines write (unset: the engine's own choice). */
+  englishSpelling?: 'american' | 'british';
+}
+
+/** A translation the meaning check flagged, to be revised by an LLM (P9.3). */
+export interface PostEditItem {
+  id: string;
+  role: Role;
+  /** Tagged source. */
+  source: string;
+  /** Tagged translation that was flagged. */
+  draft: string;
+  /** What the meaning check found ("major: negation lost"). */
+  findings: string[];
+  /** The draft translated back into the source language, when the check made one. */
+  back?: string;
 }
 
 export interface CondenseRequest {
@@ -108,6 +124,12 @@ export interface TranslationEngine {
     ctx: TranslateContext,
     signal: AbortSignal,
   ): Promise<GlossaryEntry[]>;
+  /** Revises flagged translations (hybrid quality, P9.3); same tags and placeholders kept. */
+  postEdit?(
+    items: PostEditItem[],
+    ctx: TranslateContext,
+    signal: AbortSignal,
+  ): Promise<SegmentResult[]>;
 }
 
 /** Thrown by engines for failures the user must fix (bad key, unreachable server…). */

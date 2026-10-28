@@ -20,6 +20,7 @@ import { AiStatement } from './AiStatement';
 import { BackTranslation } from './BackTranslation';
 import { IssueList } from './IssueList';
 import { ProgressBar } from './ProgressBar';
+import { phaseMessage } from '../format';
 import { TranslationSheet } from './TranslationSheet';
 
 const JOB_MS = 30 * 60_000;
@@ -141,6 +142,7 @@ export function AbstractTranslator({
       const job: TextJob = {
         jobId,
         engine: config.spec(),
+        ...config.extras(),
         pair,
         paragraphs,
         plain: true,
@@ -308,14 +310,7 @@ export function AbstractTranslator({
               {download !== null
                 ? t('playground.downloading', { percent: download })
                 : progress
-                  ? t(
-                      progress.phase === 'check'
-                        ? 'workspace.checking'
-                        : progress.phase === 'ocr'
-                          ? 'workspace.ocr'
-                          : 'workspace.translating',
-                      progress,
-                    )
+                  ? t(phaseMessage(progress.phase), progress)
                   : t('file.reading')}
             </span>
           )}

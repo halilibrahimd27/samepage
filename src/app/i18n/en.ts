@@ -164,6 +164,14 @@ export const en = {
   'workspace.translating': 'Translating… {done} / {total} paragraphs',
   'workspace.ocr': 'Recognising text (OCR)… page {done} / {total}',
   'workspace.checking': 'Checking meaning… {done} / {total} paragraphs',
+  'workspace.polishing': 'Claude is revising flagged sentences… {done} / {total}',
+  'polish.label': 'Polish flagged sentences with Claude',
+  'polish.hint':
+    'Sentences the meaning check flags are revised by Claude under your own Anthropic API key. Only those sentences are sent to Anthropic.',
+  'spelling.label': 'English spelling',
+  'spelling.default': 'The engine’s choice',
+  'spelling.american': 'American (color, analyze, modeling)',
+  'spelling.british': 'British (colour, analyse, modelling)',
   'mode.label': 'What to translate',
   'mode.document': 'Whole document',
   'mode.abstract': 'Title, abstract and keywords',
@@ -217,6 +225,8 @@ export const en = {
     'a hedge ("may", "suggests") may be lost — the claim may read stronger than in the source.',
   'meaning.hedgingAdded': 'a hedge may have been added — the claim may read weaker.',
   'meaning.quantifier': 'a quantifier may have changed ("most" → "all", "some" → "few").',
+  'issue.POST_EDITED':
+    'The meaning check flagged the first translation; Claude revised it with the source and the finding in view.',
   'issue.OCR_LOW_CONFIDENCE':
     'The scan was hard to read here; the recognised text may contain errors.',
   'issue.UNTRANSLATED': 'The translation was identical to the source.',
