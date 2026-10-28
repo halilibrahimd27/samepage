@@ -6,6 +6,7 @@ import { encode, plainText, verbatimOf } from '../core/segment/codec';
 import { parsePlaygroundMarkup, styleKey } from '../core/segment/markup';
 import { findPaperParts } from '../core/abstract';
 import { suggestTerms } from '../core/glossary/detect';
+import { readProjectFile, writeProjectFile } from '../core/projectFile';
 import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import { buildBilingualDocx } from '../docx/bilingual';
@@ -43,6 +44,8 @@ function engineFor(
   job: TextJob | DocxJob | PdfJob,
   chrome?: ChromeTranslatorBridge,
 ): TranslationEngine {
+  // A reopened project translates nothing: its translations replace the engine (never called).
+  if ('replay' in job && job.replay) return createEngine('pseudo', { pseudo: IDENTITY });
   if (job.engine.id === 'chrome-builtin' || job.engine.id === 'browser') {
     if (!chrome) throw new EngineError('unavailable', 'Main-thread translation bridge missing.');
     return job.engine.id === 'browser'
@@ -51,6 +54,8 @@ function engineFor(
   }
   return createEngine(job.engine.id, job.engine);
 }
+
+const IDENTITY = { factor: 1, substitute: false };
 
 /** Hybrid quality (P9.3): Claude under the user's own key revises what the check flags. */
 function polishOptions(job: TextJob | DocxJob | PdfJob) {
@@ -257,25 +262,29 @@ const api: PipelineApi = {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);
     try {
-      const { bytes, report } = await translateDocx(new Uint8Array(await job.file.arrayBuffer()), {
-        engine: engineFor(job, chrome),
-        pair: job.pair,
-        glossary: job.glossary,
-        numberLocalization: job.numberLocalization,
-        fidelityCheck: job.fidelityCheck,
-        localCitations: job.localCitations ?? false,
-        ...polishOptions(job),
-        translateComments: job.translateComments,
-        translateReferences: job.translateReferences,
-        translateMetadata: job.translateMetadata,
-        ...(job.overrides ? { overrides: job.overrides } : {}),
-        cache,
-        signal: controller.signal,
-        ...(onProgress
-          ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
-          : {}),
-      });
-      return transfer({ ok: true as const, bytes, report }, [bytes.buffer]);
+      const { bytes, report, translations } = await translateDocx(
+        new Uint8Array(await job.file.arrayBuffer()),
+        {
+          engine: engineFor(job, chrome),
+          pair: job.pair,
+          glossary: job.glossary,
+          numberLocalization: job.numberLocalization,
+          fidelityCheck: job.fidelityCheck,
+          localCitations: job.localCitations ?? false,
+          // A reopened project: its translations, no engine and no polishing.
+          ...(job.replay ? { replay: job.replay } : polishOptions(job)),
+          translateComments: job.translateComments,
+          translateReferences: job.translateReferences,
+          translateMetadata: job.translateMetadata,
+          ...(job.overrides ? { overrides: job.overrides } : {}),
+          cache,
+          signal: controller.signal,
+          ...(onProgress
+            ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
+            : {}),
+        },
+      );
+      return transfer({ ok: true as const, bytes, report, translations }, [bytes.buffer]);
     } catch (error) {
       return toJobError(error, controller.signal);
     } finally {
@@ -287,7 +296,7 @@ const api: PipelineApi = {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);
     try {
-      const { mono, dual, editable, report } = await translatePdf(
+      const { mono, dual, editable, report, translations } = await translatePdf(
         new Uint8Array(await job.file.arrayBuffer()),
         {
           engine: engineFor(job, chrome),
@@ -296,7 +305,8 @@ const api: PipelineApi = {
           numberLocalization: job.numberLocalization,
           fidelityCheck: job.fidelityCheck,
           localCitations: job.localCitations ?? false,
-          ...polishOptions(job),
+          // A reopened project: its translations, no engine and no polishing.
+          ...(job.replay ? { replay: job.replay } : polishOptions(job)),
           translateReferences: job.translateReferences,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           translateMetadata: job.translateMetadata,
@@ -314,7 +324,7 @@ const api: PipelineApi = {
             : {}),
         },
       );
-      return transfer({ ok: true as const, mono, dual, editable, report }, [
+      return transfer({ ok: true as const, mono, dual, editable, report, translations }, [
         mono.buffer,
         ...(dual ? [dual.buffer] : []),
         ...(editable ? [editable.buffer] : []),
@@ -346,6 +356,16 @@ const api: PipelineApi = {
     } finally {
       controllers.delete(job.jobId);
     }
+  },
+
+  async writeProject(manifest, source) {
+    const bytes = await writeProjectFile(manifest, new Uint8Array(await source.arrayBuffer()));
+    return transfer(bytes, [bytes.buffer]);
+  },
+
+  async readProject(file) {
+    const opened = await readProjectFile(new Uint8Array(await file.arrayBuffer()));
+    return opened.ok ? transfer(opened, [opened.source.buffer]) : opened;
   },
 
   async bilingualDocx(rows, labels) {

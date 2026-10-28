@@ -1,5 +1,6 @@
 import { proxy } from 'comlink';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ProjectManifest, ProjectOptions } from '../../core/project';
 import type { ProgressPhase } from '../../core/pipeline/translate';
 import type { JobError, PdfJob, PdfJobResult } from '../../workers/api';
 import { sheetStore } from '../bridges/browserTranslator';
@@ -13,6 +14,7 @@ import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { useGlossary, useTermSuggestions } from '../useGlossary';
+import { useProject } from '../useProject';
 import { GlossaryPanel } from './GlossaryPanel';
 import { PdfPreview } from './PdfPreview';
 import { AiStatement } from './AiStatement';
@@ -25,8 +27,10 @@ export function PdfTranslator(props: {
   pageCount: number;
   config: EngineConfig;
   settings: Settings;
+  /** A reopened project (P9.5): shown without translating again. */
+  project?: ProjectManifest;
 }) {
-  const { file, config, settings } = props;
+  const { file, config, settings, project } = props;
   const { t } = useI18n();
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
@@ -40,41 +44,57 @@ export function PdfTranslator(props: {
   const [download, setDownload] = useState<number | null>(null);
   const [result, setResult] = useState<(PdfJobResult & { ok: true }) | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [from, setFrom] = useState(1);
-  const [to, setTo] = useState(props.pageCount);
+  const range = project?.options.pageRange;
+  const [from, setFrom] = useState(range ? range.from + 1 : 1);
+  const [to, setTo] = useState(range ? range.to + 1 : props.pageCount);
   /** Review-step corrections (tagged source → tagged target), applied on rebuild. */
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState<Record<string, string>>(project?.edits ?? {});
+  const projectFile = useProject(project, file, 'pdf');
+  const missingTerms = projectFile.missingTerms(glossary.entries);
   const [applied, setApplied] = useState<Record<string, string>>({});
   const base = file.name.replace(/\.pdf$/i, '');
   const problem = config.problem(t);
   const jobErrorText = (e: JobError) =>
     e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
 
-  async function run() {
-    if (problem) return setError(problem);
+  /**
+   * `fresh`: translate with the engine. Otherwise (corrections applied, a project reopened) the
+   * translations shown are reused and no engine is called.
+   */
+  async function run(fresh: boolean) {
+    const reuse = projectFile.reuse(fresh, pair);
+    if (!reuse && problem) return setError(problem);
     setError(null);
     setResult(null);
     const jobId = crypto.randomUUID();
     setRunning(jobId);
     setProgress(null);
     try {
-      const bridge = await engineBridge(config.engine, pair, setDownload);
-      const job: PdfJob = {
-        jobId,
-        file,
-        engine: config.spec(),
-        ...config.extras(),
-        pair,
-        glossary: glossary.usable,
-        numberLocalization: false,
+      const bridge = reuse ? undefined : await engineBridge(config.engine, pair, setDownload);
+      const spec = config.spec();
+      const options = projectFile.options(reuse !== null, {
         fidelityCheck: settings.fidelityCheck,
         localCitations: settings.localCitations,
         translateReferences: settings.translateReferences,
-        dual: true,
         translateMetadata: settings.translateMetadata,
         ...(from > 1 || to < props.pageCount
           ? { pageRange: { from: Math.max(0, from - 1), to: Math.min(props.pageCount, to) - 1 } }
           : {}),
+      } satisfies ProjectOptions);
+      const job: PdfJob = {
+        jobId,
+        file,
+        engine: spec,
+        ...(reuse ? { replay: reuse } : config.extras()),
+        pair,
+        glossary: glossary.usable,
+        numberLocalization: false,
+        fidelityCheck: options.fidelityCheck,
+        localCitations: options.localCitations,
+        translateReferences: options.translateReferences,
+        dual: true,
+        translateMetadata: options.translateMetadata,
+        ...(options.pageRange ? { pageRange: options.pageRange } : {}),
         ...(Object.keys(edits).length ? { overrides: edits } : {}),
       };
       const res = await pipelineClient.call<PdfJobResult>(
@@ -91,6 +111,7 @@ export function PdfTranslator(props: {
       if (res.ok) {
         setResult(res);
         setApplied(edits);
+        projectFile.finished(res.translations, reuse !== null, spec, options, pair);
       } else setError(jobErrorText(res));
     } catch (e) {
       setError(runErrorText(e, t));
@@ -99,6 +120,15 @@ export function PdfTranslator(props: {
       setDownload(null);
     }
   }
+
+  // A reopened project shows its translation at once.
+  const reopened = useRef(false);
+  useEffect(() => {
+    if (!project || reopened.current) return;
+    reopened.current = true;
+    void run(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the project opens
+  }, []);
 
   const mono = result ? new Blob([result.mono.slice()], { type: 'application/pdf' }) : null;
   const dual = result?.dual ? new Blob([result.dual.slice()], { type: 'application/pdf' }) : null;
@@ -110,6 +140,16 @@ export function PdfTranslator(props: {
 
   return (
     <div className="flex flex-col gap-6">
+      {missingTerms.length > 0 && (
+        <button
+          type="button"
+          className="self-start rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-900"
+          onClick={() => glossary.update([...glossary.entries, ...missingTerms])}
+          data-testid="project-glossary"
+        >
+          {t('project.glossary', { count: missingTerms.length })}
+        </button>
+      )}
       <GlossaryPanel
         entries={glossary.entries}
         onChange={glossary.update}
@@ -155,7 +195,7 @@ export function PdfTranslator(props: {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => void run()}
+            onClick={() => void run(true)}
             disabled={running !== null}
             className="w-full rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white sm:w-auto hover:bg-blue-700 disabled:opacity-50"
           >
@@ -239,6 +279,21 @@ export function PdfTranslator(props: {
             >
               {t('download.report')}
             </button>
+            {projectFile.canSave && (
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 px-4 py-2"
+                onClick={() =>
+                  void projectFile
+                    .save(glossary.usable, edits)
+                    .catch((e: unknown) => setError(runErrorText(e, t)))
+                }
+                title={t('project.saveHint')}
+                data-testid="save-project"
+              >
+                {t('project.save')}
+              </button>
+            )}
           </div>
           {Object.keys(edits).some((k) => applied[k] !== edits[k]) && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-300 bg-violet-50 p-3 text-sm">
@@ -250,7 +305,7 @@ export function PdfTranslator(props: {
               <button
                 type="button"
                 disabled={running !== null}
-                onClick={() => void run()}
+                onClick={() => void run(false)}
                 className="rounded bg-violet-700 px-3 py-1.5 text-white disabled:opacity-50"
                 data-testid="pdf-apply-edits"
               >

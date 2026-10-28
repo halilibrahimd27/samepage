@@ -68,7 +68,7 @@ test('PDF review step: a manual edit is laid out again from the cache', async ({
   const unit = page.getByTestId('pdf-report').locator('li', { hasText: '3 Yöntem' });
   await unit.getByRole('button', { name: 'Edit' }).click();
   await page.getByTestId('segment-editor').fill('3 Method');
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByTestId('pdf-apply-edits').click();
   await expect(page.getByTestId('pdf-score')).toContainText('/100', { timeout: 120_000 });
   await openReport(page, 'pdf-report');

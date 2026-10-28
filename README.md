@@ -46,6 +46,9 @@ the paper says.
 - **A glossary from your paper.** Tool names, code and field terms ("confidence interval",
   "randomized controlled trial") are suggested to keep or translate consistently. Nothing is
   applied until you tick it.
+- **Save your work as a project.** A `.samepage` file keeps the document, its translation, your
+  corrections and glossary. Open it later — in any browser, on any computer — and carry on
+  without translating again. API keys are never saved in it.
 - **An honest quality report.** A layout score per page and every compromise listed — nothing is
   dropped or shrunk silently. Correct any paragraph and rebuild the document in place.
 - **Scanned papers too.** PDFs without a text layer are read with OCR on your device.

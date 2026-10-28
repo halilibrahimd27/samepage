@@ -1,3 +1,4 @@
+import type { StoredOutcome } from '../project';
 import { localizeEtAl } from '../glossary/citations';
 import {
   PROMPT_VERSION,
@@ -53,6 +54,11 @@ export interface TranslateJob {
   postEditor?: TranslationEngine;
   /** Progress of the translation, then (phase 'check') of the meaning check. */
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
+  /**
+   * A reopened project (P9.5): translations by source text, used instead of the engine, which is
+   * not called. A segment the project lacks stays untranslated and is reported.
+   */
+  replay?: Record<string, StoredOutcome>;
 }
 
 /**
@@ -125,6 +131,32 @@ const promptVersion = (engine: TranslationEngine, ctx: TranslateContext) =>
     : PROMPT_VERSION;
 
 export async function translateSegments(job: TranslateJob): Promise<SegmentOutcome[]> {
+  if (job.replay) {
+    const replay = job.replay;
+    job.onProgress?.(job.segments.length, job.segments.length);
+    return job.segments.map((s) => {
+      const stored = Object.hasOwn(replay, s.text) ? replay[s.text] : undefined;
+      return stored
+        ? // From the project file, not from this browser's cache.
+          { id: s.id, ...stored, cached: false, attempts: 0 }
+        : {
+            id: s.id,
+            text: s.text,
+            untranslated: true,
+            cached: false,
+            attempts: 0,
+            issues: [
+              {
+                code: 'UNTRANSLATED',
+                severity: 'error',
+                detail: 'not in the project file; translate the document again to include it',
+              },
+            ],
+            notes: [],
+            findings: [],
+          };
+    });
+  }
   const { engine, signal } = job;
   // Line-end hyphens left inside words by PDF converters are joined before translating.
   const dehyphenate = createDehyphenator(job.segments.map((s) => s.text));

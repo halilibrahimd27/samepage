@@ -1,5 +1,6 @@
 import type { TranslationCache } from '../core/cache/cache';
 import { localeFor } from '../core/languages';
+import { storedTranslations, type StoredOutcome } from '../core/project';
 import type { BlockIR, LineIR, PageIR, Rect, Role } from '../core/ir/types';
 import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
@@ -67,6 +68,8 @@ export interface PdfOptions {
   ocr?: Pick<OcrOptions, 'engine'>;
   /** Also build the translation as an editable Word document (P9.4). */
   editable?: boolean;
+  /** A reopened project's translations, used instead of the engine (P9.5). */
+  replay?: Record<string, StoredOutcome>;
 }
 
 export type PdfUnitStatus = 'translated' | 'warning' | 'untranslated' | 'kept-original';
@@ -341,6 +344,8 @@ export async function translatePdf(
   dual: Uint8Array | null;
   editable: Uint8Array | null;
   report: PdfReport;
+  /** Every segment's translation by source text, for the project file (P9.5). */
+  translations: Record<string, StoredOutcome>;
 }> {
   const policy = DEFAULT_POLICY;
   const inRange = (p: number) =>
@@ -390,6 +395,7 @@ export async function translatePdf(
     signal: opts.signal,
     fidelityCheck: opts.fidelityCheck,
     ...(opts.postEditor ? { postEditor: opts.postEditor } : {}),
+    ...(opts.replay ? { replay: opts.replay } : {}),
     localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
@@ -876,6 +882,7 @@ export async function translatePdf(
     mono: written!.mono,
     dual: written!.dual,
     editable,
+    translations: storedTranslations(requests, outcomes),
     report: {
       summary: {
         pages: pages.length,

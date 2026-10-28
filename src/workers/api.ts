@@ -11,6 +11,8 @@ import type { PdfInspection, Thumbnail } from '../pdf/engine';
 import type { PageIR } from '../core/ir/types';
 import type { PaperParts } from '../core/abstract';
 import type { TermSuggestion } from '../core/glossary/detect';
+import type { ProjectManifest, StoredOutcome } from '../core/project';
+import type { OpenedProject } from '../core/projectFile';
 
 export interface EngineSpec {
   id: EngineId;
@@ -83,6 +85,8 @@ export interface DocxJob {
   polish?: { apiKey: string; model: string };
   /** English targets: the spelling LLM engines write. */
   englishSpelling?: 'american' | 'british';
+  /** A reopened project's translations (P9.5): used instead of the engine, which is not called. */
+  replay?: Record<string, StoredOutcome>;
 }
 
 export interface PdfJob extends Omit<DocxJob, 'translateComments' | 'translateMetadata'> {
@@ -102,10 +106,19 @@ export type PdfJobResult =
       /** The translation as an editable Word document (P9.4). */
       editable: Uint8Array | null;
       report: PdfReport;
+      /** Every segment's translation by source text, for the project file (P9.5). */
+      translations: Record<string, StoredOutcome>;
     }
   | JobError;
 
-export type DocxJobResult = { ok: true; bytes: Uint8Array; report: DocxReport } | JobError;
+export type DocxJobResult =
+  | {
+      ok: true;
+      bytes: Uint8Array;
+      report: DocxReport;
+      translations: Record<string, StoredOutcome>;
+    }
+  | JobError;
 
 export type TextJobResult =
   | { ok: true; segments: TextSegment[]; tagSurvival: { survived: number; total: number } }
@@ -160,4 +173,8 @@ export interface PipelineApi {
   ): Promise<PdfJobResult>;
   /** Glossary suggestions from a DOCX file's paragraphs. */
   extractDocxGlossary(job: DocxJob): Promise<{ ok: true; entries: GlossaryEntry[] } | JobError>;
+  /** A `.samepage` project file (P9.5); the buffer is transferred. */
+  writeProject(manifest: ProjectManifest, source: Blob): Promise<Uint8Array>;
+  /** Reads an untrusted `.samepage` file; the source buffer is transferred. */
+  readProject(file: Blob): Promise<OpenedProject>;
 }

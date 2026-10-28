@@ -68,7 +68,7 @@ test('review step: a manual edit is applied without re-translating; bilingual re
   await heading.getByRole('button', { name: 'Edit' }).click();
   const editor = page.getByTestId('segment-editor');
   await editor.fill('1. Introduction');
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByTestId('apply-edits').click();
   await expect(page.getByTestId('report-summary')).toBeVisible({ timeout: 60_000 });
   await openReport(page, 'report');

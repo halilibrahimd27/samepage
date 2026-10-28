@@ -23,6 +23,9 @@ All notable changes to samepage are documented here. The format follows
   for English targets.
 - AI-use statement: a ready-to-copy disclosure naming the engine and the language pair, in the
   paper's language.
+- Project files (`.samepage`): the document, its translation, review corrections and glossary in
+  one file, reopened in any browser without translating again; corrections are applied without
+  calling the engine.
 - Editable Word output of translated PDFs: headings, paragraphs, tables and footnotes as
   Word text in Word's styles, figures and display formulas as pictures from the translated PDF.
 - Abstract mode: title, abstract and keywords found (labelled or not, structured, bilingual

@@ -1,5 +1,6 @@
 import { proxy } from 'comlink';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ProjectManifest, ProjectOptions, StoredOutcome } from '../../core/project';
 import { languageName } from '../../core/languages';
 import type { ProgressPhase } from '../../core/pipeline/translate';
 import type { DocxJob, DocxJobResult, JobError, PipelineApi } from '../../workers/api';
@@ -14,6 +15,7 @@ import { TranslationSheet } from './TranslationSheet';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { useGlossary, useTermSuggestions } from '../useGlossary';
+import { useProject } from '../useProject';
 import { DocxPreview } from './DocxPreview';
 import { AiStatement } from './AiStatement';
 import { DocxReportPanel } from './DocxReportPanel';
@@ -32,11 +34,14 @@ export function DocxTranslator({
   format = 'docx',
   config,
   settings,
+  project,
 }: {
   file: File;
   format?: 'docx' | 'pptx';
   config: EngineConfig;
   settings: Settings;
+  /** A reopened project (P9.5): shown without translating again. */
+  project?: ProjectManifest;
 }) {
   const { t, lang } = useI18n();
   const pair = { source: config.source, target: config.target };
@@ -53,22 +58,35 @@ export function DocxTranslator({
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   /** Review-step corrections (tagged source → tagged target), applied on rebuild. */
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState<Record<string, string>>(project?.edits ?? {});
   const [applied, setApplied] = useState<Record<string, string>>({});
-
-  const job = (jobId: string): DocxJob => ({
-    jobId,
-    file,
-    engine: config.spec(),
-    ...config.extras(),
-    pair,
-    glossary: glossary.usable,
-    numberLocalization: false,
+  const projectFile = useProject(project, file, format);
+  const missingTerms = projectFile.missingTerms(glossary.entries);
+  const current: ProjectOptions = {
     fidelityCheck: settings.fidelityCheck,
     localCitations: settings.localCitations,
     translateComments: settings.translateComments,
     translateReferences: settings.translateReferences,
     translateMetadata: settings.translateMetadata,
+  };
+
+  const job = (
+    jobId: string,
+    reuse: Record<string, StoredOutcome> | null = null,
+    options: ProjectOptions = current,
+  ): DocxJob => ({
+    jobId,
+    file,
+    engine: config.spec(),
+    ...(reuse ? { replay: reuse } : config.extras()),
+    pair,
+    glossary: glossary.usable,
+    numberLocalization: false,
+    fidelityCheck: options.fidelityCheck,
+    localCitations: options.localCitations,
+    translateComments: options.translateComments ?? settings.translateComments,
+    translateReferences: options.translateReferences,
+    translateMetadata: options.translateMetadata,
     ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });
   const base = file.name.replace(/\.(docx|pptx)$/i, '');
@@ -76,19 +94,26 @@ export function DocxTranslator({
     e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
   const problem = config.problem(t);
 
-  async function run() {
-    if (problem) return setError(problem);
+  /**
+   * `fresh`: translate with the engine. Otherwise (corrections applied, a project reopened) the
+   * translations shown are reused and no engine is called.
+   */
+  async function run(fresh: boolean) {
+    const reuse = projectFile.reuse(fresh, pair);
+    if (!reuse && problem) return setError(problem);
     setError(null);
     setResult(null);
     const jobId = crypto.randomUUID();
     setRunning(jobId);
     setProgress(null);
     try {
-      const bridge = await engineBridge(config.engine, pair, setDownload);
+      const bridge = reuse ? undefined : await engineBridge(config.engine, pair, setDownload);
+      const spec = config.spec();
+      const options = projectFile.options(reuse !== null, current);
       const res = await pipelineClient.call<DocxJobResult>(
         (api) =>
           api.translateDocx(
-            job(jobId),
+            job(jobId, reuse, options),
             proxy((done: number, total: number, phase?: ProgressPhase) =>
               setProgress({ done, total, phase }),
             ),
@@ -99,6 +124,7 @@ export function DocxTranslator({
       if (res.ok) {
         setResult(res);
         setApplied(edits);
+        projectFile.finished(res.translations, reuse !== null, spec, options, pair);
       } else setError(jobErrorText(res));
     } catch (e) {
       setError(runErrorText(e, t));
@@ -126,6 +152,15 @@ export function DocxTranslator({
       setExtracting(false);
     }
   }
+
+  // A reopened project shows its translation at once.
+  const reopened = useRef(false);
+  useEffect(() => {
+    if (!project || reopened.current) return;
+    reopened.current = true;
+    void run(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the project opens
+  }, []);
 
   const outBlob = result ? new Blob([result.bytes.slice()], { type: MIME[format] }) : null;
   const pendingEdits = Object.keys(edits).filter((k) => applied[k] !== edits[k]).length;
@@ -163,6 +198,16 @@ export function DocxTranslator({
 
   return (
     <div className="flex flex-col gap-6">
+      {missingTerms.length > 0 && (
+        <button
+          type="button"
+          className="self-start rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-900"
+          onClick={() => glossary.update([...glossary.entries, ...missingTerms])}
+          data-testid="project-glossary"
+        >
+          {t('project.glossary', { count: missingTerms.length })}
+        </button>
+      )}
       <GlossaryPanel
         entries={glossary.entries}
         onChange={glossary.update}
@@ -176,7 +221,7 @@ export function DocxTranslator({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => void run()}
+            onClick={() => void run(true)}
             disabled={running !== null}
             className="w-full rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white sm:w-auto hover:bg-blue-700 disabled:opacity-50"
           >
@@ -246,6 +291,21 @@ export function DocxTranslator({
             >
               {t('download.bilingual')}
             </button>
+            {projectFile.canSave && (
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 px-4 py-2"
+                onClick={() =>
+                  void projectFile
+                    .save(glossary.usable, edits)
+                    .catch((e: unknown) => setError(runErrorText(e, t)))
+                }
+                title={t('project.saveHint')}
+                data-testid="save-project"
+              >
+                {t('project.save')}
+              </button>
+            )}
           </div>
           {pendingEdits > 0 && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-300 bg-violet-50 p-3 text-sm">
@@ -253,7 +313,7 @@ export function DocxTranslator({
               <button
                 type="button"
                 disabled={running !== null}
-                onClick={() => void run()}
+                onClick={() => void run(false)}
                 className="rounded bg-violet-700 px-3 py-1.5 text-white disabled:opacity-50"
                 data-testid="apply-edits"
               >

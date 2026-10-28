@@ -1,14 +1,20 @@
-import { LIMITS } from './limits';
+import { LIMITS, PROJECT_MAX_BYTES } from './limits';
+
+/** The manifest of a `.samepage` project (core/project.ts). */
+const PROJECT_MANIFEST = 'samepage.json';
 
 export type DocKind = 'pdf' | 'docx' | 'pptx';
+/** A document, or a samepage project file (P9.5). */
+export type FileKind = DocKind | 'project';
 
 export type FileRejection =
   | { reason: 'empty' }
   | { reason: 'unsupported' }
   | { reason: 'docm' }
-  | { reason: 'too-large'; kind: DocKind; limitBytes: number };
+  | { reason: 'too-large'; kind: FileKind; limitBytes: number };
 
-export type FileCheckResult = { ok: true; kind: DocKind } | { ok: false; rejection: FileRejection };
+export type FileCheckResult =
+  { ok: true; kind: FileKind } | { ok: false; rejection: FileRejection };
 
 /** Bytes needed from the start and the end of a file to classify it. */
 export const HEAD_BYTES = 1024;
@@ -76,7 +82,7 @@ export function classifyFile(
   if (/\.(docm|dotm|pptm|potm|ppsm)$/i.test(name))
     return { ok: false, rejection: { reason: 'docm' } };
 
-  let kind: DocKind | null = null;
+  let kind: FileKind | null = null;
   if (indexOfBytes(head, PDF_MAGIC) >= 0) {
     kind = 'pdf';
   } else if (
@@ -89,7 +95,9 @@ export function classifyFile(
       : names?.includes('ppt/presentation.xml')
         ? ('pptx' as const)
         : null;
-    if (office) {
+    // A project file holds a document of its own; its manifest marks it (checked in the worker).
+    if (names?.includes(PROJECT_MANIFEST)) kind = 'project';
+    else if (office) {
       if (names!.some((n) => /^(word|ppt)\/vbaProject\.bin$/i.test(n))) {
         return { ok: false, rejection: { reason: 'docm' } };
       }
@@ -99,11 +107,13 @@ export function classifyFile(
   if (!kind) return { ok: false, rejection: { reason: 'unsupported' } };
 
   const limitBytes =
-    kind === 'pdf'
-      ? LIMITS.pdfMaxBytes
-      : kind === 'pptx'
-        ? LIMITS.pptxMaxBytes
-        : LIMITS.docxMaxBytes;
+    kind === 'project'
+      ? PROJECT_MAX_BYTES
+      : kind === 'pdf'
+        ? LIMITS.pdfMaxBytes
+        : kind === 'pptx'
+          ? LIMITS.pptxMaxBytes
+          : LIMITS.docxMaxBytes;
   if (size > limitBytes) return { ok: false, rejection: { reason: 'too-large', kind, limitBytes } };
   return { ok: true, kind };
 }

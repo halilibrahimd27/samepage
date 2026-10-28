@@ -9,3 +9,6 @@ export const LIMITS = {
   docxMaxUncompressedBytes: 500 * 1024 * 1024,
   docxMaxCompressionRatio: 100,
 } as const;
+
+/** A `.samepage` project: the largest document plus its translations (P9.5). */
+export const PROJECT_MAX_BYTES = LIMITS.pdfMaxBytes + 50 * 1024 * 1024;

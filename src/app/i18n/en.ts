@@ -4,7 +4,8 @@ export const en = {
   'header.uiLanguage': 'Interface language',
 
   'drop.title': 'Drop a PDF, DOCX or PPTX file here',
-  'drop.hint': 'or choose a file. It is processed in your browser and never uploaded.',
+  'drop.hint':
+    'or choose a file (or a .samepage project to reopen). It is processed in your browser and never uploaded.',
   'drop.choose': 'Choose file',
   'file.change': 'Choose another file',
   'file.reading': 'Reading document…',
@@ -31,6 +32,14 @@ export const en = {
   'error.tooManyPages': 'This PDF has {count} pages. Up to {limit} pages can be processed at once.',
   'error.encrypted': 'This PDF is password-protected. Remove the password and try again.',
   'error.corrupt': 'This file could not be opened. It may be damaged.',
+  'error.project':
+    'This samepage project file could not be opened. It may be damaged or made by a newer version.',
+  'project.opened':
+    'Project reopened: the translation by {engine} is shown as it was saved, without translating again.',
+  'project.save': 'Save project (.samepage)',
+  'project.saveHint':
+    'The document, its translation, your corrections and glossary in one file. Open it here later, in any browser, without translating again.',
+  'project.glossary': 'Add the project’s {count} glossary terms',
   'error.workerCrash': 'The processing engine crashed.',
   'error.workerTimeout': 'The processing engine stopped responding.',
   'error.restart': 'Restart engine',

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { detectLanguage } from '../../core/detectLanguage';
 import { languageName, type LanguageCode } from '../../core/languages';
 import { WorkerFailedError } from '../../core/pipeline/workerClient';
+import type { ProjectManifest } from '../../core/project';
+import type { OpenedProject } from '../../core/projectFile';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
@@ -55,6 +57,8 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
   const [doc, setDoc] = useState<DocState | null>(null);
   /** Translate the whole document, or only its title, abstract and keywords. */
   const [mode, setMode] = useState<'document' | 'abstract'>('document');
+  /** The project file the document came from (P9.5): its translations are reopened. */
+  const [project, setProject] = useState<ProjectManifest | null>(null);
   const request = useRef(0);
 
   const thumbUrl = doc?.status === 'ready' ? doc.thumb?.url : undefined;
@@ -77,10 +81,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     return found.lang;
   }
 
-  async function openFile(file: File) {
+  async function openFile(file: File, from?: ProjectManifest) {
     const id = ++request.current;
     const current = () => id === request.current;
     setDoc({ status: 'reading', file });
+    setProject(from ?? null);
 
     const check = await checkFile(file);
     if (!current()) return;
@@ -88,6 +93,29 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
       setDoc({ status: 'error', file, message: rejectionMessage(check.rejection, t, lang) });
       return;
     }
+    if (check.kind === 'project') {
+      // A project inside a project is not a document.
+      if (from) {
+        setDoc({ status: 'error', file, message: t('error.project') });
+        return;
+      }
+      const opened = await pipelineClient
+        .call<OpenedProject>((api) => api.readProject(file), 120_000)
+        .catch(() => ({ ok: false as const, reason: 'invalid' as const }));
+      if (!current()) return;
+      if (!opened.ok) {
+        setDoc({ status: 'error', file, message: t('error.project') });
+        return;
+      }
+      const { manifest } = opened;
+      config.setSource(manifest.pair.source as LanguageCode);
+      config.setTarget(manifest.pair.target as LanguageCode);
+      setMode('document');
+      await openFile(new File([opened.source.slice()], manifest.file.name), manifest);
+      return;
+    }
+    // The project's language pair stands; detection runs on new documents only.
+    const detect = (sample: string) => (from ? undefined : applyDetected(sample));
     if (check.kind === 'docx' || check.kind === 'pptx') {
       const kind = check.kind;
       setDoc({ status: 'ready', file, kind });
@@ -95,11 +123,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
         .call<string>((api) => api.sampleDocx(file), 60_000)
         .catch(() => '');
       if (!current()) return;
-      const detected = applyDetected(sample);
+      const detected = detect(sample);
       setDoc(
         detected
           ? { status: 'ready', file, kind, detected }
-          : { status: 'ready', file, kind, undetected: true },
+          : { status: 'ready', file, kind, ...(from ? {} : { undetected: true }) },
       );
       return;
     }
@@ -113,14 +141,14 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
       if (result.ok) {
         const { png, width, height } = result.thumbnail;
         const url = URL.createObjectURL(new Blob([png.slice()], { type: 'image/png' }));
-        const detected = applyDetected(result.sample);
+        const detected = detect(result.sample);
         setDoc({
           status: 'ready',
           file,
           kind: 'pdf',
           pageCount: result.pageCount,
           thumb: { url, width, height },
-          ...(detected ? { detected } : { undetected: true }),
+          ...(detected ? { detected } : from ? {} : { undetected: true }),
           ...(result.scanned ? { scanned: true } : {}),
         });
       } else {
@@ -177,6 +205,11 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
                 {t('file.detected', { lang: languageName(doc.detected, lang) })}
               </p>
             )}
+            {doc.status === 'ready' && project && (
+              <p role="status" className="text-sm text-emerald-800" data-testid="project-opened">
+                {t('project.opened', { engine: t(`engine.${project.engine.id}.label`) })}
+              </p>
+            )}
             {doc.status === 'ready' && doc.scanned && (
               <p role="status" className="text-sm text-amber-800" data-testid="scanned-notice">
                 {t('file.scanned')}
@@ -210,6 +243,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
               onClick={() => {
                 request.current++;
                 setDoc(null);
+                setProject(null);
               }}
             >
               {t('file.change')}
@@ -251,19 +285,21 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
         />
       ) : doc?.status === 'ready' && doc.kind === 'pdf' ? (
         <PdfTranslator
-          key={`${doc.file.name}-${doc.file.size}`}
+          key={`${doc.file.name}-${doc.file.size}-${project ? 'project' : ''}`}
           file={doc.file}
           pageCount={doc.pageCount ?? 1}
           config={config}
           settings={settings}
+          {...(project ? { project } : {})}
         />
       ) : doc?.status === 'ready' && (doc.kind === 'docx' || doc.kind === 'pptx') ? (
         <DocxTranslator
-          key={`${doc.file.name}-${doc.file.size}`}
+          key={`${doc.file.name}-${doc.file.size}-${project ? 'project' : ''}`}
           file={doc.file}
           format={doc.kind}
           config={config}
           settings={settings}
+          {...(project ? { project } : {})}
         />
       ) : (
         <div className="flex flex-col gap-2">

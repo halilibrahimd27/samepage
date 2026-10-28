@@ -12,6 +12,7 @@ import {
 } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { localeFor } from '../core/languages';
+import { storedTranslations, type StoredOutcome } from '../core/project';
 import { extractA, extractW, rebuild, type ExtractedParagraph } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
 import { fitSlideText, slideRole, textBodyOf } from './pptx';
@@ -30,6 +31,8 @@ export interface DocxOptions {
   postEditor?: TranslationEngine;
   /** English targets: the spelling LLM engines write. */
   englishSpelling?: 'american' | 'british';
+  /** A reopened project's translations, used instead of the engine (P9.5). */
+  replay?: Record<string, StoredOutcome>;
   translateComments: boolean;
   translateReferences: boolean;
   translateMetadata: boolean;
@@ -179,7 +182,12 @@ interface Unit {
 export async function translateDocx(
   bytes: Uint8Array,
   opts: DocxOptions,
-): Promise<{ bytes: Uint8Array; report: DocxReport }> {
+): Promise<{
+  bytes: Uint8Array;
+  report: DocxReport;
+  /** Every segment's translation by source text, for the project file (P9.5). */
+  translations: Record<string, StoredOutcome>;
+}> {
   const format = officeKind(bytes);
   const pkg = await openDocx(bytes, format);
   const parts = discoverParts(Object.keys(pkg.zip.files), opts, format);
@@ -296,6 +304,7 @@ export async function translateDocx(
     signal: opts.signal,
     fidelityCheck: opts.fidelityCheck,
     ...(opts.postEditor ? { postEditor: opts.postEditor } : {}),
+    ...(opts.replay ? { replay: opts.replay } : {}),
     localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
@@ -429,6 +438,7 @@ export async function translateDocx(
   for (const r of repairs) repairCounts[r.code] = (repairCounts[r.code] ?? 0) + 1;
   return {
     bytes: out,
+    translations: storedTranslations(requests, outcomes),
     report: {
       summary: {
         segments: segReports.length,

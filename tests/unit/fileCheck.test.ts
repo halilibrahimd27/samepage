@@ -76,6 +76,18 @@ describe('classifyFile', () => {
     expect(check('a.docm', docx)).toMatchObject({ ok: false, rejection: { reason: 'docm' } });
   });
 
+  it('recognises a samepage project file by its manifest', () => {
+    expect(check('paper.samepage', zip(['samepage.json', 'source/paper.pdf']))).toEqual({
+      ok: true,
+      kind: 'project',
+    });
+    // A project holding a Word document is a project, not a Word document.
+    expect(check('x.docx', zip(['samepage.json', 'source/word/document.xml']))).toEqual({
+      ok: true,
+      kind: 'project',
+    });
+  });
+
   it('recognises PowerPoint presentations and rejects macro-enabled ones', () => {
     const pptx = zip(['[Content_Types].xml', 'ppt/presentation.xml', 'ppt/slides/slide1.xml']);
     expect(check('talk.bin', pptx)).toEqual({ ok: true, kind: 'pptx' });

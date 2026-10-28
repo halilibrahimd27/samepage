@@ -6,7 +6,8 @@ export const tr: Record<MessageKey, string> = {
   'header.uiLanguage': 'Arayüz dili',
 
   'drop.title': 'PDF, DOCX veya PPTX dosyasını buraya bırakın',
-  'drop.hint': 'ya da bir dosya seçin. Dosya tarayıcınızda işlenir, hiçbir yere yüklenmez.',
+  'drop.hint':
+    'ya da bir dosya (veya yeniden açmak için bir .samepage projesi) seçin. Dosya tarayıcınızda işlenir, hiçbir yere yüklenmez.',
   'drop.choose': 'Dosya seç',
   'file.change': 'Başka dosya seç',
   'file.reading': 'Belge okunuyor…',
@@ -33,6 +34,14 @@ export const tr: Record<MessageKey, string> = {
   'error.tooManyPages': 'Bu PDF {count} sayfa. Tek seferde en fazla {limit} sayfa işlenebilir.',
   'error.encrypted': 'Bu PDF parola korumalı. Parolayı kaldırıp tekrar deneyin.',
   'error.corrupt': 'Bu dosya açılamadı. Hasarlı olabilir.',
+  'error.project':
+    'Bu samepage proje dosyası açılamadı. Hasarlı olabilir ya da daha yeni bir sürümle kaydedilmiş olabilir.',
+  'project.opened':
+    'Proje yeniden açıldı: {engine} çevirisi kaydedildiği gibi gösteriliyor, yeniden çevrilmedi.',
+  'project.save': 'Projeyi kaydet (.samepage)',
+  'project.saveHint':
+    'Belge, çevirisi, düzeltmeleriniz ve sözlüğünüz tek dosyada. Daha sonra burada, herhangi bir tarayıcıda yeniden çevirmeden açabilirsiniz.',
+  'project.glossary': 'Projenin {count} sözlük terimini ekle',
   'error.workerCrash': 'İşleme motoru çöktü.',
   'error.workerTimeout': 'İşleme motoru yanıt vermiyor.',
   'error.restart': 'Motoru yeniden başlat',
