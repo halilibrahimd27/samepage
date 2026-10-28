@@ -1,8 +1,10 @@
 import type { TranslationCache } from '../core/cache/cache';
+import { localeFor } from '../core/languages';
 import type { BlockIR, LineIR, PageIR, Rect, Role } from '../core/ir/types';
 import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
+import { buildEditableDocx } from '../docx/editable';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { extractAndAnalyze, type OcrOptions } from './analyze';
 import {
@@ -10,6 +12,7 @@ import {
   readOutlineAndTitle,
   openPdfForExtraction,
   openRenderer,
+  renderRegionsPng,
   writePdf,
   type AppendedPage,
   type LoadedFaces,
@@ -27,7 +30,8 @@ import type {
   RepairStep,
 } from '../layout-repair/types';
 import { layoutUnit, sizeFactors, type LayoutLine } from './typeset/layout';
-import { buildPdfUnits } from './typeset/segments';
+import { planEditable } from './editable';
+import { buildPdfUnits, type PdfUnit } from './typeset/segments';
 
 export interface PdfOptions {
   engine: TranslationEngine;
@@ -61,6 +65,8 @@ export interface PdfOptions {
   pageRange?: { from: number; to: number };
   /** Recognise the text of scanned pages (P8.4). */
   ocr?: Pick<OcrOptions, 'engine'>;
+  /** Also build the translation as an editable Word document (P9.4). */
+  editable?: boolean;
 }
 
 export type PdfUnitStatus = 'translated' | 'warning' | 'untranslated' | 'kept-original';
@@ -330,7 +336,12 @@ function paperUnder(r: Rect, lines: NonNullable<PageIR['ocr']>['lines']): [numbe
 export async function translatePdf(
   bytes: Uint8Array,
   opts: PdfOptions,
-): Promise<{ mono: Uint8Array; dual: Uint8Array | null; report: PdfReport }> {
+): Promise<{
+  mono: Uint8Array;
+  dual: Uint8Array | null;
+  editable: Uint8Array | null;
+  report: PdfReport;
+}> {
   const policy = DEFAULT_POLICY;
   const inRange = (p: number) =>
     !opts.pageRange || (p >= opts.pageRange.from && p <= opts.pageRange.to);
@@ -822,9 +833,49 @@ export async function translatePdf(
   for (const r of all)
     for (const st of r.repairs) repairCounts[st.code] = (repairCounts[st.code] ?? 0) + 1;
 
+  // ---- Editable Word document (P9.4) ---------------------------------------------------------
+  // Every translation that passed validation goes in, also those the PDF could not fit; figures
+  // and display formulas are cut from the translated PDF.
+  let editable: Uint8Array | null = null;
+  if (opts.editable) {
+    const runsOf = (u: PdfUnit) => {
+      const o = bySource.get(u.encoded.source)!;
+      const text = opts.overrides?.[u.encoded.source] ?? (o.untranslated ? null : o.text);
+      if (text !== null) {
+        try {
+          return decode(text, u.encoded);
+        } catch {
+          // Failed validation: the source, as in the PDF.
+        }
+      }
+      return decode(u.encoded.source, u.encoded);
+    };
+    const plan = planEditable(
+      pages,
+      units.map((unit) => ({ unit, runs: runsOf(unit) })),
+      inRange,
+    );
+    const crops = await renderRegionsPng(written!.mono, plan.pictures, 2);
+    const title = meta.title.trim() && bySource.get(meta.title);
+    editable = await buildEditableDocx(
+      plan.items,
+      crops.map((c) => c.png),
+      {
+        locale:
+          opts.pair.target === 'en' && opts.englishSpelling === 'british'
+            ? 'en-GB'
+            : localeFor(opts.pair.target),
+        ...(title && !title.untranslated ? { title: plainText(title.text) } : {}),
+        page: { width: pages[0]?.width ?? 595, height: pages[0]?.height ?? 842 },
+        footnotes: plan.footnotes,
+      },
+    );
+  }
+
   return {
     mono: written!.mono,
     dual: written!.dual,
+    editable,
     report: {
       summary: {
         pages: pages.length,

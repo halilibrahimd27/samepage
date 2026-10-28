@@ -287,7 +287,7 @@ const api: PipelineApi = {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);
     try {
-      const { mono, dual, report } = await translatePdf(
+      const { mono, dual, editable, report } = await translatePdf(
         new Uint8Array(await job.file.arrayBuffer()),
         {
           engine: engineFor(job, chrome),
@@ -306,6 +306,7 @@ const api: PipelineApi = {
           ocr: { engine: () => createOcr([job.pair.source, 'en'], browserOcrLoader) },
           maxPages: LIMITS.pdfMaxPages,
           dual: job.dual,
+          editable: true,
           cache,
           signal: controller.signal,
           ...(onProgress
@@ -313,10 +314,11 @@ const api: PipelineApi = {
             : {}),
         },
       );
-      return transfer(
-        { ok: true as const, mono, dual, report },
-        dual ? [mono.buffer, dual.buffer] : [mono.buffer],
-      );
+      return transfer({ ok: true as const, mono, dual, editable, report }, [
+        mono.buffer,
+        ...(dual ? [dual.buffer] : []),
+        ...(editable ? [editable.buffer] : []),
+      ]);
     } catch (error) {
       return toJobError(error, controller.signal);
     } finally {

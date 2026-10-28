@@ -102,6 +102,11 @@ export function PdfTranslator(props: {
 
   const mono = result ? new Blob([result.mono.slice()], { type: 'application/pdf' }) : null;
   const dual = result?.dual ? new Blob([result.dual.slice()], { type: 'application/pdf' }) : null;
+  const word = result?.editable
+    ? new Blob([result.editable.slice()], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -199,6 +204,17 @@ export function PdfTranslator(props: {
             >
               {t('download.pdf')}
             </button>
+            {word && (
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 px-4 py-2"
+                onClick={() => downloadBlob(word, `${base}.${config.target}.docx`)}
+                title={t('download.wordHint')}
+                data-testid="download-word"
+              >
+                {t('download.word')}
+              </button>
+            )}
             {dual && (
               <button
                 type="button"

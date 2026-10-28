@@ -1,3 +1,4 @@
+import { localeFor } from '../core/languages';
 import type { Element as XElement, Node as XNode } from '@xmldom/xmldom';
 import type { Role } from '../core/ir/types';
 import { encode, type DecodedRun, type Encoded, type InlineRun } from '../core/segment/codec';
@@ -343,28 +344,6 @@ export function extractA(para: XElement, role: Role): ExtractedParagraph {
     .join('');
   return { para, dialect: 'a', role, encoded, atoms, head: [], tail, plain };
 }
-
-/** w:lang values for target languages. */
-const LOCALES: Record<string, string> = {
-  en: 'en-US',
-  de: 'de-DE',
-  fr: 'fr-FR',
-  es: 'es-ES',
-  it: 'it-IT',
-  pt: 'pt-PT',
-  nl: 'nl-NL',
-  pl: 'pl-PL',
-  cs: 'cs-CZ',
-  ro: 'ro-RO',
-  hu: 'hu-HU',
-  sv: 'sv-SE',
-  ru: 'ru-RU',
-  uk: 'uk-UA',
-  bg: 'bg-BG',
-  el: 'el-GR',
-  tr: 'tr-TR',
-};
-export const localeFor = (lang: string) => LOCALES[lang] ?? lang;
 
 /** Zero-width space after URL/path separators in long tokens (D4_LONG_TOKEN). */
 export function breakLongTokens(text: string, minLength = 25): { text: string; changed: boolean } {

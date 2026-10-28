@@ -77,6 +77,8 @@ export interface PageIR {
   images: { bbox: Rect }[];
   vectors: { bbox: Rect; isRectangle: boolean; isStroked: boolean }[];
   columns: Rect[];
+  /** Figures (images and drawings, tables excluded); `formula` when made of fraction bars only. */
+  figures?: { bbox: Rect; formula: boolean }[];
   /** The page is a scan and its text was recognised (OCR, P8.4). */
   ocr?: {
     /** Mean word confidence, 0–100. */

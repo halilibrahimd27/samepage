@@ -4,6 +4,7 @@ export {
   openRenderer,
   renderPagePixels,
   renderPagePng,
+  renderRegionsPng,
   type OpenedRenderer,
   type PagePixels,
 } from './render';

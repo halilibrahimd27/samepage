@@ -88,6 +88,8 @@ const normalizeRepeat = (t: string) =>
  */
 interface FigureRegion extends Rect {
   bars: boolean;
+  /** The shapes themselves, without the margin that joins neighbours. */
+  content: Rect;
 }
 
 /** Groups vectors and images into figure regions (tables excluded). */
@@ -129,10 +131,14 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
   ];
   const regions: FigureRegion[] = [];
   for (const s of shapes) {
-    let r: FigureRegion = { ...expand(s.rect, 12), bars: s.bar };
+    let r: FigureRegion = { ...expand(s.rect, 12), bars: s.bar, content: s.rect };
     for (let i = regions.length - 1; i >= 0; i--) {
       if (coverage(regions[i]!, r) > 0 || coverage(r, regions[i]!) > 0) {
-        r = { ...union(r, regions[i]!), bars: r.bars && regions[i]!.bars };
+        r = {
+          ...union(r, regions[i]!),
+          bars: r.bars && regions[i]!.bars,
+          content: union(r.content, regions[i]!.content),
+        };
         regions.splice(i, 1);
       }
     }
@@ -202,7 +208,7 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
 
 /** Roles (ARCHITECTURE.md §4.1 step 3). */
 function classify(
-  pages: { raw: RawPage; blocks: BlockIR[]; tables: TableRegion[] }[],
+  pages: { raw: RawPage; blocks: BlockIR[]; tables: TableRegion[]; figures: FigureRegion[] }[],
   stats: Stats,
 ): void {
   // Running headers/footers: the same text (digits normalised) in the top/bottom 20 % of the
@@ -222,9 +228,8 @@ function classify(
     pages.length >= 2 && (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3);
 
   let inReferences = false;
-  for (const { raw, blocks, tables } of pages) {
+  for (const { raw, blocks, tables, figures } of pages) {
     for (const t of tables) assignTableCells(blocks, t);
-    const figures = figureRegions(raw, tables);
     for (const b of blocks) {
       if (b.role === 'table-cell') {
         // Code listings framed by rules are not tables to translate.
@@ -732,7 +737,7 @@ function formulaPieces(blocks: BlockIR[]): void {
 export function analyzeDocument(raw: RawPage[]): PageIR[] {
   const pages = raw.map((r) => {
     const tables = detectTables(r);
-    return { raw: r, tables, blocks: buildBlocks(r, tables) };
+    return { raw: r, tables, blocks: buildBlocks(r, tables), figures: figureRegions(r, tables) };
   });
   const stats = documentStats(pages.map((p) => p.blocks));
   const words = new Set(
@@ -748,7 +753,7 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
   for (const p of pages) p.blocks = absorbDropCaps(p.blocks, stats.bodySize, words);
   classify(pages, stats);
   for (const p of pages) formulaPieces(p.blocks);
-  const result = pages.map(({ raw: r, blocks }) => {
+  const result = pages.map(({ raw: r, blocks, figures }) => {
     const columns = orderPage(blocks, r.width);
     return {
       index: r.index,
@@ -763,6 +768,7 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
         isStroked: v.isStroked,
       })),
       columns,
+      figures: figures.map((f) => ({ bbox: f.content, formula: f.bars })),
     } satisfies PageIR;
   });
   linkChains(result.map((p) => p.blocks));

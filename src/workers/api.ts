@@ -95,7 +95,15 @@ export interface PdfJob extends Omit<DocxJob, 'translateComments' | 'translateMe
 }
 
 export type PdfJobResult =
-  { ok: true; mono: Uint8Array; dual: Uint8Array | null; report: PdfReport } | JobError;
+  | {
+      ok: true;
+      mono: Uint8Array;
+      dual: Uint8Array | null;
+      /** The translation as an editable Word document (P9.4). */
+      editable: Uint8Array | null;
+      report: PdfReport;
+    }
+  | JobError;
 
 export type DocxJobResult = { ok: true; bytes: Uint8Array; report: DocxReport } | JobError;
 

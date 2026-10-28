@@ -31,3 +31,25 @@ export function languageName(code: string, uiLang: string): string {
     return code;
   }
 }
+
+/** Word's w:lang values (region-qualified) for the languages. */
+const LOCALES: Record<string, string> = {
+  en: 'en-US',
+  de: 'de-DE',
+  fr: 'fr-FR',
+  es: 'es-ES',
+  it: 'it-IT',
+  pt: 'pt-PT',
+  nl: 'nl-NL',
+  pl: 'pl-PL',
+  cs: 'cs-CZ',
+  ro: 'ro-RO',
+  hu: 'hu-HU',
+  sv: 'sv-SE',
+  ru: 'ru-RU',
+  uk: 'uk-UA',
+  bg: 'bg-BG',
+  el: 'el-GR',
+  tr: 'tr-TR',
+};
+export const localeFor = (lang: string) => LOCALES[lang] ?? lang;

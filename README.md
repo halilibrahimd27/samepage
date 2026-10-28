@@ -33,6 +33,9 @@ the paper says.
 - **Same layout.** PDFs are re-typeset into their original boxes with matching fonts. Word and
   PowerPoint files keep every style, table, equation, chart, footnote and speaker note. A
   side-by-side PDF (original | translation) comes with every PDF.
+- **Editable Word file of a PDF.** Every translated PDF also downloads as a Word document in
+  Word's own styles — headings, paragraphs, tables and footnotes as text you can edit, figures
+  and display formulas as pictures — ready for a journal's template.
 - **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. A meaning
   check translates the result back and flags lost negations, softened or hardened claims
   ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"). You can
@@ -56,7 +59,8 @@ the paper says.
 2. Choose **Whole document**, or **Title, abstract and keywords**, and press **Translate**.
 3. Read the **quality report**: its summary line gives the score; "needs attention" and
    "meaning check" list what deserves a look.
-4. Download the translated document, the side-by-side PDF or the report.
+4. Download the translated document, the side-by-side PDF, an editable Word file (for PDFs) or
+   the report.
 
 <p align="center">
   <img src="media/demo.gif" alt="Demo: the Turkish demo paper translated into English, its quality report and side-by-side preview, then its title and abstract alone" width="880">

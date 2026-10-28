@@ -11,7 +11,8 @@ import {
   type ValidationIssue,
 } from '../core/validate/validate';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
-import { extractA, extractW, localeFor, rebuild, type ExtractedParagraph } from './paragraphs';
+import { localeFor } from '../core/languages';
+import { extractA, extractW, rebuild, type ExtractedParagraph } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
 import { fitSlideText, slideRole, textBodyOf } from './pptx';
 import { officeKind, openDocx, type OfficeKind } from './unzip';

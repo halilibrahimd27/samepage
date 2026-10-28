@@ -50,7 +50,7 @@ function styleOf(span: SpanIR): PdfStyle {
  * A line ending in a hyphen, joined with the next line's start: hyphenation is dropped before a
  * lower-case letter ("ge-" + "lişme"); a word's own hyphen stays, without a space ("Von-Neumann").
  */
-function joinHyphen(text: string, next: string): string {
+export function joinHyphen(text: string, next: string): string {
   if (/^\p{Ll}/u.test(next)) return text.slice(0, -1);
   return /^\s/u.test(next) ? `${text} ` : text;
 }

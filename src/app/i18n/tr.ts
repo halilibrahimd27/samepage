@@ -301,6 +301,9 @@ export const tr: Record<MessageKey, string> = {
   'bilingual.notes': 'Notlar',
   'download.pdf': 'Çevrilmiş PDF’i indir',
   'download.dual': 'Yan yana PDF’i indir',
+  'download.word': 'Word olarak indir (düzenlenebilir)',
+  'download.wordHint':
+    'Çeviri Word stilleriyle: başlıklar, paragraflar, tablolar ve dipnotlar metin; şekiller ve ayrık formüller resim olarak. Sayfa başlıkları ve sayfa numaraları alınmaz.',
   'pdfReport.summary':
     '{translated} çevrildi · {warnings} uyarılı · {untranslated} çevrilemedi · {keptOriginal} orijinal dilde bırakıldı · {scaled} biraz küçültüldü',
   'pdfReport.status.translated': 'Çevrildi',

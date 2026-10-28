@@ -300,6 +300,9 @@ export const en = {
   'bilingual.notes': 'Notes',
   'download.pdf': 'Download translated PDF',
   'download.dual': 'Download side-by-side PDF',
+  'download.word': 'Download as Word (editable)',
+  'download.wordHint':
+    'The translation in Word styles: headings, paragraphs, tables and footnotes as text, figures and display formulas as pictures. Running heads and page numbers are left out.',
   'pdfReport.summary':
     '{translated} translated · {warnings} with warnings · {untranslated} untranslated · {keptOriginal} kept in the original language · {scaled} slightly reduced',
   'pdfReport.status.translated': 'Translated',

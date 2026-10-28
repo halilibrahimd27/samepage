@@ -1,3 +1,4 @@
+import type { Rect } from '../../core/ir/types';
 import type { Thumbnail } from './inspect';
 import { loadMupdf } from './mupdf';
 
@@ -110,4 +111,58 @@ export async function openRenderer(bytes: Uint8Array): Promise<OpenedRenderer> {
     },
     close: () => doc.destroy(),
   };
+}
+
+/**
+ * Renders page regions (figures, display formulas) to PNG, page content only (no annotations),
+ * on white. `scale` 1 = 72 dpi; a region is rendered smaller when it would exceed `maxPixels` on
+ * its longer side. Frees all WASM objects.
+ */
+export async function renderRegionsPng(
+  bytes: Uint8Array,
+  regions: { page: number; rect: Rect }[],
+  scale: number,
+  maxPixels = 2400,
+): Promise<Thumbnail[]> {
+  const mupdf = await loadMupdf();
+  const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
+  const out: Thumbnail[] = [];
+  try {
+    for (const { page: index, rect } of regions) {
+      const page = doc.loadPage(index);
+      try {
+        const longer = Math.max(rect.x1 - rect.x0, rect.y1 - rect.y0, 1);
+        const s = Math.min(scale, maxPixels / longer);
+        const box: [number, number, number, number] = [
+          Math.floor(rect.x0 * s),
+          Math.floor(rect.y0 * s),
+          Math.ceil(rect.x1 * s),
+          Math.ceil(rect.y1 * s),
+        ];
+        const pixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, box, false);
+        try {
+          pixmap.clear(255);
+          const device = new mupdf.DrawDevice(mupdf.Matrix.identity, pixmap);
+          try {
+            page.runPageContents(device, mupdf.Matrix.scale(s, s));
+            device.close();
+          } finally {
+            device.destroy();
+          }
+          out.push({
+            png: pixmap.asPNG().slice(),
+            width: pixmap.getWidth(),
+            height: pixmap.getHeight(),
+          });
+        } finally {
+          pixmap.destroy();
+        }
+      } finally {
+        page.destroy();
+      }
+    }
+  } finally {
+    doc.destroy();
+  }
+  return out;
 }

@@ -38,6 +38,18 @@ test('PDF is translated in the browser with report, previews and downloads', asy
     page.getByTestId('download-dual').click(),
   ]);
   expect(dual.suggestedFilename()).toBe('two-column.tr-en.dual.pdf');
+
+  // The translation as an editable Word document (P9.4).
+  const [word] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('download-word').click(),
+  ]);
+  expect(word.suggestedFilename()).toBe('two-column.en.docx');
+  expect(
+    readFileSync(await word.path())
+      .subarray(0, 2)
+      .toString(),
+  ).toBe('PK');
 });
 
 test('PDF review step: a manual edit is laid out again from the cache', async ({ page }) => {
