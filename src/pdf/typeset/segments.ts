@@ -159,12 +159,15 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[]): void {
       } else if (isSuperscript(span, lineSize, line.baseline)) {
         // A unit's exponent ("кг/м³", "s⁻¹") is part of the text, not a footnote mark: as a mark
         // engines write it as a plain digit ("kg/m3") and the number check fails.
+        // A line end after it keeps its space either way.
+        const after = /\s+$/u.exec(text)?.[0] ?? '';
         if (before?.type === 'text' && UNIT_END.test(before.text) && /^[\d−-]+$/.test(text.trim()))
-          before.text += [...text.trim()].map((c) => SUPERSCRIPT[c] ?? c).join('');
+          before.text += [...text.trim()].map((c) => SUPERSCRIPT[c] ?? c).join('') + after;
         else {
           const tail = atomTail();
           if (tail) spaceBefore(tail, span);
           runs.push({ type: 'atom', kind: 'N', text: span.text.trim() });
+          if (after) spaceBefore(after, span);
         }
       } else runs.push({ type: 'text', text: atomTail() + text, style: styleOf(span) });
     });

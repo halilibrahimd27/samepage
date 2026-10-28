@@ -77,6 +77,35 @@ describe('PDF translation units', () => {
     expect(unit!.encoded.placeholders.map((p) => p.text)).toEqual(['P', 'R']);
   });
 
+  it('keeps a unit’s exponent in the text and the space after a mark at a line end', () => {
+    const sup = (text: string, x: number): SpanIR => ({
+      ...span(text, x),
+      size: 6,
+      bbox: { x0: x, y0: 88, x1: x + 4, y1: 95 },
+    });
+    const raised = (b: BlockIR, line: number, at: number) => {
+      b.lines[line]!.spans[at]!.baseline = b.lines[line]!.baseline - 4;
+      return b;
+    };
+    const b = raised(
+      raised(
+        block('p0-b0', [
+          [span('Yoğunluk 7800 kg/m', 50), sup('3', 160)],
+          [span('olarak alınır, bkz. Ek', 50), sup('1', 190)],
+          [span('Bu değer sabittir.', 50)],
+        ]),
+        0,
+        1,
+      ),
+      1,
+      1,
+    );
+    const [unit] = buildPdfUnits([page([b])]);
+    expect(unit!.encoded.source).toBe(
+      'Yoğunluk 7800 kg/m³ olarak alınır, bkz. Ek⟦N1⟧ Bu değer sabittir.',
+    );
+  });
+
   it('drops hyphenation at line ends but keeps a word’s own hyphen', () => {
     const [unit] = buildPdfUnits([
       page([
