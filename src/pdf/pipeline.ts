@@ -91,6 +91,7 @@ export interface PdfReport {
     translated: number;
     warnings: number;
     untranslated: number;
+    /** Units that read in the original language: kept as they were, or translated in a note. */
     keptOriginal: number;
     scaled: number;
     score: number;
@@ -800,7 +801,9 @@ export async function translatePdf(
   }
   const scored = scoreDocument(pages.length, unitScores, issues);
   const all = [...reports.values()];
-  const count = (st: PdfUnitStatus) => all.filter((r) => r.status === st).length;
+  // A unit whose translation went into a PDF note reads in the original language on the page.
+  const inNote = (r: PdfUnitReport) => r.fallback === 'annotation';
+  const count = (st: PdfUnitStatus) => all.filter((r) => r.status === st && !inNote(r)).length;
   const issueCounts: PdfReport['summary']['issues'] = {};
   for (const i of issues) issueCounts[i.code] = (issueCounts[i.code] ?? 0) + 1;
   const repairCounts: PdfReport['summary']['repairs'] = {};
@@ -817,7 +820,7 @@ export async function translatePdf(
         translated: count('translated'),
         warnings: count('warning'),
         untranslated: count('untranslated'),
-        keptOriginal: count('kept-original'),
+        keptOriginal: count('kept-original') + all.filter(inNote).length,
         scaled: all.filter((r) => r.scale < 1).length,
         score: scored.score,
         status: scored.status,
