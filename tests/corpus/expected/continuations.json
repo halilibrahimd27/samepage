@@ -1,0 +1,19 @@
+{
+  "roles": [
+    { "page": 0, "text": "1 Bulgular", "role": "heading" },
+    { "page": 0, "text": "A ve B üniversitelerinin", "role": "body" },
+    { "page": 0, "text": "sunulmuştur.", "role": "body" },
+    { "page": 0, "text": "2 Kararlılık", "role": "heading" },
+    { "page": 0, "text": "İspat. Fark şemasında", "role": "body" },
+    { "page": 0, "text": "elde edilir. Burada", "role": "body" },
+    { "page": 0, "text": "olur. Bu denklemin", "role": "body" },
+    { "page": 0, "text": "3 Öneriler", "role": "heading" },
+    { "page": 0, "text": "1", "role": "page-number" }
+  ],
+  "chains": [
+    [{ "page": 0, "text": "A ve B üniversitelerinin" }, { "page": 0, "text": "sunulmuştur." }],
+    [{ "page": 0, "text": "İspat. Fark şemasında" }, { "page": 0, "text": "= rkeinθ yazılır" }],
+    [{ "page": 0, "text": "= rkeinθ yazılır" }, { "page": 0, "text": "elde edilir. Burada" }],
+    [{ "page": 0, "text": "elde edilir. Burada" }, { "page": 0, "text": "olur. Bu denklemin" }]
+  ]
+}

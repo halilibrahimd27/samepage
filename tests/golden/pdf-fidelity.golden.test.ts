@@ -5,7 +5,7 @@ import { loadFaces } from '../../src/pdf/engine';
 import { translatePdf } from '../../src/pdf/pipeline';
 
 /** Layout fidelity thresholds (TESTING.md §4) on the corpus. */
-const FIXTURES = ['one-column-basic', 'two-column', 'formulas-tables', 'colored-figures', 'two-column-floats', 'thesis-spacing'];
+const FIXTURES = ['one-column-basic', 'two-column', 'formulas-tables', 'colored-figures', 'two-column-floats', 'thesis-spacing', 'continuations'];
 const HARD = ['OUT_OF_BOUNDS', 'COLLISION', 'COLLATERAL_DAMAGE', 'RESIDUAL_SOURCE', 'MISSING_GLYPH', 'TEXT_NOT_EXTRACTABLE'];
 
 describe.each([1.35, 1.6])('layout fidelity, pseudo ×%s', (factor) => {

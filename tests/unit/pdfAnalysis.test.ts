@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CAPTION } from '../../src/core/references';
 import { equationLike, mathFragments, mathLike } from '../../src/pdf/analyze/analyze';
 
 describe('mathFragments', () => {
@@ -39,5 +40,29 @@ describe('mathFragments', () => {
       expect(mathLike(t), t).toBe(true);
     for (const t of ['Fig. 2', 'Age (y)', 'The results', 'PCA analysis + clustering'])
       expect(mathLike(t), t).toBe(false);
+  });
+
+  it('tells captions from sentences that refer to a figure or table', () => {
+    for (const t of [
+      'Tablo 1: Anlam kayması türlerinin dağılımı.',
+      'Şekil 1. Tümce uzunluğuna göre terim tutarlılığı',
+      'Table 1 Characteristics of the patients',
+      'Fig. 2 a) Overview',
+      'Abb. 2 Aufbau des Versuchs',
+      'Рис. 1. Схема',
+      'Tablo 1.2. Bulgular',
+      'TABLE 1',
+    ])
+      expect(CAPTION.test(t), t).toBe(true);
+    for (const t of [
+      'Tablo 1’de görüldüğü üzere tümcelerin %87,4’ünde',
+      "Tablo 12'de verilmiştir",
+      'Şekil 1, terim tutarlılığının azaldığını göstermektedir.',
+      'Table 2 shows the results',
+      'Tablo 1 incelendiğinde',
+      'Abbildung 1 zeigt',
+      'Рис. 1 демонстрирует',
+    ])
+      expect(CAPTION.test(t), t).toBe(false);
   });
 });

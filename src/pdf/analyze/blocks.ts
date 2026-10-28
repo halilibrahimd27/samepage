@@ -185,8 +185,11 @@ function splitParagraphs(
   const blockWidth = blockBox.x1 - blockBox.x0;
   // On a justified page every line but a paragraph's last reaches the text edge, so a short
   // line followed by one starting at the left edge is a forced break (closing lines of a
-  // letter, an address) — measured against the page's text edge, not the block's own.
-  const edge = layout.edgeFor(blockBox);
+  // letter, an address) — measured against the page's text edge, not the block's own, unless
+  // the block's lines end together: a column of a few lines, which the page-wide count of
+  // line ends misses, has its own edge.
+  const ownEdge = lines.filter((l) => blockBox.x1 - l.bbox.x1 < 1).length >= 2;
+  const edge = ownEdge ? Math.min(layout.edgeFor(blockBox), blockBox.x1) : layout.edgeFor(blockBox);
   const reaches = (l: RawLine) => edge - l.bbox.x1 < 3;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
@@ -607,8 +610,10 @@ export function blockText(block: BlockIR): string {
   block.lines.forEach((line, i) => {
     const text = line.spans.map((s) => s.text).join('');
     if (i > 0) {
+      // Hyphenation is dropped ("ge-" + "lişme"); a word's own hyphen stays ("Von-Neumann").
       if (/[\p{L}]-$/u.test(out) && /^\p{Ll}/u.test(text)) out = out.slice(0, -1);
-      else if (!out.endsWith(' ')) out += ' ';
+      else if (!out.endsWith(' ') && !(/[\p{L}]-$/u.test(out) && /^[\p{Lu}\d]/u.test(text)))
+        out += ' ';
     }
     out += text;
   });

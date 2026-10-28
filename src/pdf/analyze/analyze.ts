@@ -42,6 +42,19 @@ function mathRatio(b: BlockIR): number {
   return total ? math / total : 0;
 }
 
+/** A list item's opening: a bullet or an enumerator ("b) ", "ii. ", "– "). */
+const ITEM = /^(?:\(?(?:\d{1,3}|\p{L}|[ivx]{1,4})[.)]|[•◦▪▫‣●○■□➢✓–—-])\s/iu;
+
+/** Median distance between a block's baselines (undefined for one line). */
+function lineStep(b: BlockIR): number | undefined {
+  const steps = b.lines
+    .slice(1)
+    .map((l, i) => l.baseline - b.lines[i]!.baseline)
+    .filter((s) => s > 0)
+    .sort((x, y) => x - y);
+  return steps.length ? steps[Math.floor(steps.length / 2)] : undefined;
+}
+
 const avgSize = (b: BlockIR) => {
   let w = 0;
   let n = 0;
@@ -69,26 +82,57 @@ const normalizeRepeat = (t: string) =>
     .trim()
     .toLowerCase();
 
+/**
+ * A figure region; `bars` when it is made of nothing but fraction bars (display formulas), whose
+ * neighbouring sentences are running text, not labels.
+ */
+interface FigureRegion extends Rect {
+  bars: boolean;
+}
+
 /** Groups vectors and images into figure regions (tables excluded). */
-function figureRegions(page: RawPage, tables: TableRegion[]): Rect[] {
-  // Filled boxes behind running text (coloured callouts) are backgrounds, not figures.
-  const longLines = page.blocks.flatMap((b) => b.lines).filter((l) => l.chars.length > 40);
+function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
+  // Filled boxes behind running text (coloured callouts, a paragraph's shading behind each line
+  // and display formula) are backgrounds, not figures. A chart's plot area holds other shapes;
+  // shaded table cells have neighbours beside them.
+  const lines = page.blocks.flatMap((b) => b.lines);
+  const thin = (r: Rect) => r.y1 - r.y0 <= 2 && r.x1 - r.x0 < 120;
+  const filled = page.vectors.filter((v) => v.isRectangle && !v.isStroked);
+  const withText = new Set(filled.filter((v) => lines.some((l) => coverage(l.bbox, v.bbox) > 0.8)));
+  const beside = (v: Rect, o: Rect) =>
+    o.y0 < v.y1 - 1 && o.y1 > v.y0 + 1 && (Math.abs(o.x0 - v.x1) < 3 || Math.abs(v.x0 - o.x1) < 3);
   const isTextBackground = (v: RawPage['vectors'][number]) =>
-    v.isRectangle && !v.isStroked && longLines.some((l) => coverage(l.bbox, v.bbox) > 0.8);
+    withText.has(v) &&
+    (lines.some((l) => l.chars.length > 40 && coverage(l.bbox, v.bbox) > 0.8) ||
+      (!filled.some((o) => o !== v && beside(v.bbox, o.bbox)) &&
+        !page.vectors.some(
+          (o) => o !== v && !withText.has(o) && !thin(o.bbox) && coverage(o.bbox, v.bbox) > 0.8,
+        )));
+  const vectors = page.vectors
+    .filter((v) => !isTextBackground(v))
+    .filter((v) => !tables.some((t) => coverage(v.bbox, expand(t.rect, 2)) > 0.9))
+    .filter((v) => v.bbox.x1 - v.bbox.x0 > 3 || v.bbox.y1 - v.bbox.y0 > 3)
+    .map((v) => v.bbox);
+  // A fraction bar is a short thin rule on its own; a table's borders come in segments that
+  // join at the same height.
+  const bar = (r: Rect) =>
+    thin(r) &&
+    !vectors.some(
+      (o) =>
+        o !== r &&
+        Math.abs(o.y0 - r.y0) < 1.5 &&
+        (Math.abs(o.x0 - r.x1) < 3 || Math.abs(r.x0 - o.x1) < 3),
+    );
   const shapes = [
-    ...page.images.map((i) => i.bbox),
-    ...page.vectors
-      .filter((v) => !isTextBackground(v))
-      .filter((v) => !tables.some((t) => coverage(v.bbox, expand(t.rect, 2)) > 0.9))
-      .filter((v) => v.bbox.x1 - v.bbox.x0 > 3 || v.bbox.y1 - v.bbox.y0 > 3)
-      .map((v) => v.bbox),
+    ...page.images.map((i) => ({ rect: i.bbox, bar: false })),
+    ...vectors.map((v) => ({ rect: v, bar: bar(v) })),
   ];
-  const regions: Rect[] = [];
+  const regions: FigureRegion[] = [];
   for (const s of shapes) {
-    let r = expand(s, 12);
+    let r: FigureRegion = { ...expand(s.rect, 12), bars: s.bar };
     for (let i = regions.length - 1; i >= 0; i--) {
       if (coverage(regions[i]!, r) > 0 || coverage(r, regions[i]!) > 0) {
-        r = union(r, regions[i]!);
+        r = { ...union(r, regions[i]!), bars: r.bars && regions[i]!.bars };
         regions.splice(i, 1);
       }
     }
@@ -196,24 +240,26 @@ function classify(
       const size = avgSize(b);
       const inTopBand = b.bbox.y1 < raw.height * BAND;
       const inBottomBand = b.bbox.y0 > raw.height * (1 - BAND);
+      // Words outside math fonts: a block with none is a formula's piece.
+      const worded = /\p{L}{4,}/u.test(
+        b.lines
+          .map((l) =>
+            l.spans
+              .filter((s) => !s.font.isMath)
+              .map((s) => s.text)
+              .join(''),
+          )
+          .join(' '),
+      );
+      // Sentences around a display formula are text, not labels of the fractions in it.
+      const figuresNear = figures.filter((f) => !(f.bars && worded));
       let role: Role = 'body';
-      if ((inTopBand || inBottomBand) && PAGE_NUMBER.test(text)) role = 'page-number';
+      // A number in a math font is part of a formula (a fraction's denominator), not the page's.
+      if ((inTopBand || inBottomBand) && PAGE_NUMBER.test(text) && mathRatio(b) < 0.5)
+        role = 'page-number';
       else if ((inTopBand || inBottomBand) && repeated(normalizeRepeat(text)))
         role = inTopBand ? 'header' : 'footer';
-      else if (
-        mathRatio(b) >= 0.3 &&
-        !/\p{L}{4,}/u.test(
-          b.lines
-            .map((l) =>
-              l.spans
-                .filter((s) => !s.font.isMath)
-                .map((s) => s.text)
-                .join(''),
-            )
-            .join(' '),
-        )
-      )
-        role = 'formula';
+      else if (mathRatio(b) >= 0.3 && !worded) role = 'formula';
       else if (allMono(b)) role = 'code';
       else if (CAPTION.test(text)) role = 'caption';
       else if (b.direction[1] !== 0)
@@ -221,13 +267,13 @@ function classify(
       else if (size >= stats.bodySize * 1.12 && b.lines.length <= 3) role = 'heading';
       else if (
         b.direction[1] !== 0 ||
-        (figures.some((f) => coverage(b.bbox, f) > 0.5) && text.length < 80) ||
+        (figuresNear.some((f) => coverage(b.bbox, f) > 0.5) && text.length < 80) ||
         (b.lines.length === 1 &&
           text.length < 50 &&
           !TERMINAL.test(text) &&
           // Small type just outside a chart (tick labels under the axis, the axis title)
           // belongs to it too.
-          figures.some(
+          figuresNear.some(
             (f) =>
               coverage(b.bbox, size < stats.bodySize * 0.95 ? expand(f, 1.5 * stats.bodySize) : f) >
               0,
@@ -437,8 +483,15 @@ function orderPage(blocks: BlockIR[], width: number): Rect[] {
     // Everything above `bottom` not placed yet, including blocks that start beside a tall
     // full-width block.
     const inBand = flow.filter((b) => !placed.has(b) && b.columnIndex !== -1 && b.bbox.y0 < bottom);
+    // Blocks that start on the same line (a line cut by an inline formula, whose exponents
+    // raise the right part's top) are read left to right.
+    const sameLine = (a: BlockIR, b: BlockIR) =>
+      Math.abs(a.lines[0]!.baseline - b.lines[0]!.baseline) < 0.3 * avgSize(a);
     inBand.sort(
-      (a, b) => a.columnIndex - b.columnIndex || a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0,
+      (a, b) =>
+        a.columnIndex - b.columnIndex ||
+        (sameLine(a, b) ? 0 : a.bbox.y0 - b.bbox.y0) ||
+        a.bbox.x0 - b.bbox.x0,
     );
     inBand.forEach((b) => (ordered.push(b), placed.add(b)));
   };
@@ -475,39 +528,89 @@ function linkChains(pages: BlockIR[][]): void {
   const ordered = pages.flatMap((blocks) =>
     [...blocks].sort((x, y) => x.readingOrder - y.readingOrder),
   );
+  const byId = new Map(ordered.map((b) => [b.id, b]));
+  /** Whether `b` may continue `a`: `a` ends a chain, `b` starts one (or is alone). */
+  const free = (a: BlockIR, b: BlockIR) =>
+    !a.chain?.next &&
+    !(b.chain && b.chain.index > 0) &&
+    (a.chain?.paragraphId ?? a.id) !== (b.chain?.paragraphId ?? b.id);
   const link = (a: BlockIR, b: BlockIR) => {
     const paragraphId = a.chain?.paragraphId ?? a.id;
     const index = a.chain?.index ?? 0;
     a.chain = { paragraphId, index, next: b.id };
-    b.chain = { paragraphId, index: index + 1 };
+    // `b` may head a chain of its own: its blocks continue `a`'s.
+    let k = index + 1;
+    for (let cur: BlockIR | undefined = b; cur; k++) {
+      const next: string | undefined = cur.chain?.next;
+      cur.chain = next ? { paragraphId, index: k, next } : { paragraphId, index: k };
+      cur = next ? byId.get(next) : undefined;
+    }
   };
   const pageOf = (b: BlockIR) => Number(b.id.split('-')[0]!.slice(1));
+  // Only text with a word in it continues a sentence: formula pieces set in a text font ("dT",
+  // "т 1", "ср", "h2 (4)") are skipped like formulas and never chained.
+  const worded = (b: BlockIR) => /\p{L}{3}/u.test(blockText(b));
 
   // Sentences continued after one or more display formulas.
   for (let i = 0; i < ordered.length; i++) {
     const a = ordered[i]!;
-    if (a.role !== 'body') continue;
+    if (a.role !== 'body' || !worded(a)) continue;
     let j = i + 1;
     // Display formulas and floats (tables, figures, captions) may interrupt a sentence.
-    while (ordered[j] && INTERRUPTING.has(ordered[j]!.role)) j++;
+    while (ordered[j] && (INTERRUPTING.has(ordered[j]!.role) || !worded(ordered[j]!))) j++;
     const b = ordered[j];
     if (
       j > i + 1 &&
       b?.role === 'body' &&
+      free(a, b) &&
       !TERMINAL.test(blockText(a)) &&
       /^\p{Ll}/u.test(blockText(b))
     )
       link(a, b);
   }
 
+  // Paragraphs split inside a column that the block builder could not rejoin: a list item's
+  // hanging indent ("• La charge … des maladies" | "bucco-dentaires est …"), a first-line indent
+  // wider than its limit ("2. Fideiusiunea … două mijloace de" | "apărare, …"), a line cut by
+  // an inline formula ("… Вдоль оси" | "x расположены …"). The text runs on in lower case at
+  // the next line's distance, or on the same line, where it may also go on with the formula's
+  // relation ("Burada [fraction]" | "= cos θ olmak üzere"). Lettered items ("b) …") are new ones.
+  for (let i = 0; i + 1 < ordered.length; i++) {
+    const a = ordered[i]!;
+    const b = ordered[i + 1]!;
+    if (a.role !== 'body' || b.role !== 'body' || !worded(a) || !worded(b) || !free(a, b)) continue;
+    if (pageOf(a) !== pageOf(b) || a.columnIndex !== b.columnIndex) continue;
+    if (TERMINAL.test(blockText(a))) continue;
+    const text = blockText(b);
+    const runsOn = /^\p{Ll}/u.test(text) && !ITEM.test(text);
+    const relation = /^[=<>≤≥≈≠∈]/u.test(text) && !!a.lines.at(-1)!.spans.at(-1)?.font.isMath;
+    if (!runsOn && !relation) continue;
+    const size = avgSize(b);
+    if (Math.abs(avgSize(a) - size) >= Math.max(0.3, 0.08 * size)) continue;
+    const aLast = a.lines[a.lines.length - 1]!;
+    const bFirst = b.lines[0]!;
+    const step = bFirst.baseline - aLast.baseline;
+    const pitch = lineStep(b) ?? lineStep(a) ?? 1.2 * size;
+    const below =
+      runsOn &&
+      step > 0.5 * size &&
+      step < Math.max(1.6 * size, 1.25 * pitch) &&
+      b.bbox.x0 <= a.bbox.x0 + 3 * size;
+    const besides =
+      Math.abs(step) < 0.3 * size &&
+      bFirst.bbox.x0 >= aLast.bbox.x1 - 1 &&
+      bFirst.bbox.x0 - aLast.bbox.x1 < 3 * size;
+    if (below || besides) link(a, b);
+  }
+
   // Paragraphs continued in the next column or on the next page. Full-width blocks on
   // multi-column pages (table descriptions, author lists) are not part of the column flow.
-  const sequence = ordered.filter((b) => b.role === 'body' && b.columnIndex !== -1);
+  const inFlow = ordered.filter((b) => b.role === 'body' && b.columnIndex !== -1 && worded(b));
   // A paragraph that continues fills its last line: a short last line ("R. Walton", an
   // address) ends it, whatever its punctuation. The text edge comes from the column's
   // multi-line paragraphs.
   const rightEdge = new Map<string, number>();
-  for (const b of sequence) {
+  for (const b of inFlow) {
     if (b.lines.length < 2) continue;
     const key = `${pageOf(b)}:${b.columnIndex}`;
     rightEdge.set(key, Math.max(rightEdge.get(key) ?? 0, b.bbox.x1));
@@ -516,19 +619,34 @@ function linkChains(pages: BlockIR[][]): void {
     const edge = rightEdge.get(`${pageOf(a)}:${a.columnIndex}`) ?? a.bbox.x1;
     return a.lines[a.lines.length - 1]!.bbox.x1 >= edge - 0.04 * (edge - a.bbox.x0);
   };
+  // A short line set apart at the foot of a column ("© Тарасик В. П., 2015") is not where the
+  // column's text ends.
+  const sequence = inFlow.filter((b, i) => {
+    const next = inFlow[i + 1];
+    const prev = inFlow[i - 1];
+    const last = !next || pageOf(next) !== pageOf(b) || next.columnIndex !== b.columnIndex;
+    if (!last || b.lines.length > 1 || lastLineFull(b)) return true;
+    if (!prev || pageOf(prev) !== pageOf(b) || prev.columnIndex !== b.columnIndex) return true;
+    const gap = b.lines[0]!.baseline - prev.lines[prev.lines.length - 1]!.baseline;
+    return gap < 2 * (lineStep(prev) ?? 1.2 * avgSize(b));
+  });
   for (let i = 0; i + 1 < sequence.length; i++) {
     const a = sequence[i]!;
     const b = sequence[i + 1]!;
-    if (a.chain?.next || b.chain) continue;
+    if (!free(a, b)) continue;
     if (pageOf(a) === pageOf(b) && a.columnIndex === b.columnIndex) continue;
     const lastText = a.lines[a.lines.length - 1]!.spans.map((s) => s.text)
       .join('')
       .trim();
     const sizeB = avgSize(b);
     const notIndented = b.lines[0]!.bbox.x0 - b.bbox.x0 < 0.5 * sizeB;
+    // A continuation in lower case needs no full last line ("… karşılaştırılması Tablo 1'de" |
+    // "sunulmuştur. …": the line was broken by hand before the column's end).
+    const textB = blockText(b);
+    const runsOn = /^\p{Ll}/u.test(textB) && !ITEM.test(textB);
     if (
       !TERMINAL.test(lastText) &&
-      lastLineFull(a) &&
+      (lastLineFull(a) || runsOn) &&
       notIndented &&
       Math.abs(avgSize(a) - sizeB) < 0.3
     )

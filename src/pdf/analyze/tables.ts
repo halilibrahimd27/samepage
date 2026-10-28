@@ -19,21 +19,25 @@ export interface TableRegion {
  * ignored.
  */
 export function detectTables(page: RawPage): TableRegion[] {
-  const hrules = page.vectors
-    .filter((v) => v.bbox.y1 - v.bbox.y0 < 2 && v.bbox.x1 - v.bbox.x0 > 30)
-    .map((v) => v.bbox)
-    .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
-  const vrules = page.vectors
-    .filter((v) => v.bbox.x1 - v.bbox.x0 < 2 && v.bbox.y1 - v.bbox.y0 > 6)
-    .map((v) => v.bbox);
   const width = (r: Rect) => r.x1 - r.x0;
   const thickness = (r: Rect) => r.y1 - r.y0;
-
   // Graphics between two rules (chart bars) mean the lower rule is not part of the table; a
   // row background spanning the table (\rowcolor) does not.
   const graphics = page.vectors
     .map((v) => v.bbox)
     .filter((b) => b.y1 - b.y0 > 3 && b.x1 - b.x0 > 2);
+  // A rule that a shape runs across (a bar across a chart's grid line) is no table rule; cell
+  // borders are thinner than a shape.
+  const crossed = (r: Rect) =>
+    graphics.some((g) => g.y0 < r.y0 - 1 && g.y1 > r.y1 + 1 && xOverlap(g, r) > 0);
+  const hrules = page.vectors
+    .filter((v) => v.bbox.y1 - v.bbox.y0 < 2 && v.bbox.x1 - v.bbox.x0 > 30)
+    .map((v) => v.bbox)
+    .filter((r) => !crossed(r))
+    .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+  const vrules = page.vectors
+    .filter((v) => v.bbox.x1 - v.bbox.x0 < 2 && v.bbox.y1 - v.bbox.y0 > 6)
+    .map((v) => v.bbox);
   const graphicsBetween = (a: Rect, b: Rect) =>
     graphics.some(
       (g) =>
@@ -43,13 +47,32 @@ export function detectTables(page: RawPage): TableRegion[] {
         width(g) < 0.9 * Math.min(width(a), width(b)),
     );
 
+  // A table's text stays within its rules; a line running past them (the paragraph between a
+  // table and a chart's grid lines below it) means the rules belong to different things.
+  const textLines = page.blocks.flatMap((b) => b.lines.map((l) => l.bbox));
+  const textBeyond = (a: Rect, b: Rect) => {
+    const span = { x0: Math.min(a.x0, b.x0), y0: 0, x1: Math.max(a.x1, b.x1), y1: 0 };
+    return textLines.some(
+      (l) =>
+        l.y0 >= a.y1 - 0.5 &&
+        l.y1 <= b.y0 + 0.5 &&
+        xOverlap(l, span) > 0 &&
+        (l.x0 < span.x0 - 5 || l.x1 > span.x1 + 5),
+    );
+  };
+
   const groups: Rect[][] = [];
   const narrow: Rect[] = [];
   for (const rule of hrules) {
     const g = groups.find((grp) => {
       const last = grp[grp.length - 1]!;
       const overlap = xOverlap(last, rule) / Math.max(width(last), width(rule));
-      return overlap > 0.8 && rule.y0 - last.y1 < 120 && !graphicsBetween(last, rule);
+      return (
+        overlap > 0.8 &&
+        rule.y0 - last.y1 < 120 &&
+        !graphicsBetween(last, rule) &&
+        !textBeyond(last, rule)
+      );
     });
     if (g) g.push(rule);
     else groups.push([rule]);
@@ -61,7 +84,6 @@ export function detectTables(page: RawPage): TableRegion[] {
     else tables.push(...splitBooktabs(g, thickness));
   }
 
-  const textLines = page.blocks.flatMap((b) => b.lines.map((l) => l.bbox));
   const regions: TableRegion[] = [];
   for (const g of tables) {
     if (g.length < 2) continue;
