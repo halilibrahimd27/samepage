@@ -43,6 +43,9 @@ the paper says.
   Claude key, the flagged sentences are revised automatically (British or American spelling).
 - **Abstract only.** For journals that ask for a second-language abstract: samepage finds the
   title, abstract and keywords, lets you edit them and translates just those.
+- **References the APA way.** The reference list stays as published; optionally, titles in another
+  language get their translation in brackets after them (APA 7): “Makine çevirisi [Machine
+  translation].”
 - **A glossary from your paper.** Tool names, code and field terms ("confidence interval",
   "randomized controlled trial") are suggested to keep or translate consistently. Nothing is
   applied until you tick it.

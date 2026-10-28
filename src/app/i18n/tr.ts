@@ -89,6 +89,9 @@ export const tr: Record<MessageKey, string> = {
   'settings.fidelityCheckHint':
     'Anlamı kaymış olabilecek paragrafları işaretler: kaybolan ya da eklenen olumsuzluk, güçlenen ya da zayıflayan iddia (olabilir, düşündürmektedir), değişen niceleyici (çoğu → tümü). Google ve Chrome: çeviri kaynak dile geri çevrilip karşılaştırılır (yaklaşık bir çeviri süresi kadar sürer). Claude: ikinci bir inceleme geçişi (maliyete yaklaşık %30–50 ekler).',
   'settings.translateReferences': 'Kaynakçayı çevir',
+  'settings.referenceTitles': 'Kaynak başlıklarını köşeli parantezde çevir (APA 7)',
+  'settings.referenceTitlesHint':
+    'Kaynaklar yayımlandığı gibi kalır; başka dildeki başlıkların çevirisi başlığın ardına eklenir: “Makine çevirisi [Machine translation].”',
   'settings.translateComments': 'DOCX yorumlarını çevir',
   'settings.translateMetadata': 'Belge başlığını (meta veri) çevir',
   'settings.showTestEngine': 'Test motorunu göster',

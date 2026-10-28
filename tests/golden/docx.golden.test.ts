@@ -95,3 +95,31 @@ describe.each(readdirSync(CORPUS).filter((f) => f.endsWith('.docx')))('DOCX gold
     ).toMatchFileSnapshot(`docx/${name.replace(/\.docx$/, '.json')}`);
   });
 });
+
+describe('reference titles in brackets (P9.6)', () => {
+  it('keeps a reference as published and adds its title’s translation in brackets', async () => {
+    const input = new Uint8Array(readFileSync(`${CORPUS}/academic.docx`));
+    const engine = createPseudoEngine({ factor: 1, substitute: true });
+    const { bytes, report } = await translateDocx(input, {
+      engine,
+      pair: { source: 'tr', target: 'en' },
+      glossary: [],
+      numberLocalization: false,
+      fidelityCheck: false,
+      translateComments: false,
+      translateReferences: false,
+      referenceTitles: true,
+      translateMetadata: false,
+      signal: new AbortController().signal,
+    });
+    const xml = await (await JSZip.loadAsync(bytes)).file('word/document.xml')!.async('string');
+    const text = [...xml.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join('');
+    // The entry keeps its authors, year, journal and title; the title's translation follows it.
+    expect(text).toMatch(
+      /Yılmaz, A\. ve Demir, B\. \(2021\)\. Türkçe metinlerde terim tutarlılığı \[.+\]\. Dil Dergisi, 12\(3\), 45–67\./,
+    );
+    const entry = report.segments.find((s) => s.source.startsWith('Yılmaz'))!;
+    expect(entry.role).toBe('reference');
+    expect(entry.status).toBe('translated');
+  });
+});

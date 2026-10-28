@@ -78,6 +78,8 @@ export interface DocxJob {
   localCitations?: boolean;
   translateComments: boolean;
   translateReferences: boolean;
+  /** Reference titles in another language translated in brackets (APA 7, P9.6). */
+  referenceTitles?: boolean;
   translateMetadata: boolean;
   /** Review-step corrections: tagged source → tagged target. */
   overrides?: Record<string, string>;

@@ -13,6 +13,7 @@ import {
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { localeFor } from '../core/languages';
 import { storedTranslations, type StoredOutcome } from '../core/project';
+import { bracketedOutcome, titlesToTranslate, type ReferenceTitle } from '../core/referenceTitles';
 import { extractA, extractW, rebuild, type ExtractedParagraph } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
 import { fitSlideText, slideRole, textBodyOf } from './pptx';
@@ -35,6 +36,8 @@ export interface DocxOptions {
   replay?: Record<string, StoredOutcome>;
   translateComments: boolean;
   translateReferences: boolean;
+  /** Reference titles in another language get their translation in brackets (APA 7, P9.6). */
+  referenceTitles?: boolean;
   translateMetadata: boolean;
   cache?: TranslationCache;
   signal: AbortSignal;
@@ -279,6 +282,16 @@ export async function translateDocx(
     }
   }
 
+  // Reference entries stay as published; titles in another language are translated alone and
+  // put after the title in brackets (APA 7).
+  const titlesOf = new Map<Unit, ReferenceTitle[]>();
+  if (opts.referenceTitles && !opts.translateReferences)
+    for (const u of units) {
+      if (u.skipped !== 'reference') continue;
+      const titles = titlesToTranslate(u.source, opts.pair);
+      if (titles.length) titlesOf.set(u, titles);
+    }
+
   // Identical sources (e.g. a text box in mc:Choice and mc:Fallback) are translated once.
   const active = units.filter((u) => !u.skipped);
   const uniqueBySource = new Map<string, SegmentRequest>();
@@ -291,6 +304,13 @@ export async function translateDocx(
         ...(u.p ? verbatimOf(u.p.encoded.placeholders, opts.pair) : {}),
       });
   }
+  for (const t of [...titlesOf.values()].flat())
+    if (!uniqueBySource.has(t.title))
+      uniqueBySource.set(t.title, {
+        id: `s${uniqueBySource.size + 1}`,
+        text: t.title,
+        role: 'reference',
+      });
   const requests = [...uniqueBySource.values()];
   const outcomes = await translateSegments({
     engine: opts.engine,
@@ -310,6 +330,12 @@ export async function translateDocx(
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const outcomeBySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
+  for (const [u, titles] of titlesOf) {
+    const o = bracketedOutcome(u.source, titles, (t) => outcomeBySource.get(t));
+    if (!o) continue;
+    outcomeBySource.set(u.source, o);
+    delete u.skipped;
+  }
 
   // Apply in reverse document order so nested paragraphs (text boxes) are rebuilt before the
   // paragraph whose drawing contains them is moved.

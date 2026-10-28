@@ -28,6 +28,7 @@ export interface ProjectOptions {
   fidelityCheck: boolean;
   localCitations: boolean;
   translateReferences: boolean;
+  referenceTitles?: boolean;
   translateMetadata: boolean;
   translateComments?: boolean;
   /** PDFs: 0-based inclusive page range. */
@@ -132,7 +133,8 @@ function options(v: unknown): ProjectOptions | null {
   if (!isObject(v)) return null;
   const flags = ['fidelityCheck', 'localCitations', 'translateReferences', 'translateMetadata'];
   if (!flags.every((f) => typeof v[f] === 'boolean')) return null;
-  if (v.translateComments !== undefined && typeof v.translateComments !== 'boolean') return null;
+  for (const f of ['translateComments', 'referenceTitles'])
+    if (v[f] !== undefined && typeof v[f] !== 'boolean') return null;
   let pageRange: ProjectOptions['pageRange'];
   if (v.pageRange !== undefined) {
     const r = v.pageRange;
@@ -145,7 +147,8 @@ function options(v: unknown): ProjectOptions | null {
     localCitations: v.localCitations as boolean,
     translateReferences: v.translateReferences as boolean,
     translateMetadata: v.translateMetadata as boolean,
-    ...(v.translateComments !== undefined ? { translateComments: v.translateComments } : {}),
+    ...(typeof v.translateComments === 'boolean' ? { translateComments: v.translateComments } : {}),
+    ...(typeof v.referenceTitles === 'boolean' ? { referenceTitles: v.referenceTitles } : {}),
     ...(pageRange ? { pageRange } : {}),
   };
 }

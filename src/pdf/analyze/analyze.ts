@@ -630,6 +630,37 @@ function linkChains(pages: BlockIR[][]): void {
     if (below || besides) link(a, b);
   }
 
+  // Reference entries split into one block per line by their hanging indent ("Çetin, B. (2017).
+  // Basit Brayton çevriminde elektrik üretimi" | "maliyetinin parametrik analizi. Fırat …"): a
+  // line continues the entry when it is indented under the entry's first line, or when the line
+  // before does not end a sentence and no entry number starts it.
+  const ENTRY = /^(?:\[\d{1,3}\]|\d{1,3}\.)\s/u;
+  // By position, not reading order: two-column reference lists interleave in reading order and
+  // an entry's first line may be wider than its column.
+  const references = ordered.filter((b) => b.role === 'reference');
+  for (const a of references) {
+    const size = avgSize(a);
+    const last = a.lines[a.lines.length - 1]!;
+    const step = (b: BlockIR) => b.lines[0]!.baseline - last.baseline;
+    const below = references
+      .filter(
+        (b) =>
+          b !== a &&
+          pageOf(b) === pageOf(a) &&
+          step(b) > 0.5 * size &&
+          step(b) <= Math.max(1.6 * size, 1.25 * (lineStep(a) ?? size)) &&
+          b.bbox.x0 >= a.bbox.x0 - 3 * size &&
+          b.bbox.x0 <= a.bbox.x0 + 3 * size &&
+          Math.abs(avgSize(b) - size) < Math.max(0.3, 0.08 * size),
+      )
+      .sort((x, y) => step(x) - step(y));
+    const b = below[0];
+    if (!b || !free(a, b)) continue;
+    const head = a.chain ? (byId.get(a.chain.paragraphId) ?? a) : a;
+    const hanging = b.bbox.x0 > head.bbox.x0 + 0.5 * size;
+    if (hanging || (!TERMINAL.test(blockText(a).trim()) && !ENTRY.test(blockText(b)))) link(a, b);
+  }
+
   // Paragraphs continued in the next column or on the next page. Full-width blocks on
   // multi-column pages (table descriptions, author lists) are not part of the column flow.
   const inFlow = ordered.filter((b) => b.role === 'body' && b.columnIndex !== -1 && worded(b));

@@ -6,6 +6,8 @@ export interface Settings {
   uiLang: UiLang;
   fidelityCheck: boolean;
   translateReferences: boolean;
+  /** Reference titles in another language get their translation in brackets (APA 7). */
+  referenceTitles: boolean;
   translateComments: boolean;
   translateMetadata: boolean;
   showTestEngine: boolean;
@@ -23,6 +25,7 @@ export function defaultSettings(languages: readonly string[]): Settings {
     uiLang: detectUiLang(languages),
     fidelityCheck: true,
     translateReferences: false,
+    referenceTitles: false,
     translateComments: false,
     translateMetadata: false,
     showTestEngine: false,
@@ -50,6 +53,7 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
   for (const key of [
     'fidelityCheck',
     'translateReferences',
+    'referenceTitles',
     'translateComments',
     'translateMetadata',
     'showTestEngine',

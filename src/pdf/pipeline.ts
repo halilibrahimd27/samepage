@@ -1,6 +1,7 @@
 import type { TranslationCache } from '../core/cache/cache';
 import { localeFor } from '../core/languages';
 import { storedTranslations, type StoredOutcome } from '../core/project';
+import { bracketedOutcome, titlesToTranslate, type ReferenceTitle } from '../core/referenceTitles';
 import type { BlockIR, LineIR, PageIR, Rect, Role } from '../core/ir/types';
 import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
@@ -53,6 +54,8 @@ export interface PdfOptions {
   resetIdentical?: boolean;
   /** Reference lists are kept in the original language unless this is set. */
   translateReferences?: boolean;
+  /** Reference titles in another language get their translation in brackets (APA 7, P9.6). */
+  referenceTitles?: boolean;
   cache?: TranslationCache;
   signal: AbortSignal;
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
@@ -360,17 +363,29 @@ export async function translatePdf(
       onPage: (done, total) => opts.onProgress?.(done, total, 'ocr'),
     },
   );
-  if (opts.translateReferences) {
+  const titlesOnly = !opts.translateReferences && !!opts.referenceTitles;
+  if (opts.translateReferences || titlesOnly) {
     for (const b of pages.flatMap((p) => p.blocks))
       if (b.role === 'reference') b.translatable = true;
   }
-  const units = buildPdfUnits(pages).filter((u) => u.blocks.every((b) => inRange(pageOf(b))));
+  const built = buildPdfUnits(pages).filter((u) => u.blocks.every((b) => inRange(pageOf(b))));
+  // Reference entries stay as published; titles in another language are translated alone and
+  // put after the title in brackets (APA 7). Entries without one stay untouched.
+  const titlesOf = new Map<PdfUnit, ReferenceTitle[]>();
+  if (titlesOnly)
+    for (const u of built) {
+      if (u.role !== 'reference') continue;
+      const titles = titlesToTranslate(u.encoded.source, opts.pair);
+      if (titles.length) titlesOf.set(u, titles);
+      else for (const b of u.blocks) b.translatable = false;
+    }
+  const units = built.filter((u) => !titlesOnly || u.role !== 'reference' || titlesOf.has(u));
   const meta = opts.translateMetadata
     ? await readOutlineAndTitle(bytes)
     : { outline: [], title: '' };
   const unique = new Map<string, SegmentRequest>();
   for (const u of units)
-    if (!unique.has(u.encoded.source))
+    if (!titlesOf.has(u) && !unique.has(u.encoded.source))
       unique.set(u.encoded.source, {
         id: `s${unique.size + 1}`,
         text: u.encoded.source,
@@ -382,6 +397,9 @@ export async function translatePdf(
     if (t.trim() && /\p{L}/u.test(t) && !unique.has(t))
       unique.set(t, { id: `s${unique.size + 1}`, text: t, role: 'heading' });
   }
+  for (const t of [...titlesOf.values()].flat())
+    if (!unique.has(t.title))
+      unique.set(t.title, { id: `s${unique.size + 1}`, text: t.title, role: 'reference' });
   const requests = [...unique.values()];
   const outcomes = await translateSegments({
     engine: opts.engine,
@@ -401,6 +419,23 @@ export async function translatePdf(
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const bySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
+  for (const [u, titles] of titlesOf) {
+    const titled = bracketedOutcome(u.encoded.source, titles, (t) => bySource.get(t));
+    // No title translated: the entry is drawn as it was, and the reason reported.
+    bySource.set(
+      u.encoded.source,
+      titled ?? {
+        id: '',
+        text: u.encoded.source,
+        untranslated: false,
+        cached: false,
+        attempts: 0,
+        issues: titles.flatMap((t) => bySource.get(t.title)?.issues ?? []),
+        notes: [],
+        findings: [],
+      },
+    );
+  }
   const factors = sizeFactors(
     pages.flatMap((p) => p.blocks),
     opts.faces,

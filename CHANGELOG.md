@@ -23,6 +23,9 @@ All notable changes to samepage are documented here. The format follows
   for English targets.
 - AI-use statement: a ready-to-copy disclosure naming the engine and the language pair, in the
   paper's language.
+- Reference titles in brackets (APA 7, optional): entries stay as published and titles in another
+  language get their translation after them, in PDF, Word and PowerPoint; a PDF reference entry's
+  lines are kept together as one paragraph.
 - Project files (`.samepage`): the document, its translation, review corrections and glossary in
   one file, reopened in any browser without translating again; corrections are applied without
   calling the engine.

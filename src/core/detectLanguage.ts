@@ -86,6 +86,36 @@ export function functionWords(text: string, lang: string): number {
   return n;
 }
 
+/**
+ * The language of a short text such as a reference title, from its function words and its
+ * language's own letters ("kayması" is Turkish, "Übersicht" German). A text with letters
+ * outside ASCII but no clearer sign is taken to be in `hint` (the paper's language) when the
+ * script matches. Null when nothing tells (an English title without function words).
+ */
+export function shortTextLanguage(text: string, hint?: string): LanguageCode | null {
+  const words = text.toLocaleLowerCase().match(/\p{L}+/gu) ?? [];
+  if (!words.length) return null;
+  const counts = { latin: 0, cyrillic: 0, greek: 0 };
+  for (const w of words)
+    for (const s of ['latin', 'cyrillic', 'greek'] as const) if (SCRIPT[s].test(w)) counts[s]++;
+  const script = (['latin', 'cyrillic', 'greek'] as const).reduce((a, b) =>
+    counts[b] > counts[a] ? b : a,
+  );
+  const sample = words.join(' ');
+  const scores = LANGUAGES.filter((l) => scriptOf(l) === script)
+    .map((lang) => ({
+      lang,
+      score: languageScore(text, lang) + 0.5 * (sample.match(LETTERS[lang] ?? /$^/gu)?.length ?? 0),
+    }))
+    .sort((a, b) => b.score - a.score);
+  const [best, second] = scores;
+  if (best && best.score >= 0.5 && best.score > (second?.score ?? 0)) return best.lang;
+  const hinted = LANGUAGES.find((l) => l === hint && scriptOf(l) === script);
+  if (hinted && (script !== 'latin' || /[^a-z\s]/u.test(sample))) return hinted;
+  // Another script than the hint's: its first language stands for it.
+  return script === 'latin' ? null : (scores[0]?.lang ?? null);
+}
+
 export interface DetectedLanguage {
   lang: LanguageCode;
   /** Winner's score divided by the runner-up's (≥ 1.5 when returned). */

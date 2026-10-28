@@ -67,6 +67,7 @@ export function DocxTranslator({
     localCitations: settings.localCitations,
     translateComments: settings.translateComments,
     translateReferences: settings.translateReferences,
+    referenceTitles: settings.referenceTitles,
     translateMetadata: settings.translateMetadata,
   };
 
@@ -86,6 +87,7 @@ export function DocxTranslator({
     localCitations: options.localCitations,
     translateComments: options.translateComments ?? settings.translateComments,
     translateReferences: options.translateReferences,
+    referenceTitles: options.referenceTitles ?? false,
     translateMetadata: options.translateMetadata,
     ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });

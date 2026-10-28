@@ -76,6 +76,7 @@ export function PdfTranslator(props: {
         fidelityCheck: settings.fidelityCheck,
         localCitations: settings.localCitations,
         translateReferences: settings.translateReferences,
+        referenceTitles: settings.referenceTitles,
         translateMetadata: settings.translateMetadata,
         ...(from > 1 || to < props.pageCount
           ? { pageRange: { from: Math.max(0, from - 1), to: Math.min(props.pageCount, to) - 1 } }
@@ -92,6 +93,7 @@ export function PdfTranslator(props: {
         fidelityCheck: options.fidelityCheck,
         localCitations: options.localCitations,
         translateReferences: options.translateReferences,
+        referenceTitles: options.referenceTitles ?? false,
         dual: true,
         translateMetadata: options.translateMetadata,
         ...(options.pageRange ? { pageRange: options.pageRange } : {}),

@@ -275,6 +275,7 @@ const api: PipelineApi = {
           ...(job.replay ? { replay: job.replay } : polishOptions(job)),
           translateComments: job.translateComments,
           translateReferences: job.translateReferences,
+          referenceTitles: job.referenceTitles ?? false,
           translateMetadata: job.translateMetadata,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           cache,
@@ -308,6 +309,7 @@ const api: PipelineApi = {
           // A reopened project: its translations, no engine and no polishing.
           ...(job.replay ? { replay: job.replay } : polishOptions(job)),
           translateReferences: job.translateReferences,
+          referenceTitles: job.referenceTitles ?? false,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           translateMetadata: job.translateMetadata,
           ...(job.pageRange ? { pageRange: job.pageRange } : {}),

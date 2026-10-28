@@ -418,6 +418,8 @@ export function planEditable(
       });
   }
 
+  /** Paragraphs of text kept as it is, by chain, for the chain's next blocks (any page). */
+  const kept = new Map<string, Extract<EditableItem, { kind: 'paragraph' }>>();
   /** Index of the first item of each page. */
   const pageStarts: number[] = [];
   for (const page of shown) {
@@ -468,15 +470,30 @@ export function planEditable(
             items.push({ kind: 'paragraph', style: 'body', align: 'left', runs });
         continue;
       }
+      // Text kept as it is that continues a chain (a reference entry's next line) joins the
+      // paragraph its chain started.
+      const chained = b.chain && b.chain.index > 0 ? kept.get(b.chain.paragraphId) : undefined;
+      if (chained && !unitBlocks.has(b.id)) {
+        const runs = blockRuns(b, false);
+        const last = chained.runs[chained.runs.length - 1];
+        if (last && /\p{L}-$/u.test(last.text))
+          last.text = joinHyphen(last.text, runs[0]?.text ?? '');
+        else chained.runs.push({ text: ' ' });
+        chained.runs.push(...runs);
+        continue;
+      }
       const role = slots.get(b.id)?.role ?? b.role;
       const kind = kindOf(role, b, heading);
-      for (const runs of content(b))
-        items.push({
+      for (const runs of content(b)) {
+        const item: Extract<EditableItem, { kind: 'paragraph' }> = {
           kind: 'paragraph',
           style: kind,
           align: alignOf(b, kind, slots.get(b.id)?.lines ?? b.lines.length),
           runs,
-        });
+        };
+        items.push(item);
+        if (b.chain && !unitBlocks.has(b.id)) kept.set(b.chain.paragraphId, item);
+      }
     }
     trailing.forEach(emitPicture);
   }
