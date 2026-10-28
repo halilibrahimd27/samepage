@@ -175,9 +175,28 @@ export function repairDocument(input: RepairInput): RepairOutput {
     return true;
   };
 
+  // Filled boxes holding text (a paragraph's shading, line by line in Word's PDFs) are
+  // backgrounds: text set over them collides with nothing.
+  const backgroundsByPage = new Map<number, Set<PageIR['vectors'][number]>>();
+  const backgroundsOf = (pageIndex: number) => {
+    let set = backgroundsByPage.get(pageIndex);
+    if (!set) {
+      const page = pages[pageIndex]!;
+      const lines = page.blocks.flatMap((b) => b.lines.map((l) => l.bbox));
+      set = new Set(
+        page.vectors.filter(
+          (v) => v.isRectangle && !v.isStroked && lines.some((l) => coverage(l, v.bbox) > 0.8),
+        ),
+      );
+      backgroundsByPage.set(pageIndex, set);
+    }
+    return set;
+  };
+
   /** Obstacles of a page for a given state: untouched blocks, other units' boxes, figures. */
   const obstaclesFor = (s: State, pageIndex: number): Obstacle[] => {
     const page = pages[pageIndex]!;
+    const backgrounds = backgroundsOf(pageIndex);
     const own = new Set(s.blocks.map((b) => b.id));
     const ownBoxes = s.blocks.filter((b) => pageOf(b) === pageIndex).map((b) => b.bbox);
     // Shapes the block already sat on in the original (backgrounds, figure areas) are not obstacles.
@@ -197,7 +216,7 @@ export function repairDocument(input: RepairInput): RepairOutput {
     for (const img of page.images)
       if (!preexisting(img.bbox)) out.push({ rect: img.bbox, owner: 'image' });
     for (const v of page.vectors)
-      if (!preexisting(v.bbox)) out.push({ rect: v.bbox, owner: 'vector' });
+      if (!preexisting(v.bbox) && !backgrounds.has(v)) out.push({ rect: v.bbox, owner: 'vector' });
     return out;
   };
 

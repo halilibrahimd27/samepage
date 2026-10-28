@@ -693,6 +693,30 @@ function absorbDropCaps(blocks: BlockIR[], bodySize: number, words: Set<string>)
   return blocks.filter((b) => !absorbed.has(b));
 }
 
+/**
+ * A letter or two touching a formula ("T" with its subscript "ср", "W" + "ф") is part of it,
+ * set in a text font — no word to translate ("ср" became "Wed"). Words apart from a formula
+ * by a space ("x ve y") stay text.
+ */
+function formulaPieces(blocks: BlockIR[]): void {
+  const formulas = blocks.filter((b) => b.role === 'formula');
+  for (const b of blocks) {
+    if (b.role !== 'body' && b.role !== 'label') continue;
+    if (b.lines.length !== 1 || /\p{L}{3}/u.test(blockText(b))) continue;
+    const height = b.bbox.y1 - b.bbox.y0;
+    const touches = formulas.some(
+      (f) =>
+        f.bbox.x0 <= b.bbox.x1 + 0.5 &&
+        b.bbox.x0 <= f.bbox.x1 + 0.5 &&
+        Math.min(f.bbox.y1, b.bbox.y1) - Math.max(f.bbox.y0, b.bbox.y0) > 0.3 * height,
+    );
+    if (touches) {
+      b.role = 'formula';
+      b.translatable = false;
+    }
+  }
+}
+
 /** Full analysis: raw MuPDF pages → IR pages with roles, columns, reading order, chains and tables. */
 export function analyzeDocument(raw: RawPage[]): PageIR[] {
   const pages = raw.map((r) => {
@@ -712,6 +736,7 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
   );
   for (const p of pages) p.blocks = absorbDropCaps(p.blocks, stats.bodySize, words);
   classify(pages, stats);
+  for (const p of pages) formulaPieces(p.blocks);
   const result = pages.map(({ raw: r, blocks }) => {
     const columns = orderPage(blocks, r.width);
     return {

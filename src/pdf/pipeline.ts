@@ -425,8 +425,10 @@ export async function translatePdf(
     }
     reports.set(u.id, report);
     // A translation identical to the source (names, formulas, figures) is not set again: the
-    // original drawing stays exact.
-    if (!opts.resetIdentical && !o.untranslated && o.text === u.encoded.source) continue;
+    // original drawing stays exact. Spaces do not count: engines move them across tags
+    // ("<t1>L </t1>⟦F3⟧" came back as "<t1>L</t1> ⟦F3⟧").
+    const unchanged = o.text.replace(/\s+/gu, '') === u.encoded.source.replace(/\s+/gu, '');
+    if (!opts.resetIdentical && !o.untranslated && unchanged) continue;
     let decoded = null;
     if (!o.untranslated) {
       try {
