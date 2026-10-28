@@ -192,17 +192,27 @@ const CUES: Record<string, Cues> = {
       'olanaksız\\p{L}*',
     ]),
     hedge: words(TR_HEDGE),
-    // "olup olmadığı" is "whether or not"; "yok etmek" is "to destroy".
-    ignore: words(['olup olma\\p{L}*', 'yok (?:et|ed|ol|say)\\p{L}*', 'her şeyden önce']),
+    // "olup olmadığı" is "whether or not"; "yok etmek" is "to destroy". Litotes say something
+    // positive ("azımsanmayacak sıklıkta" is "quite often", "yadsınamaz" is "undeniable").
+    ignore: words([
+      'olup olma\\p{L}*',
+      'yok (?:et|ed|ol|say)\\p{L}*',
+      'her şeyden önce',
+      'azımsan(?:a)?ma\\p{L}*',
+      'küçümsen(?:e)?me\\p{L}*',
+      'yadsınama\\p{L}*',
+      'göz ardı edil(?:e)?me\\p{L}*',
+    ]),
     weakHedge: words([...TR_HEDGE, ...TR_WEAK_HEDGE]),
     quantifiers: {
+      // Not "tümce" (sentence), "tamamlanmış" (completed) or "bütünleşik" (integrated).
       'all/every': words([
-        'tüm\\p{L}*',
-        'bütün\\p{L}*',
+        'tüm(?:ü\\p{L}*|den)?',
+        'bütün(?:ü\\p{L}*)?',
         'her',
         'hepsi\\p{L}*',
         'daima',
-        'tamam\\p{L}*',
+        'tamam(?:en|ı\\p{L}*)',
       ]),
       most: words(['çoğu\\p{L}*', 'çoğunluk\\p{L}*', 'büyük ölçüde', 'büyük kısm\\p{L}*']),
       some: words(['bazı\\p{L}*', 'bazen', 'kısmen', 'birkaç']),

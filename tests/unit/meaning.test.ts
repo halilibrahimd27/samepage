@@ -22,11 +22,11 @@ describe('back-translation meaning check', () => {
     ).toEqual(['major: negation lost']);
   });
 
-  it('catches a hedged finding stated as fact (ensemble-learning paper, Google)', () => {
+  it('catches a hedged finding stated as fact (as Google rendered one)', () => {
     expect(
       issues(
-        'The results suggest that our approach effectively detects a considerable number of malicious packages.',
-        'The results reveal that our approach effectively detects a significant number of malicious packages.',
+        'The results suggest that the method reliably detects a considerable number of faulty records.',
+        'The results reveal that the method reliably detects a significant number of faulty records.',
         'en',
       ),
     ).toEqual(['major: hedging lost']);
@@ -99,6 +99,32 @@ describe('back-translation meaning check', () => {
       issues(
         'Yılmaz ve arkadaşları bu denemede yeni bir yöntem önerdi.',
         'Yılmaz ve arkadaşları bu denemede yeni bir yöntem önerdi.',
+        'tr',
+      ),
+    ).toEqual([]);
+  });
+
+  it('Turkish: words that only begin like a quantifier, and litotes, are not cues', () => {
+    // "tümce" is a sentence, "tamamlanmıştır" is "was completed": no "all" to lose.
+    expect(
+      issues(
+        '18.640 tümce iki uzman tarafından incelenmiş ve çalışma tamamlanmıştır.',
+        '18.640 cümle iki uzman tarafından incelendi ve çalışma bitirildi.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Tüm örneklerde belirgin bir etki görülmüştür.',
+        'Örneklerin çoğunda belirgin bir etki görülmüştür.',
+        'tr',
+      ),
+    ).toEqual(['major: quantifier changed']);
+    // "azımsanmayacak sıklıkta" (not negligibly often) is "quite often".
+    expect(
+      issues(
+        'Anlam kaymaları azımsanmayacak sıklıkta görülmektedir.',
+        'Anlam kaymaları sıklıkla görülmektedir.',
         'tr',
       ),
     ).toEqual([]);
