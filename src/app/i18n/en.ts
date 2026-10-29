@@ -276,6 +276,8 @@ export const en = {
     'The meaning check flagged the first translation; Claude revised it with the source and the finding in view.',
   'issue.PUNCTUATION_CHANGED':
     'Brackets or sentence spacing changed in the translation; please check this passage.',
+  'issue.TABLE_NOT_RECOGNISED':
+    'The table under or above this caption was not recognised: its cells were translated as running text. Please check it.',
   'issue.OCR_LOW_CONFIDENCE':
     'The scan was hard to read here; the recognised text may contain errors.',
   'issue.UNTRANSLATED': 'The translation was identical to the source.',

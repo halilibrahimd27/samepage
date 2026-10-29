@@ -304,6 +304,35 @@ async function pagesDrawnAlike(
   }
 }
 
+const TABLE_CAPTION =
+  /^\s*(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabela|Tabella|Tabel|Tabulka|Tabell|Таблица|Таблиця|Πίνακας)\s*[\dIVX]/iu;
+
+/**
+ * A table caption with no table of two or more columns beside it (above or below, over its
+ * width): the table was not recognised and its cells went into the text flow. The report says
+ * so instead of scoring the page as perfect.
+ */
+function tableMissing(blocks: BlockIR[], pages: PageIR[]): boolean {
+  const caption = blocks[0];
+  const text = caption?.lines.map((l) => l.spans.map((s) => s.text).join('')).join(' ') ?? '';
+  if (!caption || !TABLE_CAPTION.test(text)) return false;
+  const page = pages[pageOf(caption)];
+  if (!page) return false;
+  const columns = new Map<string, Set<number>>();
+  for (const b of page.blocks)
+    if (b.tableCell)
+      columns.set(
+        b.tableCell.tableId,
+        (columns.get(b.tableCell.tableId) ?? new Set()).add(b.tableCell.col),
+      );
+  const near = (b: BlockIR) =>
+    Math.min(b.bbox.x1, caption.bbox.x1) - Math.max(b.bbox.x0, caption.bbox.x0) > 0 &&
+    Math.min(Math.abs(b.bbox.y0 - caption.bbox.y1), Math.abs(caption.bbox.y0 - b.bbox.y1)) < 120;
+  return !page.blocks.some(
+    (b) => b.tableCell && (columns.get(b.tableCell.tableId)?.size ?? 0) > 1 && near(b),
+  );
+}
+
 /** Units on scanned pages below this mean confidence are flagged for review. */
 const OCR_TRUSTED = 80;
 
@@ -495,6 +524,14 @@ export async function translatePdf(
         code: 'OCR_LOW_CONFIDENCE',
         severity: 'warning',
         detail: `recognised text, confidence ${Math.round(ocr.conf)}%${words ? `; check: ${words}` : ''}`,
+      });
+      if (report.status === 'translated') report.status = 'warning';
+    }
+    if (u.role === 'caption' && tableMissing(u.blocks, pages)) {
+      report.issues.push({
+        code: 'TABLE_NOT_RECOGNISED',
+        severity: 'warning',
+        detail: 'no table found next to this caption: its rows were translated as text',
       });
       if (report.status === 'translated') report.status = 'warning';
     }

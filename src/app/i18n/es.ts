@@ -286,6 +286,8 @@ export const es: Record<MessageKey, string> = {
     'La comprobación del significado marcó la primera traducción; Claude la revisó teniendo a la vista el original y el hallazgo.',
   'issue.PUNCTUATION_CHANGED':
     'Los paréntesis o los espacios entre frases cambiaron en la traducción; revise este pasaje.',
+  'issue.TABLE_NOT_RECOGNISED':
+    'No se reconoció la tabla de este título: sus celdas se tradujeron como texto corrido. Revísela.',
   'issue.OCR_LOW_CONFIDENCE':
     'El escaneo era difícil de leer aquí; el texto reconocido puede contener errores.',
   'issue.UNTRANSLATED': 'La traducción era idéntica al original.',

@@ -289,6 +289,8 @@ export const fr: Record<MessageKey, string> = {
     'La vérification du sens a signalé la première traduction\u202F; Claude l’a révisée en tenant compte de la source et du problème relevé.',
   'issue.PUNCTUATION_CHANGED':
     'Des parenthèses ou des espaces entre les phrases ont changé dans la traduction : vérifiez ce passage.',
+  'issue.TABLE_NOT_RECOGNISED':
+    'Le tableau de cette légende n’a pas été reconnu : ses cellules ont été traduites comme du texte courant. Vérifiez-le.',
   'issue.OCR_LOW_CONFIDENCE':
     'Le scan était difficile à lire ici\u202F; le texte reconnu peut contenir des erreurs.',
   'issue.UNTRANSLATED': 'La traduction était identique à la source.',

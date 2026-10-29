@@ -290,6 +290,8 @@ export const de: Record<MessageKey, string> = {
     'Die Bedeutungsprüfung hat die erste Übersetzung markiert; Claude hat sie unter Berücksichtigung des Originals und des Befunds überarbeitet.',
   'issue.PUNCTUATION_CHANGED':
     'Klammern oder Satzabstände haben sich in der Übersetzung verändert; bitte diese Stelle prüfen.',
+  'issue.TABLE_NOT_RECOGNISED':
+    'Die Tabelle zu dieser Beschriftung wurde nicht erkannt: Ihre Zellen wurden als Fließtext übersetzt. Bitte prüfen.',
   'issue.OCR_LOW_CONFIDENCE':
     'Der Scan war hier schwer lesbar; der erkannte Text kann Fehler enthalten.',
   'issue.UNTRANSLATED': 'Die Übersetzung war mit dem Original identisch.',

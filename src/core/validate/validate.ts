@@ -20,6 +20,7 @@ export type ValidationCode =
   | 'REFUSED'
   | 'OCR_LOW_CONFIDENCE'
   | 'PUNCTUATION_CHANGED'
+  | 'TABLE_NOT_RECOGNISED'
   | 'POST_EDITED';
 
 export interface ValidationIssue {

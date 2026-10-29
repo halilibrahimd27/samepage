@@ -277,6 +277,8 @@ export const tr: Record<MessageKey, string> = {
     'Anlam denetimi ilk çeviriyi işaretledi; Claude kaynağı ve bulguyu görerek düzeltti.',
   'issue.PUNCTUATION_CHANGED':
     'Çeviride parantez ya da cümle aralığı değişti; lütfen bu bölümü kontrol edin.',
+  'issue.TABLE_NOT_RECOGNISED':
+    'Bu başlığın tablosu tanınamadı: hücreleri düz metin gibi çevrildi. Lütfen kontrol edin.',
   'issue.OCR_LOW_CONFIDENCE': 'Tarama burada zor okundu; tanınan metinde hata olabilir.',
   'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
   'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',
