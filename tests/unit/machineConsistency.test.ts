@@ -43,7 +43,7 @@ describe('built-in software names', () => {
   });
 
   it('leaves names inside placeholders alone', () => {
-    expect(protect('Install ⟦U1⟧ with pip.').text).toBe('Install ⟦U1⟧ with ⟦G1⟧.');
+    expect(protect('Install ⟦U1⟧ with npm.').text).toBe('Install ⟦U1⟧ with ⟦G1⟧.');
   });
 });
 
