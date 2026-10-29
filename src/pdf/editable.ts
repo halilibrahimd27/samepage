@@ -332,7 +332,38 @@ function tableItem(
       para.push(...runs);
     }
   }
-  return { kind: 'table', columns, rows: grid };
+  // A cell's next line is a row of its own in the PDF ("… Shannon entropy of strings in" | "all
+  // source code files"): a row without a first cell, all in lower case, continues the row above.
+  const rowsOut: TableCell[][] = [];
+  const plain = (c: TableCell) =>
+    c.paragraphs
+      .flat()
+      .map((r) => r.text)
+      .join('')
+      .trim();
+  for (const row of grid) {
+    const prev = rowsOut[rowsOut.length - 1];
+    const texts = row.map(plain);
+    const continues =
+      prev &&
+      !texts[0] &&
+      rowsOut.some((r) => plain(r[0]!)) &&
+      texts.some(Boolean) &&
+      texts.every((t) => !t || /^\p{Ll}/u.test(t));
+    if (!continues) {
+      rowsOut.push(row);
+      continue;
+    }
+    row.forEach((cell, i) => {
+      if (!cell.paragraphs.length) return;
+      const target = prev[i]!;
+      if (!target.paragraphs.length) target.paragraphs.push([]);
+      const para = target.paragraphs[0]!;
+      if (para.length) para.push({ text: ' ' });
+      para.push(...cell.paragraphs.flat());
+    });
+  }
+  return { kind: 'table', columns, rows: rowsOut };
 }
 
 /** A numbered reference entry's first line ("[20] …", "20. …"). */

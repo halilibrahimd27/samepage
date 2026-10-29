@@ -234,3 +234,46 @@ describe('editable Word output: front matter and references', () => {
     expect(refs).toEqual(['[19]', '[20]']);
   });
 });
+
+describe('editable Word output: tables', () => {
+  const cell = (id: string, y: number, x: number, row: number, col: number, t: string) => ({
+    ...block(id, 'table-cell', y, [[span(t, x, 9)]], {
+      x0: x,
+      x1: x + 5 * t.length,
+      translatable: false,
+    }),
+    tableCell: {
+      tableId: 'p0-t0',
+      row,
+      col,
+      cellRect: { x0: x, y0: y, x1: x + 120, y1: y + 12 },
+    },
+  });
+
+  it('joins a cell’s second line, set as a row of its own, to the row above', () => {
+    const p = page(0, [
+      cell('p0-b0', 100, 50, 0, 0, 'Type'),
+      cell('p0-b1', 100, 170, 0, 1, 'Description'),
+      cell('p0-b2', 114, 50, 1, 0, 'Continuous'),
+      cell('p0-b3', 114, 170, 1, 1, 'Mean of Shannon entropy of strings in'),
+      cell('p0-b4', 128, 170, 2, 1, 'all source code files'),
+      cell('p0-b5', 142, 50, 3, 0, 'Boolean'),
+      cell('p0-b6', 142, 170, 3, 1, 'Usage of installation hooks'),
+    ]);
+    const table = plan([p]).items.find((i) => i.kind === 'table');
+    if (table?.kind !== 'table') throw new Error('no table');
+    const rows = table.rows.map((r) =>
+      r.map((c) =>
+        c.paragraphs
+          .flat()
+          .map((x) => x.text)
+          .join(''),
+      ),
+    );
+    expect(rows).toEqual([
+      ['Type', 'Description'],
+      ['Continuous', 'Mean of Shannon entropy of strings in all source code files'],
+      ['Boolean', 'Usage of installation hooks'],
+    ]);
+  });
+});

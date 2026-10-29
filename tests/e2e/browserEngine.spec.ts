@@ -90,7 +90,9 @@ test('browser engine (manual): translation sheet is harvested into a translated 
   )
     .file('word/document.xml')!
     .async('string');
-  expect(xml).toContain('Giris');
+  // The sheet's text, and section names from the academic headings ("1. Giriş").
+  expect(xml).toContain('Bu calismada');
+  expect(xml).toContain('1. Introduction');
   expect(xml).not.toContain('Giriş');
   expect(xml).toContain('<m:oMath');
 });

@@ -168,9 +168,15 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
     3,
   );
   // Columns = merged horizontal extents of the cells (works for left-, right- and centre-aligned
-  // columns); vertical rules, when present, refine the boundaries.
+  // columns); vertical rules, when present, refine the boundaries. Only the rows with the most
+  // cells count: a header spanning a column group ("Mono-language" over "Pr. Rec. F1 Acc.")
+  // would merge its columns into one.
+  const rowOf = (b: BlockIR) => nearestIndex(rowYs, (b.bbox.y0 + b.bbox.y1) / 2);
+  const perRow = rowYs.map((_, r) => cells.filter((b) => rowOf(b) === r).length);
+  const most = Math.max(...perRow);
+  const columnCells = cells.filter((b) => perRow[rowOf(b)]! >= Math.max(2, 0.8 * most));
   const intervals: [number, number][] = [];
-  for (const [x0, x1] of cells
+  for (const [x0, x1] of (columnCells.length ? columnCells : cells)
     .map((b) => [b.bbox.x0, b.bbox.x1] as [number, number])
     .sort((p, q) => p[0] - q[0])) {
     const last = intervals[intervals.length - 1];
@@ -187,8 +193,6 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
       rulesInside.length,
     ] as const;
   });
-  const nearest = (arr: number[], v: number) =>
-    arr.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(arr[best]! - v) ? i : best), 0);
   const rowBounds = rowYs.map(
     (c, i) =>
       [
@@ -197,12 +201,15 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
       ] as const,
   );
   for (const b of cells) {
-    const row = nearest(rowYs, (b.bbox.y0 + b.bbox.y1) / 2);
+    const row = rowOf(b);
     const cx = (b.bbox.x0 + b.bbox.x1) / 2;
-    const col = Math.max(
-      0,
-      intervals.findIndex(([x0, x1]) => cx >= x0 - 1 && cx <= x1 + 1),
+    // A header over a column group starts in its first column and keeps the group's width.
+    const covered = intervals.flatMap(([x0, x1], i) =>
+      Math.min(x1, b.bbox.x1) - Math.max(x0, b.bbox.x0) > 0 ? [i] : [],
     );
+    const centred = intervals.findIndex(([x0, x1]) => cx >= x0 - 1 && cx <= x1 + 1);
+    const col = covered.length > 1 ? covered[0]! : Math.max(0, centred);
+    const last = covered.length > 1 ? covered[covered.length - 1]! : col;
     b.role = 'table-cell';
     b.tableCell = {
       tableId: table.id,
@@ -210,13 +217,16 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
       col,
       cellRect: {
         x0: colBounds[col]![0],
-        x1: colBounds[col]![1],
+        x1: colBounds[last]![1],
         y0: rowBounds[row]![0],
         y1: rowBounds[row]![1],
       },
     };
   }
 }
+
+const nearestIndex = (arr: number[], v: number) =>
+  arr.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(arr[best]! - v) ? i : best), 0);
 
 /** Roles (ARCHITECTURE.md §4.1 step 3). */
 function classify(
