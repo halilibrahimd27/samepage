@@ -345,10 +345,14 @@ export function extractA(para: XElement, role: Role): ExtractedParagraph {
   return { para, dialect: 'a', role, encoded, atoms, head: [], tail, plain };
 }
 
-/** Zero-width space after URL/path separators in long tokens (D4_LONG_TOKEN). */
+/** Addresses a reader copies: a hidden character inside one breaks it. Word wraps them anyway. */
+const ADDRESS = /^\W*(?:[a-z][\w+.-]*:\/\/|www\.|doi:|10\.\d{4,}\/|[\w.+-]+@[\w-]+\.)/i;
+
+/** Zero-width space after path separators in long tokens (D4_LONG_TOKEN); addresses are kept. */
 export function breakLongTokens(text: string, minLength = 25): { text: string; changed: boolean } {
   let changed = false;
   const out = text.replace(new RegExp(`\\S{${minLength},}`, 'g'), (token) => {
+    if (ADDRESS.test(token)) return token;
     const broken = token.replace(/([/\-_.])(?=\S)/g, `$1${String.fromCharCode(0x200b)}`);
     if (broken !== token) changed = true;
     return broken;

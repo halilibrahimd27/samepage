@@ -31,8 +31,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put('./', copy));
+          // Only the app itself becomes the offline shell, not a 404 or another page of the site.
+          const app = new URL(response.url || request.url).pathname.replace(/index\.html$/, '');
+          if (response.ok && app === new URL('./', self.location.href).pathname) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put('./', copy));
+          }
           return response;
         })
         .catch(() => caches.match('./')),

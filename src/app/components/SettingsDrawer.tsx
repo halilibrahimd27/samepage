@@ -62,7 +62,7 @@ export function SettingsDrawer(props: {
 
       <fieldset className="mt-6">
         <legend className="text-sm font-medium">{t('header.uiLanguage')}</legend>
-        <div className="mt-2 flex gap-4">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
           {UI_LANGS.map((lang) => (
             <label key={lang} className="flex items-center gap-2">
               <input

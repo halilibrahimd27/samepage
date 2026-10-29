@@ -8,17 +8,11 @@
     "cached": 0,
     "manual": 0,
     "repairs": {
-      "D4_LONG_TOKEN": 1,
       "D2_TEXTBOX": 1,
       "D1_ROW_HEIGHT": 2
     }
   },
   "repairs": [
-    {
-      "code": "D4_LONG_TOKEN",
-      "part": "word/document.xml",
-      "detail": "zero-width breaks added to long tokens in a fixed-width table cell (u20)"
-    },
     {
       "code": "D2_TEXTBOX",
       "part": "word/document.xml",
