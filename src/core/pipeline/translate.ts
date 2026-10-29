@@ -17,10 +17,11 @@ import {
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
 import { academicHeading, isNameList, metricGlossary, usesMetrics } from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
-import { protectNumbers, protectTerms, restoreTerms } from '../glossary/protect';
+import { protectNumbers, protectTerms, restoreTerms, withBuiltInNames } from '../glossary/protect';
 import { splitSentences } from '../../engines/plainText';
 import { plainText, tokenize } from '../segment/codec';
 import { createDehyphenator } from '../segment/dehyphenate';
+import { keepNumberSpelling } from '../validate/numbers';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
 
 export interface SegmentOutcome {
@@ -181,8 +182,18 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     : job.ctx.glossary;
   const ctx: TranslateContext = { ...job.ctx, glossary };
   // Engines without glossary support get terms protected as placeholders (ADR-015).
-  const protecting = !engine.capabilities.glossary && glossary.length > 0;
-  const gHash = await glossaryHash(ctx.glossary);
+  // The built-in software names ("Python", "npm") are protected the same way, glossary or not.
+  const protecting = !engine.capabilities.glossary;
+  const protectedTerms = protecting ? withBuiltInNames(glossary) : glossary;
+  // Cached text from before the built-in names or the number spelling must not be reused.
+  const gHash = await glossaryHash(
+    protecting
+      ? [
+          ...ctx.glossary,
+          { source: 'machine-v1', target: '', note: 'built-in names, number spelling' },
+        ]
+      : ctx.glossary,
+  );
   const keys = await Promise.all(
     segments.map((s) =>
       cacheKey({
@@ -328,12 +339,18 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       }
       const prepared = batch.map((s) => {
         const terms = protecting
-          ? protectTerms(s.text, ctx.glossary, ctx.pair.source)
+          ? protectTerms(s.text, protectedTerms, ctx.pair.source)
           : { text: s.text, targets: [] };
         const numbers = freeze?.has(s.id)
           ? protectNumbers(terms.text, ctx.pair.target)
           : { text: terms.text, targets: [] };
-        return { req: s, text: numbers.text, terms: terms.targets, numbers: numbers.targets };
+        return {
+          req: s,
+          text: numbers.text,
+          terms: terms.targets,
+          exact: terms.exact,
+          numbers: numbers.targets,
+        };
       });
       const results = await engine.translate(
         prepared.map(({ req, text, terms, numbers }) => ({
@@ -354,7 +371,8 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         results.map((r) => {
           const p = byId.get(r.id);
           const numbers = restoreTerms(r.text, p?.numbers ?? [], 'D');
-          const restored = numbers === null ? null : restoreTerms(numbers, p?.terms ?? []);
+          const restored =
+            numbers === null ? null : restoreTerms(numbers, p?.terms ?? [], 'G', p?.exact);
           // A lost protected term or number fails validation (empty text → retry path).
           return [r.id, restored === null ? { ...r, text: '' } : { ...r, text: restored }];
         }),
@@ -384,6 +402,12 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     const attempts = new Map<string, number>();
     const accept = (req: SegmentRequest, r: SegmentResult, issues: ValidationIssue[]) => {
       const notes = r.notes ?? [];
+      // Machine translators localise some decimals in running text but not in table cells.
+      const text =
+        engine.capabilities.glossary || ctx.numberLocalization
+          ? r.text
+          : keepNumberSpelling(req.text, r.text);
+      r = { ...r, text };
       outcomes.set(req.id, {
         id: req.id,
         text: r.text,
@@ -394,7 +418,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         notes,
         findings: [],
       });
-      fresh.push([keyOf.get(req.id)!, notes.length ? { text: r.text, notes } : { text: r.text }]);
+      fresh.push([keyOf.get(req.id)!, notes.length ? { text, notes } : { text }]);
     };
     const round = async (reqs: SegmentRequest[], feedback?: string) => {
       // Machine translators answer a retry the same way; numbers they changed are frozen.

@@ -1,10 +1,32 @@
 import { tokenize } from '../segment/codec';
 import type { GlossaryEntry } from '../validate/validate';
+import { BUILT_IN_NAMES } from './names';
 
 export interface Protected {
   text: string;
   /** Target text for ⟦G1⟧, ⟦G2⟧, … (or ⟦D1⟧, …) */
   targets: string[];
+  /** Per target: a built-in name, which keeps its case at a sentence start ("npm"). */
+  exact?: boolean[];
+}
+
+/** A glossary entry, or a built-in name (`exact`: whole word, case-sensitive, never re-cased). */
+export type ProtectEntry = GlossaryEntry & { exact?: boolean };
+
+/**
+ * The user's glossary plus the built-in software names; the user's entries win, so a name the
+ * glossary already lists (in any case) is not protected a second time.
+ */
+export function withBuiltInNames(glossary: GlossaryEntry[]): ProtectEntry[] {
+  const own = new Set(glossary.map((g) => g.source.trim().toLowerCase()));
+  return [
+    ...glossary,
+    ...BUILT_IN_NAMES.filter((n) => !own.has(n.toLowerCase())).map((n) => ({
+      source: n,
+      target: n,
+      exact: true,
+    })),
+  ];
 }
 
 /** Tagged text again, with `text` applied to the plain-text tokens. */
@@ -28,14 +50,20 @@ const AGGLUTINATIVE = new Set(['tr', 'hu']);
 
 export function protectTerms(
   tagged: string,
-  glossary: GlossaryEntry[],
+  glossary: ProtectEntry[],
   sourceLang: string,
 ): Protected {
   const entries = glossary
     .filter((g) => g.source.trim() && g.target.trim())
-    .sort((a, b) => b.source.length - a.source.length || a.source.localeCompare(b.source));
+    .sort(
+      (a, b) =>
+        b.source.length - a.source.length ||
+        Number(!!a.exact) - Number(!!b.exact) ||
+        a.source.localeCompare(b.source),
+    );
   if (entries.length === 0) return { text: tagged, targets: [] };
   const targets: string[] = [];
+  const exact: boolean[] = [];
   const isLetter = (ch: string | undefined) => !!ch && /[\p{L}\p{N}]/u.test(ch);
 
   const protectText = (text: string): string => {
@@ -48,6 +76,26 @@ export function protectTerms(
       let matched = false;
       if (!isLetter(text[i - 1])) {
         for (const e of entries) {
+          if (e.exact) {
+            // A name as written, standing alone: not "Javascript", "Pythonic", "Python3",
+            // "GPT-3.5" (for GPT-3), "a.Python" or "user/Python".
+            const next = text[i + e.source.length];
+            const after = text[i + e.source.length + 1];
+            if (
+              !text.startsWith(e.source, i) ||
+              /[./@_\\]/.test(text[i - 1] ?? '') ||
+              isLetter(next) ||
+              next === '_' ||
+              (next && /[.,-]/.test(next) && /\d/.test(after ?? ''))
+            )
+              continue;
+            targets.push(e.target);
+            exact.push(true);
+            out += `⟦G${targets.length}⟧`;
+            i += e.source.length;
+            matched = true;
+            break;
+          }
           const needle = e.source.toLocaleLowerCase(sourceLang);
           if (lower.startsWith(needle, i)) {
             let end = i + needle.length;
@@ -56,6 +104,7 @@ export function protectTerms(
             // the start of "test settings".
             if (end - i - needle.length > (AGGLUTINATIVE.has(sourceLang) ? 12 : 3)) continue;
             targets.push(e.target);
+            exact.push(false);
             out += `⟦G${targets.length}⟧`;
             i = end;
             matched = true;
@@ -71,7 +120,7 @@ export function protectTerms(
   const text = tokenize(tagged)
     .map((t) => markup(t, protectText))
     .join('');
-  return { text, targets };
+  return { text, targets, exact };
 }
 
 const TAGS = '(?:\\s|<\\/?t\\d+>)*';
@@ -118,13 +167,18 @@ export function protectNumbers(tagged: string, target?: string): Protected {
 /**
  * Replaces ⟦Gn⟧ (or ⟦Dn⟧) with their targets; returns null when a protected term went missing.
  */
-export function restoreTerms(translated: string, targets: string[], kind = 'G'): string | null {
+export function restoreTerms(
+  translated: string,
+  targets: string[],
+  kind = 'G',
+  keepCase: boolean[] = [],
+): string | null {
   for (let n = 1; n <= targets.length; n++) {
     if (translated.split(`⟦${kind}${n}⟧`).length !== 2) return null;
   }
   return translated.replace(new RegExp(`⟦${kind}(\\d+)⟧`, 'g'), (m, n: string, at: number) => {
     const t = targets[Number(n) - 1];
-    if (t === undefined) return m;
+    if (t === undefined || keepCase[Number(n) - 1]) return t ?? m;
     // A term that opens a sentence starts with a capital ("kesinlik" → "Kesinlik ve …").
     const before = translated.slice(0, at).replace(/<\/?t\d+>/g, '');
     return /^\s*$|[.!?]\s+$/u.test(before) ? t.charAt(0).toLocaleUpperCase() + t.slice(1) : t;

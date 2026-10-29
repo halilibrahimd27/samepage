@@ -36,6 +36,8 @@ function scripted(
     ...createPseudoEngine(),
     id: 'anthropic',
     model: 'test',
+    // Like a language model: follows a glossary and a number rule itself.
+    capabilities: { ...createPseudoEngine().capabilities, glossary: true },
     maxBatchChars: 10_000,
     checkFidelity: (pairs) =>
       Promise.resolve({

@@ -240,3 +240,44 @@ export function compareNumbers(
   const extra = tgt.filter((_, j) => matchOf[j] === -1).map((x) => x.t);
   return { missing, extra };
 }
+
+/**
+ * Writes the numbers of a machine translation the way the source wrote them: Google turns
+ * "100.0±0.0" into "100,0±0,0" and "31,292" into "31.292" in running text while table cells
+ * keep the source spelling. A number is rewritten only when its digits are the source's and its
+ * value is the only one that fits a single source spelling (and that spelling fits only it);
+ * anything else stays. Tags and placeholders are not numbers.
+ */
+export function keepNumberSpelling(source: string, target: string): string {
+  const mask = (t: string) => t.replace(/<\/?t\d+>|⟦[^⟧]*⟧/g, (m) => '\u0001'.repeat(m.length));
+  const find = (t: string) =>
+    [...mask(t).matchAll(NUMBER_RE)].map((m) => ({
+      text: m[0],
+      at: m.index,
+      v: candidateValues(m[0]),
+    }));
+  const src = find(source);
+  const tgt = find(target);
+  const digits = (t: string) => t.replace(/\D/g, '');
+  // A source number the target already spells alike is spoken for.
+  const free = [...src];
+  const open = tgt.filter((t) => {
+    const k = free.findIndex((s) => s.text === t.text);
+    if (k >= 0) free.splice(k, 1);
+    return k < 0;
+  });
+  const fits = (s: { text: string; v: number[] }, t: { text: string; v: number[] }) =>
+    digits(s.text) === digits(t.text) && s.v.some((x) => t.v.includes(x));
+  const edits = open.flatMap((t) => {
+    const from = free.filter((s) => fits(s, t));
+    const spelling = from[0];
+    if (!spelling || from.some((s) => s.text !== spelling.text)) return [];
+    // As many numbers to rewrite as there are source numbers to take the spelling from.
+    const rivals = open.filter((o) => fits(spelling, o));
+    return rivals.length <= from.length ? [{ ...t, to: spelling.text }] : [];
+  });
+  let out = target;
+  for (const e of edits.reverse())
+    out = out.slice(0, e.at) + e.to + out.slice(e.at + e.text.length);
+  return out;
+}
