@@ -598,10 +598,19 @@ function linkChains(pages: BlockIR[][]): void {
   // "т 1", "ср", "h2 (4)") are skipped like formulas and never chained.
   const worded = (b: BlockIR) => /\p{L}{3}/u.test(blockText(b));
 
+  // A chart's legend set as text in the column flow ("Cross-language = 1083") is not where a
+  // sentence goes on: "…contain obfuscated code," and "we attempt to de-obfuscate them" were
+  // sent apart, and "de-obfuscate" came back as "obfuscate".
+  const labelLike = (b: BlockIR) => {
+    const t = blockText(b).trim();
+    // One line to the eye: "Cross-language =" and its right-aligned "1083" are two lines.
+    const baselines = new Set(b.lines.map((l) => Math.round(l.baseline)));
+    return baselines.size === 1 && t.length < 40 && !/^\p{Ll}/u.test(t);
+  };
   // Sentences continued after one or more display formulas.
   for (let i = 0; i < ordered.length; i++) {
     const a = ordered[i]!;
-    if (a.role !== 'body' || !worded(a)) continue;
+    if (a.role !== 'body' || !worded(a) || labelLike(a)) continue;
     let j = i + 1;
     // Display formulas and floats (tables, figures, captions) may interrupt a sentence.
     while (ordered[j] && (INTERRUPTING.has(ordered[j]!.role) || !worded(ordered[j]!))) j++;
@@ -715,7 +724,15 @@ function linkChains(pages: BlockIR[][]): void {
   });
   for (let i = 0; i + 1 < sequence.length; i++) {
     const a = sequence[i]!;
-    const b = sequence[i + 1]!;
+    if (labelLike(a)) continue;
+    let k = i + 1;
+    while (
+      k + 1 < sequence.length &&
+      labelLike(sequence[k]!) &&
+      (pageOf(sequence[k]!) !== pageOf(a) || sequence[k]!.columnIndex !== a.columnIndex)
+    )
+      k++;
+    const b = sequence[k]!;
     if (!free(a, b)) continue;
     if (pageOf(a) === pageOf(b) && a.columnIndex === b.columnIndex) continue;
     const lastText = a.lines[a.lines.length - 1]!.spans.map((s) => s.text)
