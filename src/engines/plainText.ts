@@ -131,7 +131,9 @@ interface Chunk {
 }
 
 function chunkPiece(c: Chunk): Piece {
-  const lead = /^\s*/.exec(c.text)![0];
+  // The end of the sentence before a placeholder stays out of the piece (". Ne var ki" after
+  // "\cite{…}"): the engine drops a leading ". " and the sentences run together.
+  const lead = /^\s*(?:[.,;:!?]+\s+)?/u.exec(c.text)![0];
   const core = c.text.slice(lead.length).trimEnd();
   if (!LETTER.test(core)) return { kind: 'keep', raw: c.raw };
   return {
@@ -251,7 +253,7 @@ export function planPieces(tagged: string, verbatim?: Record<string, string>): P
 }
 
 const ABBREVIATION =
-  /(?:\b(?:e\.g|i\.e|et al|cf|vs|etc|Fig|Figs|Eq|Eqs|Ref|Refs|Sec|Tab|No|Vol|pp|Dr|Prof|approx|resp|ark|bkz|vb|örn|Şek|Tbl)|\b\p{Lu})\.$/u;
+  /(?:\b(?:e\.g|i\.e|w\.r\.t|a\.k\.a|et al|cf|vs|viz|etc|ca|Fig|Figs|Eq|Eqs|Ref|Refs|Sec|Sect|Secs|Ch|Chap|Tab|Appx|Thm|Def|Alg|No|Vol|pp|Dr|Prof|approx|resp|ark|bkz|vb|örn|Şek|Tbl|z\.B|d\.h|vgl|bzw|usw|Abb|Kap)|\b\p{Lu})\.$/u;
 
 /**
  * Splits running text into sentences (after . ! ? followed by a capital, digit or bracket),

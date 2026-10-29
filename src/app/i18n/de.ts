@@ -288,6 +288,8 @@ export const de: Record<MessageKey, string> = {
     'ein Quantor hat sich möglicherweise geändert („most“ → „all“, „some“ → „few“).',
   'issue.POST_EDITED':
     'Die Bedeutungsprüfung hat die erste Übersetzung markiert; Claude hat sie unter Berücksichtigung des Originals und des Befunds überarbeitet.',
+  'issue.PUNCTUATION_CHANGED':
+    'Klammern oder Satzabstände haben sich in der Übersetzung verändert; bitte diese Stelle prüfen.',
   'issue.OCR_LOW_CONFIDENCE':
     'Der Scan war hier schwer lesbar; der erkannte Text kann Fehler enthalten.',
   'issue.UNTRANSLATED': 'Die Übersetzung war mit dem Original identisch.',

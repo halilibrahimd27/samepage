@@ -247,17 +247,51 @@ describe('translateSegments', () => {
       "⟦U1⟧'de kullanıyoruz.",
     );
     expect(respacePlaceholders('word⟦N1⟧ next', 'kelime⟦N1⟧ sonraki')).toBe('kelime⟦N1⟧ sonraki');
+    // A footnote mark ending a sentence, and sentences Google glued at its breaks.
+    expect(
+      respacePlaceholders(
+        'incelenmiştir⟦N1⟧. Ayrıntılar ekte.',
+        'examined systems ⟦N1⟧.See the appendix.',
+      ),
+    ).toBe('examined systems⟦N1⟧. See the appendix.');
+    // The lost brackets are left to validation (PUNCTUATION_CHANGED).
+    expect(
+      respacePlaceholders(
+        'ist signifikant (⟦F2⟧ 0,01). Maschinelle Systeme',
+        'is significant.⟦F2⟧ 0,01Machine systems',
+      ),
+    ).toBe('is significant.⟦F2⟧ 0,01 Machine systems');
+    // Text the source writes glued stays glued ("Node.Js", "3Dimensional").
+    expect(respacePlaceholders('see Node.Js here', 'bkz. Node.Js burada')).toBe(
+      'bkz. Node.Js burada',
+    );
   });
 
   it('freezes tagged citations whole and restores them exactly', async () => {
     const { protectNumbers, restoreTerms } = await import('../../src/core/glossary/protect');
     const p = protectNumbers(
       'Scikit-learn [<t4>42</t4>] and [<t8>38</t8>, <t9>58</t9>] on 90% of 1,000',
+      'tr',
     );
-    expect(p.text).toBe('Scikit-learn ⟦D1⟧ and ⟦D2⟧ on ⟦D3⟧% of ⟦D4⟧');
-    expect(restoreTerms('Scikit-learn ⟦D1⟧ ve ⟦D2⟧, ⟦D4⟧ öğenin %⟦D3⟧', p.targets, 'D')).toBe(
+    // The percent sign travels with its number, in Turkish order.
+    expect(p.text).toBe('Scikit-learn ⟦D1⟧ and ⟦D2⟧ on ⟦D3⟧ of ⟦D4⟧');
+    expect(restoreTerms('Scikit-learn ⟦D1⟧ ve ⟦D2⟧, ⟦D4⟧ öğenin ⟦D3⟧', p.targets, 'D')).toBe(
       'Scikit-learn [<t4>42</t4>] ve [<t8>38</t8>, <t9>58</t9>], 1,000 öğenin %90',
     );
+  });
+
+  it('writes a percentage in the target language order', async () => {
+    const { percentFor, protectNumbers } = await import('../../src/core/glossary/protect');
+    expect(percentFor('81%', 'tr')).toBe('%81');
+    expect(percentFor('71,2 %', 'tr')).toBe('%71,2');
+    expect(percentFor('%87,4', 'en')).toBe('87,4%');
+    expect(percentFor('%87,4', 'de')).toBe('87,4\u00A0%');
+    expect(percentFor('71,2 %', 'en')).toBe('71,2 %');
+    expect(percentFor('1,000', 'tr')).toBe('1,000');
+    expect(protectNumbers('Der Wert ist auf 71,2 % gesunken (%5).', 'en').targets).toEqual([
+      '71,2 %',
+      '5%',
+    ]);
   });
 
   it('freezes numbers when a machine translator changed one', async () => {
@@ -367,6 +401,15 @@ describe('helpers', () => {
       'J. Smith too!',
       '5 tools exist.',
     ]);
+    // Abbreviations of academic prose: "w.r.t. PyPI" and "Sect. 3" continue the sentence.
+    expect(
+      splitSentences(
+        'It differs w.r.t. PyPI and a.k.a. Tool X (see Sect. 3, ca. 10 runs, viz. Table 2). Done.',
+      ),
+    ).toEqual([
+      'It differs w.r.t. PyPI and a.k.a. Tool X (see Sect. 3, ca. 10 runs, viz. Table 2).',
+      'Done.',
+    ]);
   });
 
   it('splits clauses outside brackets only between longer parts', () => {
@@ -402,6 +445,13 @@ describe('helpers', () => {
     // Title-case keyword lists look alike: the pipeline also requires affiliation marks.
     expect(isNameList('Machine Learning, Deep Learning and Data Mining')).toBe(true);
     expect(academicHeading('Overall', 'en', 'tr')).toBe('Genel');
+    // Section names that are everyday words: headings only, numbered or not.
+    expect(academicHeading('Giriş', 'tr', 'en', false, true)).toBe('Introduction');
+    expect(academicHeading('Giriş', 'tr', 'en')).toBeNull();
+    expect(academicHeading('1 INTRODUCTION', 'en', 'tr', false, true)).toBe('1 GİRİŞ');
+    expect(academicHeading('8 Related work', 'en', 'tr', false, true)).toBe('8 İlgili Çalışmalar');
+    expect(academicHeading('2.1. Kaynakça', 'tr', 'de', false, true)).toBe('2.1. Literatur');
+    expect(academicHeading('1 Introduction to graphs', 'en', 'tr', false, true)).toBeNull();
     expect(academicHeading('Recall', 'en', 'tr')).toBeNull();
     expect(usesMetrics(['Precision and recall of the classifier'], 'en')).toBe(true);
     expect(usesMetrics(['Free recall of word lists'], 'en')).toBe(false);

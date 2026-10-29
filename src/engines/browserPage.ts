@@ -40,7 +40,30 @@ export function respacePlaceholders(source: string, target: string): string {
     const after = tgt[j + ph.length];
     if (/\s/.test(src[i + ph.length] ?? '') && after && /[\p{L}\p{N}([{“]/u.test(after))
       out = out.replace(ph, `${ph} `);
+    // A mark on its word ends a sentence ("incelenmiştir⟦N1⟧. Ayrıntılar"): Google returns
+    // "systems ⟦N1⟧.See". The mark goes back on the word, the sentence end gets its space.
+    if (/\p{L}/u.test(src[i - 1] ?? '') && /\s/.test(tgt[j - 1] ?? ''))
+      out = out.replace(new RegExp(`[ \\t]${escapeRe(ph)}`, 'u'), ph);
+    const end = /^([.,;:!?])\s/u.exec(src.slice(i + ph.length));
+    if (end)
+      out = out.replace(new RegExp(`${escapeRe(ph)}${escapeRe(end[1]!)}(?=\\p{L})`, 'u'), `$& `);
   }
+  return unglue(source, out);
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A sentence end glued to the next sentence, a number glued to the next word. */
+const GLUED = [/(?<=[\p{Ll}\d)][.!?;:])(?=\p{Lu}\p{Ll})/u, /(?<=\d)(?=\p{Lu}\p{Ll}{3,})/u];
+
+/**
+ * Spaces Google dropped where its sentence breaks fell ("signifikant.p", "0,01Maschinelle"),
+ * unless the source itself writes text that way.
+ */
+export function unglue(source: string, target: string): string {
+  let out = target;
+  for (const re of GLUED)
+    if (!re.test(untagged(source))) out = out.replace(new RegExp(re.source, 'gu'), ' ');
   return out;
 }
 
@@ -64,8 +87,9 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       fidelityCheck: true,
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
-    // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline).
-    model: 'browser-page-5',
+    // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
+    // inline formula and LaTeX references as text).
+    model: 'browser-page-6',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

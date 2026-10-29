@@ -189,6 +189,98 @@ const TERMS: Langs[] = [
   },
 ];
 
+const REFERENCES: Langs = {
+  en: 'References',
+  tr: 'Kaynaklar',
+  de: 'Literatur',
+  fr: 'Références',
+  es: 'Referencias',
+  it: 'Bibliografia',
+  pt: 'Referências',
+  ru: 'Список литературы',
+};
+const ACKNOWLEDGEMENTS: Langs = {
+  en: 'Acknowledgements',
+  tr: 'Teşekkür',
+  de: 'Danksagung',
+  fr: 'Remerciements',
+  es: 'Agradecimientos',
+  it: 'Ringraziamenti',
+  pt: 'Agradecimentos',
+  ru: 'Благодарности',
+};
+
+/**
+ * Section names that are everyday words elsewhere ("Giriş" is also an entrance or an input):
+ * only applied to headings ("Giriş" → "Entrance" as a section title).
+ */
+const SECTION_TERMS: Langs[] = [
+  {
+    en: 'Introduction',
+    tr: 'Giriş',
+    de: 'Einleitung',
+    fr: 'Introduction',
+    es: 'Introducción',
+    it: 'Introduzione',
+    pt: 'Introdução',
+    ru: 'Введение',
+  },
+  {
+    en: 'Discussion',
+    tr: 'Tartışma',
+    de: 'Diskussion',
+    fr: 'Discussion',
+    es: 'Discusión',
+    it: 'Discussione',
+    pt: 'Discussão',
+    ru: 'Обсуждение',
+  },
+  {
+    en: 'Related Work',
+    tr: 'İlgili Çalışmalar',
+    de: 'Verwandte Arbeiten',
+    fr: 'Travaux connexes',
+    es: 'Trabajos relacionados',
+    it: 'Lavori correlati',
+    pt: 'Trabalhos relacionados',
+    ru: 'Связанные работы',
+  },
+  {
+    en: 'Literature Review',
+    tr: 'Literatür Taraması',
+    de: 'Literaturüberblick',
+    fr: 'Revue de la littérature',
+    es: 'Revisión de la literatura',
+    it: 'Rassegna della letteratura',
+    pt: 'Revisão da literatura',
+    ru: 'Обзор литературы',
+  },
+  {
+    en: 'Limitations',
+    tr: 'Sınırlılıklar',
+    de: 'Einschränkungen',
+    fr: 'Limites',
+    es: 'Limitaciones',
+    it: 'Limitazioni',
+    pt: 'Limitações',
+    ru: 'Ограничения',
+  },
+  {
+    en: 'Appendix',
+    tr: 'Ek',
+    de: 'Anhang',
+    fr: 'Annexe',
+    es: 'Apéndice',
+    it: 'Appendice',
+    pt: 'Apêndice',
+    ru: 'Приложение',
+  },
+  REFERENCES,
+  { ...REFERENCES, tr: 'Kaynakça' },
+  ACKNOWLEDGEMENTS,
+  { ...ACKNOWLEDGEMENTS, en: 'Acknowledgments' },
+];
+
 /**
  * Evaluation metrics that machine translation reads in their everyday sense when a table cell
  * holds the word alone ("Recall" → "Hatırlamak" instead of "Duyarlılık"). Only used when the
@@ -272,10 +364,12 @@ export function academicTerm(
   source: string,
   target: string,
   metrics = false,
+  heading = false,
 ): string | null {
   const word = text.trim().replace(/[.:]$/u, '');
   const key = (w: string, lang: string) => w.replace(/\s+/gu, '').toLocaleLowerCase(lang);
-  for (const t of metrics ? [...TERMS, ...METRIC_TERMS] : TERMS) {
+  const terms = [...TERMS, ...(metrics ? METRIC_TERMS : []), ...(heading ? SECTION_TERMS : [])];
+  for (const t of terms) {
     const from = t[source];
     const to = t[target];
     if (!from || !to || key(word, source) !== key(from, source)) continue;
@@ -288,22 +382,26 @@ export function academicTerm(
 
 /**
  * The translated heading (any term above) with the source's markup and letter case, or null.
- * A unit in brackets may follow the term ("Recall (%)").
+ * A unit in brackets may follow the term ("Recall (%)"); a section heading may be numbered
+ * ("1 INTRODUCTION", "2.1. Related Work").
  */
 export function academicHeading(
   tagged: string,
   source: string,
   target: string,
   metrics = false,
+  heading = false,
 ): string | null {
   const tokens = tokenize(tagged);
   const texts = tokens.filter((t) => t.type === 'text' && t.text.trim());
   if (texts.length !== 1) return null;
-  const m = /^(\s*)([\p{L}№][\p{L}\d /-]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$/u.exec(
-    (texts[0] as { text: string }).text,
-  );
+  const number = heading ? String.raw`(?:\d{1,2}(?:\.\d{1,2})*\.?\s+)?` : '';
+  const m = new RegExp(
+    String.raw`^(\s*${number})([\p{L}№][\p{L}\d /-]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$`,
+    'u',
+  ).exec((texts[0] as { text: string }).text);
   if (!m) return null;
-  const term = academicTerm(m[2]!, source, target, metrics);
+  const term = academicTerm(m[2]!, source, target, metrics, heading);
   if (!term) return null;
   return tokens
     .map((t) => {

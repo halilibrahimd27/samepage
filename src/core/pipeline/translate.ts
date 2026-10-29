@@ -251,7 +251,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
     const heading = headings
-      ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics)
+      ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics, s.role === 'heading')
       : null;
     // Author lines with affiliation marks stay as they are (marks: superscripts, *, †).
     const authors =
@@ -331,7 +331,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
           ? protectTerms(s.text, ctx.glossary, ctx.pair.source)
           : { text: s.text, targets: [] };
         const numbers = freeze?.has(s.id)
-          ? protectNumbers(terms.text)
+          ? protectNumbers(terms.text, ctx.pair.target)
           : { text: terms.text, targets: [] };
         return { req: s, text: numbers.text, terms: terms.targets, numbers: numbers.targets };
       });

@@ -78,6 +78,39 @@ describe('validateTranslation', () => {
     ).not.toContain('NUMBER_MISMATCH');
   });
 
+  it('flags a percent sign moved off its number', () => {
+    const codes = (source: string, target: string) =>
+      validateTranslation({ source, target, sourceLang: 'en', targetLang: 'tr' }).map(
+        (i) => i.code,
+      );
+    const source = 'While 81% of the packages use hooks, only 5% and 1% do so, respectively.';
+    expect(
+      codes(
+        source,
+        "Süre 81npm'de paketlerin yüzdesi kanca kullanır, yalnızca 5% ve 1sırasıyla %.",
+      ),
+    ).toContain('NUMBER_MISMATCH');
+    // Turkish order, a space or the word are all a percentage.
+    expect(
+      codes(source, 'Paketlerin %81’i kanca kullanırken yalnızca 5 % ve yüzde 1 bunu yapar.'),
+    ).not.toContain('NUMBER_MISMATCH');
+  });
+
+  it('warns when brackets are lost or sentences run together', () => {
+    const codes = (source: string, target: string) =>
+      validateTranslation({ source, target, sourceLang: 'de', targetLang: 'en' }).map(
+        (i) => i.code,
+      );
+    const source =
+      'Der Unterschied ist signifikant (p < 0,01). Maschinelle Systeme sind schneller.';
+    expect(
+      codes(source, 'The difference is significant.p < 0,01Machine systems are faster.'),
+    ).toContain('PUNCTUATION_CHANGED');
+    expect(
+      codes(source, 'The difference is significant (p < 0,01). Machine systems are faster.'),
+    ).not.toContain('PUNCTUATION_CHANGED');
+  });
+
   it('accepts sentences that start with "below" and formulas in math letters', () => {
     const codes = (source: string, target: string, sourceLang = 'en', targetLang = 'tr') =>
       validateTranslation({ source, target, sourceLang, targetLang }).map((i) => i.code);

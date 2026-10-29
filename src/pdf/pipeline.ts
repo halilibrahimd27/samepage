@@ -307,15 +307,26 @@ async function pagesDrawnAlike(
 /** Units on scanned pages below this mean confidence are flagged for review. */
 const OCR_TRUSTED = 80;
 
-/** Mean OCR confidence of the recognised lines inside the blocks, or null (not a scan). */
-function ocrConfidence(blocks: BlockIR[], pages: PageIR[]): number | null {
+/**
+ * Mean OCR confidence of the recognised lines inside the blocks, or null (not a scan), and the
+ * words recognised with little confidence.
+ */
+function ocrConfidence(
+  blocks: BlockIR[],
+  pages: PageIR[],
+): { conf: number; weak: { text: string; conf: number }[] } | null {
   const confs: number[] = [];
+  const weak: { text: string; conf: number }[] = [];
   for (const b of blocks) {
     const ocr = pages[pageOf(b)]?.ocr;
     if (!ocr) continue;
-    for (const l of ocr.lines) if (intersects(l.bbox, b.bbox)) confs.push(l.conf);
+    for (const l of ocr.lines)
+      if (intersects(l.bbox, b.bbox)) {
+        confs.push(l.conf);
+        weak.push(...(l.weak ?? []));
+      }
   }
-  return confs.length ? confs.reduce((a, c) => a + c, 0) / confs.length : null;
+  return confs.length ? { conf: confs.reduce((a, c) => a + c, 0) / confs.length, weak } : null;
 }
 
 const intersects = (a: Rect, b: Rect) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
@@ -476,12 +487,14 @@ export async function translatePdf(
       // The back-translation is of the engine's text, not of a manual edit.
       ...(o.back && opts.overrides?.[u.encoded.source] === undefined ? { back: o.back } : {}),
     };
-    const conf = ocrConfidence(u.blocks, pages);
-    if (conf !== null && conf < OCR_TRUSTED) {
+    const ocr = ocrConfidence(u.blocks, pages);
+    if (ocr && (ocr.conf < OCR_TRUSTED || ocr.weak.length)) {
+      // The words themselves: a misread number ("487,4" for "%87,4") passes every check.
+      const words = ocr.weak.map((w) => `${w.text} (${w.conf}%)`).join(', ');
       report.issues.push({
         code: 'OCR_LOW_CONFIDENCE',
         severity: 'warning',
-        detail: `recognised text, confidence ${Math.round(conf)}%`,
+        detail: `recognised text, confidence ${Math.round(ocr.conf)}%${words ? `; check: ${words}` : ''}`,
       });
       if (report.status === 'translated') report.status = 'warning';
     }

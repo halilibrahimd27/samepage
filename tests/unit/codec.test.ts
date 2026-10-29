@@ -103,7 +103,8 @@ describe('tag/placeholder codec', () => {
           ph('F2', 'P'),
           ph('F3', '𝑣𝑛𝑘'),
           ph('F4', 'x2'),
-          // Words in some language, or not one token: kept as no-translate spans.
+          // Words in some language, or not one token: a formula symbol each, never the text
+          // (a no-translate span would split the sentence).
           ph('F5', 'e'),
           ph('F6', 'A'),
           ph('F7', 'p < 0'),
@@ -111,9 +112,21 @@ describe('tag/placeholder codec', () => {
         ],
         tr,
       ).verbatim,
-    ).toEqual({ U1: 'PyPI', F1: 'κ', F2: 'P', F3: '𝑣𝑛𝑘', F4: 'x2' });
+    ).toEqual({
+      U1: 'PyPI',
+      F1: 'κ',
+      F2: 'P',
+      F3: '𝑣𝑛𝑘',
+      F4: 'x2',
+      F5: '𝛷',
+      F6: '𝛹',
+      F7: '𝛺',
+      F8: '𝛩',
+    });
     // A Greek paper's letters are Greek words too.
-    expect(verbatimOf([ph('F1', 'η')], { source: 'el', target: 'en' })).toEqual({});
+    expect(verbatimOf([ph('F1', 'η')], { source: 'el', target: 'en' }).verbatim).toEqual({
+      F1: '𝛷',
+    });
     // A display formula's marker reads as a formula symbol.
     expect(
       verbatimOf([{ id: 'I1', kind: 'I', text: '', ref: DISPLAY_FORMULA }], tr).verbatim,

@@ -287,6 +287,8 @@ export const fr: Record<MessageKey, string> = {
     'un quantificateur a peut-être changé («\u00A0la plupart\u00A0» → «\u00A0tous\u00A0», «\u00A0certains\u00A0» → «\u00A0peu\u00A0»).',
   'issue.POST_EDITED':
     'La vérification du sens a signalé la première traduction\u202F; Claude l’a révisée en tenant compte de la source et du problème relevé.',
+  'issue.PUNCTUATION_CHANGED':
+    'Des parenthèses ou des espaces entre les phrases ont changé dans la traduction : vérifiez ce passage.',
   'issue.OCR_LOW_CONFIDENCE':
     'Le scan était difficile à lire ici\u202F; le texte reconnu peut contenir des erreurs.',
   'issue.UNTRANSLATED': 'La traduction était identique à la source.',

@@ -54,7 +54,10 @@ export function harvestTagged(el: HTMLElement): string {
   const text = [...el.childNodes].map(walk).join('');
   // Tags whose span disappeared entirely are re-added empty to keep the structure valid.
   const missing = (el.dataset.tags ?? '').split(',').filter((t) => t && !seen.has(t));
-  return text.replace(/\s+/g, ' ').trim() + missing.map((t) => `<${t}></${t}>`).join('');
+  // Non-breaking spaces stay ("Tablo~\ref" in LaTeX, "5 %" in French).
+  return (
+    text.replace(/[^\S\u00A0\u202F]+/g, ' ').trim() + missing.map((t) => `<${t}></${t}>`).join('')
+  );
 }
 
 /** True once the browser has rewritten the element's text. */

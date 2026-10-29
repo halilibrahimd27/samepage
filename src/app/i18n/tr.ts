@@ -275,6 +275,8 @@ export const tr: Record<MessageKey, string> = {
   'meaning.quantifier': 'bir niceleyici değişmiş olabilir ("çoğu" → "tümü", "bazı" → "az").',
   'issue.POST_EDITED':
     'Anlam denetimi ilk çeviriyi işaretledi; Claude kaynağı ve bulguyu görerek düzeltti.',
+  'issue.PUNCTUATION_CHANGED':
+    'Çeviride parantez ya da cümle aralığı değişti; lütfen bu bölümü kontrol edin.',
   'issue.OCR_LOW_CONFIDENCE': 'Tarama burada zor okundu; tanınan metinde hata olabilir.',
   'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
   'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',

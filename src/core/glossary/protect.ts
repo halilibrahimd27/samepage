@@ -77,21 +77,40 @@ export function protectTerms(
 const TAGS = '(?:\\s|<\\/?t\\d+>)*';
 const CITATION = new RegExp(`\\[${TAGS}\\d+(?:${TAGS}[,–-]${TAGS}\\d+)*${TAGS}\\]`, 'g');
 
+/** Languages that set a space (non-breaking) between a number and its percent sign. */
+const SPACED_PERCENT = new Set(['de', 'fr', 'es', 'cs', 'sv', 'ru', 'uk', 'bg']);
+
+/**
+ * A percentage in the target language's order: Turkish writes the sign first ("%81"); a
+ * Turkish source's "%81" becomes "81%" (or "81 %") elsewhere. Other spellings stay as written.
+ */
+export function percentFor(written: string, target: string): string {
+  const m = /^([%‰])\s?(\d.*)$|^(\d.*?)\s?([%‰])$/u.exec(written);
+  if (!m) return written;
+  const [sign, number] = m[1] ? [m[1], m[2]!] : [m[4]!, m[3]!];
+  if (target === 'tr') return sign + number;
+  if (!m[1]) return written;
+  return number + (SPACED_PERCENT.has(target) ? '\u00A0' : '') + sign;
+}
+
 /**
  * Freezes every number and citation of a segment as ⟦D1⟧, ⟦D2⟧, … for a retry after an engine changed one
  * (machine translators turn the elided year "17—" into "2017"). restoreTerms(…, 'D') puts the
- * numbers back exactly as written.
+ * numbers back exactly as written. A percent sign travels with its number ("81%" moved away
+ * from 81 reads "Süre 81npm'de … yüzdesi"), in the target language's order.
  */
-export function protectNumbers(tagged: string): Protected {
+export function protectNumbers(tagged: string, target?: string): Protected {
   const targets: string[] = [];
   const freeze = (n: string) => {
-    targets.push(n);
+    targets.push(target ? percentFor(n, target) : n);
     return `⟦D${targets.length}⟧`;
   };
   // Bracketed citations ("[38,58]", "[<t4>42</t4>]") are frozen whole, tags included, so no
   // bracket can go astray; restoring puts back the exact source text.
   const text = tokenize(tagged.replace(CITATION, freeze))
-    .map((t) => markup(t, (s) => s.replace(/\d+(?:[.,]\d+)*/g, freeze)))
+    .map((t) =>
+      markup(t, (s) => s.replace(/[%‰]\s?\d+(?:[.,]\d+)*|\d+(?:[.,]\d+)*(?:\s?[%‰])?/g, freeze)),
+    )
     .join('');
   return { text, targets };
 }

@@ -173,18 +173,32 @@ export const DISPLAY_FORMULA = 'display-formula';
  * work if taken").
  */
 const DISPLAY_STAND_IN = '𝛯';
+/**
+ * Other inline formulas ("κ = 0,81", "p <") as a symbol each, distinct within a segment: as
+ * no-translate spans they split the sentence ("…hesaplanmıştır" → "calculated. κ = 0,81 It has
+ * been calculated as follows.", "signifikant.p < 0,01Maschinelle").
+ */
+const FORMULA_STAND_INS = ['𝛷', '𝛹', '𝛺', '𝛩', '𝛬', '𝛱', '𝛴', '𝛤', '𝛥'];
 
 /**
  * Text of the placeholders that travel as text (for SegmentRequest.verbatim): identifiers and
- * URLs (⟦U⟧), short inline formulas (⟦F⟧) for the given language pair, and display-formula
- * markers as a symbol.
+ * URLs (⟦U⟧), inline formulas (⟦F⟧) — short ones as themselves for the given language pair,
+ * others as a symbol — and display-formula markers as a symbol.
  */
 export function verbatimOf(
   placeholders: PlaceholderDef[],
   pair?: { source: string; target: string },
 ): { verbatim?: Record<string, string> } {
+  let standIns = 0;
   const entries = placeholders.flatMap((p): [string, string][] => {
-    if (p.kind === 'U' || (p.kind === 'F' && inlineFormula(p.text, pair))) return [[p.id, p.text]];
+    if (p.kind === 'U') return [[p.id, p.text]];
+    if (p.kind === 'F') {
+      // LaTeX keeps the delimiters: "$P$" is the formula "P".
+      const bare = p.text.replace(/^\$([^$]+)\$$|^\\\(([\s\S]+)\\\)$/u, '$1$2').trim();
+      if (inlineFormula(bare, pair)) return [[p.id, bare]];
+      const symbol = FORMULA_STAND_INS[standIns++];
+      return symbol ? [[p.id, symbol]] : [];
+    }
     return p.kind === 'I' && p.ref === DISPLAY_FORMULA ? [[p.id, DISPLAY_STAND_IN]] : [];
   });
   return entries.length ? { verbatim: Object.fromEntries(entries) } : {};

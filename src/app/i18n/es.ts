@@ -284,6 +284,8 @@ export const es: Record<MessageKey, string> = {
     'puede haber cambiado un cuantificador (“la mayoría” → “todos”, “algunos” → “pocos”).',
   'issue.POST_EDITED':
     'La comprobación del significado marcó la primera traducción; Claude la revisó teniendo a la vista el original y el hallazgo.',
+  'issue.PUNCTUATION_CHANGED':
+    'Los paréntesis o los espacios entre frases cambiaron en la traducción; revise este pasaje.',
   'issue.OCR_LOW_CONFIDENCE':
     'El escaneo era difícil de leer aquí; el texto reconocido puede contener errores.',
   'issue.UNTRANSLATED': 'La traducción era idéntica al original.',

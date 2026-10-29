@@ -15,8 +15,18 @@ export interface OcrLine {
   bbox: Rect;
   /** Mean word confidence, 0–100. */
   conf: number;
+  /** Words recognised with little confidence, numbers and symbols above all ("487,4", 52). */
+  weak?: { text: string; conf: number }[];
   /** The paper under the line (covers the original text in the output). */
   background: Color;
+}
+
+/**
+ * A word to check against the scan: a line's mean hides it ("%87,4" read as "487,4" at 52 in a
+ * line of 94). Numbers, signs and Greek letters change the meaning when misread.
+ */
+function weakWord(w: { text: string; conf: number }): boolean {
+  return w.conf < 60 || (w.conf < 85 && /[\d%‰=<>±×\p{Script=Greek}\p{Sm}]/u.test(w.text));
 }
 
 export interface OcrPageInfo {
@@ -204,9 +214,11 @@ export function ocrPage(
       y1: Math.max(block.bbox.y1, bbox.y1),
     };
     blocks.set(blockId, block);
+    const weak = ws.filter(weakWord).map((w) => ({ text: w.text, conf: Math.round(w.conf) }));
     lines.push({
       bbox,
       conf: ws.reduce((n, w) => n + w.conf, 0) / ws.length,
+      ...(weak.length ? { weak } : {}),
       background: paperColor(px, box),
     });
   }

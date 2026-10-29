@@ -19,6 +19,7 @@ export type ValidationCode =
   | 'REVIEW_SUGGESTED'
   | 'REFUSED'
   | 'OCR_LOW_CONFIDENCE'
+  | 'PUNCTUATION_CHANGED'
   | 'POST_EDITED';
 
 export interface ValidationIssue {
@@ -77,6 +78,15 @@ const ids = (text: string, type: 'open' | 'ph') =>
 
 /** Bracketed numeric citations like [12], [3, 5], [7–9]. */
 const CITATION_RE = /\[\s*\d+(?:\s*[,–-]\s*\d+)*\s*\]/g;
+/** A sentence end glued to the next sentence, a number glued to the next word. */
+const GLUED = [/[\p{Ll}\d)][.!?;:]\p{Lu}\p{Ll}/u, /\d\p{Lu}\p{Ll}{3,}/u];
+const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
+const PERCENT_WORD = String.raw`(?:yüzde|percent|per cent|prozent|pour cent|por ciento|por cento|per cento|procent\p{L}*|процент\p{L}*|відсот\p{L}*|τοις εκατό)`;
+/** A percentage, sign or word on either side: "81%", "%81", "81 %", "yüzde 81", "81 Prozent". */
+const PERCENT_RE = new RegExp(
+  String.raw`[%‰]\s?${NUMBER}|${NUMBER}\s?[%‰]|${PERCENT_WORD}\s?${NUMBER}|${NUMBER}\s?${PERCENT_WORD}`,
+  'giu',
+);
 const citations = (text: string) =>
   [...text.matchAll(CITATION_RE)].map((m) => m[0].replace(/\s+/g, '').replace('–', '-'));
 
@@ -175,6 +185,32 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
       ]
         .filter(Boolean)
         .join('; '),
+    );
+  }
+  // A percent sign moved off its number ("81% of …" → "81npm'de … yüzdesi") keeps every number.
+  const percents = (t: string) => [...forNumbers(t).matchAll(PERCENT_RE)].length;
+  if (percents(target) < percents(source)) {
+    err(
+      'NUMBER_MISMATCH',
+      `percent sign lost: ${percents(source)} percentages in the source, ${percents(target)} in the translation`,
+    );
+  }
+  // Brackets dropped or left open, sentences run together ("anlamlıdır (p < 0,01)" →
+  // "significant.p < 0,01Machine"): the engine broke the sentence there.
+  const count = (t: string, c: string) => t.split(c).length - 1;
+  const bracketsLost = ['()', '[]'].some(([open, close]) => {
+    const srcOpen = count(srcPlain, open!);
+    const tgtOpen = count(tgtPlain, open!);
+    return (
+      tgtOpen < srcOpen ||
+      (srcOpen === count(srcPlain, close!) && tgtOpen !== count(tgtPlain, close!))
+    );
+  });
+  const glued = GLUED.filter((re) => re.test(tgtPlain) && !re.test(srcPlain));
+  if (bracketsLost || glued.length) {
+    warn(
+      'PUNCTUATION_CHANGED',
+      bracketsLost ? 'brackets differ from the source' : 'sentences or words run together',
     );
   }
   if (!sameMultiset(citations(srcPlain), citations(tgtPlain))) {

@@ -56,6 +56,13 @@ describe('scanned PDF (OCR)', () => {
     expect(report.summary.translated).toBeGreaterThan(3);
     expect(report.summary.untranslated).toBe(0);
     expect(report.issues.filter((i) => i.code === 'COLLATERAL_DAMAGE')).toEqual([]);
+    // Misread numbers are named in the report ("%87,4" read as "487,4"), whatever the line's mean.
+    const ocrIssues = report.units
+      .flatMap((u) => u.issues)
+      .filter((i) => i.code === 'OCR_LOW_CONFIDENCE')
+      .map((i) => i.detail)
+      .join(' | ');
+    expect(ocrIssues).toMatch(/check: .*\d/);
     // The output has a text layer now: the translation reads back from it.
     const [out] = await extractAndAnalyze(mono, 5);
     expect(out!.blocks.length).toBeGreaterThan(3);

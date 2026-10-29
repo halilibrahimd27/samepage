@@ -47,6 +47,20 @@ describe('LaTeX translation (P9.7)', () => {
     expect(report.repairs.map((r) => r.code)).toEqual(['L1_LANGUAGE']);
   });
 
+  it('reads a file saved with Windows line ends like the same file with "\\n"', async () => {
+    const crlf = new TextEncoder().encode(SRC.toString('utf8').replace(/\n/g, '\r\n'));
+    const [a, b] = await Promise.all([
+      translateLatex(new Uint8Array(SRC), opts()),
+      translateLatex(crlf, opts()),
+    ]);
+    const lf = new TextDecoder().decode(a.bytes);
+    const windows = new TextDecoder().decode(b.bytes);
+    // Same paragraphs (blank lines end them), no carriage return in the text sent, "\r\n" back.
+    expect(b.report.summary.segments).toBe(a.report.summary.segments);
+    expect(windows).not.toMatch(/\r(?!\n)/);
+    expect(windows.replace(/\r\n/g, '\n')).toBe(lf);
+  });
+
   it('translates a project .zip: every .tex file, the other files untouched', async () => {
     const input = new JSZip();
     input.file('main.tex', SRC);

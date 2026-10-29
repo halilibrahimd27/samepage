@@ -274,6 +274,8 @@ export const en = {
   'meaning.quantifier': 'a quantifier may have changed ("most" → "all", "some" → "few").',
   'issue.POST_EDITED':
     'The meaning check flagged the first translation; Claude revised it with the source and the finding in view.',
+  'issue.PUNCTUATION_CHANGED':
+    'Brackets or sentence spacing changed in the translation; please check this passage.',
   'issue.OCR_LOW_CONFIDENCE':
     'The scan was hard to read here; the recognised text may contain errors.',
   'issue.UNTRANSLATED': 'The translation was identical to the source.',

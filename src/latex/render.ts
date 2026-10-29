@@ -1,4 +1,4 @@
-import type { DecodedRun } from '../core/segment/codec';
+import { DISPLAY_FORMULA, type DecodedRun } from '../core/segment/codec';
 import type { LatexStyle } from './parse';
 
 /** Characters with a meaning in LaTeX, written as text. */
@@ -37,14 +37,23 @@ export function renderLatex(
     out += wrap.slice(common).join('');
     open = [...wrap];
   };
+  let afterDisplay = false;
   for (const run of runs) {
     if (run.type === 'text') {
       reach(run.style?.wrap ?? []);
-      out += escapeLatex(run.text);
+      out += escapeLatex(afterDisplay ? run.text.replace(/^[ \t]+/u, '') : run.text);
+      afterDisplay = false;
       continue;
     }
     const ph = run.placeholder;
     let text = ph?.text ?? run.text;
+    // A display formula stands on lines of its own, as in the source, wherever the sentence put it.
+    if (ph?.kind === 'I' && ph.ref === DISPLAY_FORMULA) {
+      out = out.replace(/[ \t]+$/u, '');
+      out += `${out && !out.endsWith('\n') ? '\n' : ''}${text.trim()}\n`;
+      afterDisplay = true;
+      continue;
+    }
     if (ph?.kind === 'N')
       text = text.replace(
         /\uE000(l\d+)\uE001/,

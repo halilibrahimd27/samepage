@@ -88,9 +88,36 @@ export function switchLanguage(src: string, pair: LangPair, british = false): st
 
 interface TexFile {
   path: string;
+  /** The source with "\n" line ends; `crlf` files are written back with "\r\n". */
   text: string;
+  crlf: boolean;
   units: LatexUnit[];
   encoded: Map<string, Encoded<LatexStyle>>;
+}
+
+const REF = /^\\(?:eq|auto|c|C|name|page)?ref\*?\{/;
+const CITE = /^\\(?:cite[pt]?|citeauthor|citeyear|parencite|textcite|autocite)\*?(?:\[[^\]]*\])*\{/;
+
+/**
+ * References and citations as a reader sees them ("Tablo 7'de", "[1]"), numbers that occur
+ * nowhere else in the paragraph: as no-translate spans they break the sentence and the engine
+ * finishes it on its own ("Ayrıntılar Tablo \ref{…}'de verilmiştir" → "It is stated in [source].").
+ */
+function readAs(enc: Encoded<LatexStyle>): Record<string, string> {
+  const out: Record<string, string> = {};
+  let ref = 7;
+  let cite = 1;
+  for (const p of enc.placeholders) {
+    if (p.kind !== 'C') continue;
+    if (REF.test(p.text)) {
+      while (enc.source.includes(String(ref))) ref++;
+      out[p.id] = String(ref++);
+    } else if (CITE.test(p.text)) {
+      while (enc.source.includes(`[${cite}]`)) cite++;
+      out[p.id] = `[${cite++}]`;
+    }
+  }
+  return out;
 }
 
 /** Natural order of paths ("ch10.tex" after "ch9.tex"). */
@@ -117,8 +144,11 @@ export async function translateLatex(
   const utf8 = new TextDecoder('utf-8', { fatal: true });
   const read = (path: string, data: Uint8Array) => {
     try {
-      const text = utf8.decode(data);
-      files.push({ path, text, units: latexUnits(text), encoded: new Map() });
+      // Files saved on Windows end their lines with "\r\n": the parser reads blank lines as "\n\n".
+      const raw = utf8.decode(data);
+      const text = raw.replace(/\r\n?/g, '\n');
+      const crlf = raw.includes('\r\n');
+      files.push({ path, text, crlf, units: latexUnits(text), encoded: new Map() });
     } catch {
       repairs.push({ code: 'L2_ENCODING', part: path, detail: 'not UTF-8' });
     }
@@ -151,13 +181,15 @@ export async function translateLatex(
     for (const u of f.units) {
       const enc = encode(u.runs, latexStyleKey);
       f.encoded.set(u.id, enc);
-      if (!unique.has(enc.source))
+      if (!unique.has(enc.source)) {
+        const verbatim = { ...verbatimOf(enc.placeholders, opts.pair).verbatim, ...readAs(enc) };
         unique.set(enc.source, {
           id: `s${unique.size + 1}`,
           text: enc.source,
           role: u.role,
-          ...verbatimOf(enc.placeholders, opts.pair),
+          ...(Object.keys(verbatim).length ? { verbatim } : {}),
         });
+      }
     }
   const requests = [...unique.values()];
   const outcomes = await translateSegments({
@@ -244,7 +276,7 @@ export async function translateLatex(
         detail: `babel/polyglossia → ${opts.pair.target}`,
       });
     }
-    out.set(f.path, text);
+    out.set(f.path, f.crlf ? text.replace(/\n/g, '\r\n') : text);
   }
 
   let result: Uint8Array;
