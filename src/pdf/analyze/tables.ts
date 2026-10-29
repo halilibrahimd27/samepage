@@ -129,7 +129,140 @@ export function detectTables(page: RawPage): TableRegion[] {
         .sort((a, b) => a - b),
     });
   }
+  // Widest first: a booktabs \cmidrule inside a table is not a table of its own.
+  const singles: { rect: Rect; rows: number[] }[] = [];
+  for (const rule of [...narrow].sort((a, b) => width(b) - width(a))) {
+    const taken = [...regions.map((t) => t.rect), ...singles.map((s) => s.rect)];
+    if (taken.some((t) => coverage(rule, t) > 0.5)) continue;
+    const rect = singleRuleTable(page, rule, regions);
+    if (rect) singles.push({ rect, rows: [(rule.y0 + rule.y1) / 2] });
+  }
+  for (const s of mergeSideBySide(singles, textLines, page.width))
+    regions.push({ id: `p${page.index}-t${regions.length}`, rect: s.rect, rows: s.rows, cols: [] });
   return regions;
+}
+
+/**
+ * Column groups ruled apart (\cmidrule per group: "Mono-language | Cross-language") are one
+ * table, with the row labels on their left ("DT", "RF", "XGB") that no rule spans.
+ */
+function mergeSideBySide(
+  tables: { rect: Rect; rows: number[] }[],
+  textLines: Rect[],
+  pageWidth: number,
+): { rect: Rect; rows: number[] }[] {
+  const out: { rect: Rect; rows: number[] }[] = [];
+  for (const t of [...tables].sort((a, b) => a.rect.x0 - b.rect.x0)) {
+    const height = (r: Rect) => r.y1 - r.y0;
+    const beside = out.find(
+      (o) =>
+        Math.min(o.rect.y1, t.rect.y1) - Math.max(o.rect.y0, t.rect.y0) >
+          0.5 * Math.min(height(o.rect), height(t.rect)) && t.rect.x0 - o.rect.x1 < 40,
+    );
+    if (beside) {
+      beside.rect = {
+        x0: Math.min(beside.rect.x0, t.rect.x0),
+        y0: Math.min(beside.rect.y0, t.rect.y0),
+        x1: Math.max(beside.rect.x1, t.rect.x1),
+        y1: Math.max(beside.rect.y1, t.rect.y1),
+      };
+      beside.rows = [...beside.rows, ...t.rows].sort((a, b) => a - b);
+    } else out.push({ rect: { ...t.rect }, rows: [...t.rows] });
+  }
+  for (const o of out) {
+    // Row labels: lines just left of the table, level with its rows, in its half of a
+    // two-column page (the other column's text is no label).
+    const mid = pageWidth / 2;
+    const half = o.rect.x0 >= mid - 10 ? mid - 10 : -Infinity;
+    const rowCentres = textLines
+      .filter((l) => coverage(l, o.rect) > 0.6)
+      .map((l) => (l.y0 + l.y1) / 2);
+    const labels = textLines.filter(
+      (l) =>
+        l.x1 <= o.rect.x0 + 1 &&
+        o.rect.x0 - l.x1 < 40 &&
+        l.x0 >= half &&
+        rowCentres.some((c) => Math.abs(c - (l.y0 + l.y1) / 2) < 2),
+    );
+    if (labels.length >= 2) o.rect.x0 = Math.min(...labels.map((l) => l.x0));
+  }
+  return out;
+}
+
+const CAPTION =
+  /^(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabella|Tabela|Tabel|Tabulka|Tabell|Таблица|Таблиця|Πίνακας)\s*[\dIVX]/iu;
+
+/**
+ * A table with a single rule, under its header row (ACM, many journals): header cells right above
+ * the rule and data cells below, side by side within its width, and its caption close by. Rows
+ * continue at the table's pitch until the caption, a paragraph line or the end of the cells.
+ */
+function singleRuleTable(page: RawPage, rule: Rect, tables: TableRegion[]): Rect | null {
+  const lines = page.blocks
+    .flatMap((b) => b.lines)
+    .map((l) => ({
+      bbox: l.bbox,
+      text: l.chars
+        .map((c) => c.c)
+        .join('')
+        .trim(),
+    }))
+    .filter((l) => l.text && !tables.some((t) => coverage(l.bbox, t.rect) > 0.5));
+  const within = (r: Rect) => r.x0 >= rule.x0 - 3 && r.x1 <= rule.x1 + 3;
+  const rows = (ls: typeof lines) =>
+    cluster(
+      ls.map((l) => l.bbox.y0),
+      2,
+    ).map((y) => ls.filter((l) => Math.abs(l.bbox.y0 - y) <= 2));
+
+  const header = lines.filter(
+    (l) => within(l.bbox) && l.bbox.y1 <= rule.y0 + 1 && rule.y0 - l.bbox.y1 < 26,
+  );
+  if (!rows(header).some((r) => r.length >= 2)) return null;
+
+  // Lines of the neighbouring column are not the table's (nor its end).
+  const below = lines
+    .filter(
+      (l) => xOverlap(l.bbox, rule) > 0 && l.bbox.y0 >= rule.y1 - 1 && l.bbox.y0 - rule.y1 < 400,
+    )
+    .sort((a, b) => a.bbox.y0 - b.bbox.y0);
+  const data: typeof lines = [];
+  let last = rule.y1;
+  let pitch = 0;
+  for (const row of rows(below)) {
+    const top = Math.min(...row.map((l) => l.bbox.y0));
+    const height = Math.max(...row.map((l) => l.bbox.y1 - l.bbox.y0));
+    const gap = top - last;
+    if (gap > (pitch ? 1.7 * pitch : 1.4 * height)) break;
+    const inside = row.filter((l) => within(l.bbox));
+    // The caption, a paragraph line or text running past the table ends it.
+    if (inside.some((l) => CAPTION.test(l.text))) break;
+    if (!inside.length || inside.length < row.filter((l) => xOverlap(l.bbox, rule) > 0).length)
+      break;
+    if (inside.length === 1 && inside[0]!.bbox.x1 - inside[0]!.bbox.x0 > 0.6 * (rule.x1 - rule.x0))
+      break;
+    if (data.length) pitch ||= top - last;
+    data.push(...inside);
+    last = top;
+  }
+  if (!rows(data).some((r) => r.length >= 2) || data.length < 4) return null;
+
+  const cells = [...header, ...data];
+  const rect: Rect = {
+    x0: Math.min(rule.x0, ...cells.map((l) => l.bbox.x0)),
+    y0: Math.min(...header.map((l) => l.bbox.y0)),
+    x1: Math.max(rule.x1, ...cells.map((l) => l.bbox.x1)),
+    y1: Math.max(...data.map((l) => l.bbox.y1)),
+  };
+  // Its caption: above the header (IEEE) or below the data (ACM), over the table's width.
+  const caption = lines.some(
+    (l) =>
+      CAPTION.test(l.text) &&
+      xOverlap(l.bbox, rect) > 0 &&
+      ((l.bbox.y1 <= rect.y0 + 1 && rect.y0 - l.bbox.y1 < 40) ||
+        (l.bbox.y0 >= rect.y1 - 1 && l.bbox.y0 - rect.y1 < 120)),
+  );
+  return caption ? rect : null;
 }
 
 /**

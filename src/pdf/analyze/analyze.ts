@@ -148,6 +148,18 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
   return regions.filter((r) => r.y1 - r.y0 > 30 && r.x1 - r.x0 > 30);
 }
 
+/**
+ * Rotated text beside the page's running text and away from its figures: a margin stamp. The
+ * running text spans the horizontal blocks of two lines or more.
+ */
+function inMargin(b: BlockIR, blocks: BlockIR[], figures: Rect[]): boolean {
+  const text = blocks.filter((x) => x.direction[1] === 0 && x.lines.length >= 2);
+  if (!text.length || figures.some((f) => coverage(b.bbox, f) > 0.3)) return false;
+  const left = Math.min(...text.map((x) => x.bbox.x0));
+  const right = Math.max(...text.map((x) => x.bbox.x1));
+  return b.bbox.x1 <= left + 2 || b.bbox.x0 >= right - 2;
+}
+
 function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
   const cells = blocks.filter((b) => coverage(b.bbox, table.rect) > 0.6);
   if (!cells.length) return;
@@ -267,8 +279,9 @@ function classify(
       else if (mathRatio(b) >= 0.3 && !worded) role = 'formula';
       else if (allMono(b)) role = 'code';
       else if (CAPTION.test(text)) role = 'caption';
-      else if (b.direction[1] !== 0)
-        role = 'label'; // rotated text: margin stamps, axis titles
+      // Rotated text: an axis title, or a stamp in the margin ("arXiv:2310.09571v1 [cs.CR]"),
+      // which is the page's furniture: never translated ("[CS.Cr]"), not part of the text.
+      else if (b.direction[1] !== 0) role = inMargin(b, blocks, figuresNear) ? 'header' : 'label';
       else if (size >= stats.bodySize * 1.12 && b.lines.length <= 3) role = 'heading';
       else if (
         b.direction[1] !== 0 ||
@@ -318,6 +331,8 @@ function classify(
             .filter(Boolean)
             .every((w) => /^(?:\p{Lu}\.)+(?:\p{Lu}[\p{L}'’-]+)?$|^\p{Lu}[\p{L}'’-]+$/u.test(w));
         if (!/\s/.test(text.trim()) || citation || person) b.translatable = false;
+        // A stamp in the margin is an identifier: "[cs.CR]" must not become "[CS.Cr]".
+        if (b.direction[1] !== 0) b.translatable = false;
       }
       // Headings are never justified: a translated heading with fewer words would gape.
       if (role === 'heading' && b.align === 'justify') b.align = 'left';

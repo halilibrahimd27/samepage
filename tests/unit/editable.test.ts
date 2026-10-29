@@ -194,3 +194,43 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
   });
 });
+
+describe('editable Word output: front matter and references', () => {
+  it('sets author names above the abstract as text, so sections are Heading 1', () => {
+    const p = page(0, [
+      block('p0-b0', 'heading', 40, [[span('On the Feasibility of Detection', 50, 17)]]),
+      block('p0-b1', 'heading', 80, [[span('Piergiorgio Ladisa', 50, 12)]]),
+      block('p0-b2', 'heading', 120, [[span('ABSTRACT', 50, 11)]]),
+      block('p0-b3', 'body', 140, [[span('Current software supply chains rely on packages.', 50)]]),
+      block('p0-b4', 'heading', 180, [[span('1 INTRODUCTION', 50, 11)]]),
+    ]);
+    const styles = new Map(
+      plan([p]).items.flatMap((i) => (i.kind === 'paragraph' ? [[text(i), i.style]] : [])),
+    );
+    expect(styles.get('On the Feasibility of Detection')).toBe('title');
+    expect(styles.get('Piergiorgio Ladisa')).toBe('body');
+    expect(styles.get('ABSTRACT')).toBe('heading1');
+    expect(styles.get('1 INTRODUCTION')).toBe('heading1');
+  });
+
+  it('gives each reference entry its own paragraph when the text extraction joined two', () => {
+    const p = page(0, [
+      block('p0-b0', 'heading', 40, [[span('REFERENCES', 50, 11)]]),
+      block(
+        'p0-b1',
+        'reference',
+        60,
+        [
+          [span('[19] Zhipeng Huang and Yeye He. 2018. Auto-Detect.', 50, 7)],
+          [span('In Proceedings of SIGMOD, 1377-1392.', 50, 7)],
+          [span('[20] Piergiorgio Ladisa et al. 2023. SoK: Taxonomy of Attacks.', 50, 7)],
+        ],
+        { translatable: false },
+      ),
+    ]);
+    const refs = plan([p])
+      .items.filter((i) => i.kind === 'paragraph' && /^\[\d+\]/.test(text(i)))
+      .map((i) => text(i).slice(0, 4));
+    expect(refs).toEqual(['[19]', '[20]']);
+  });
+});

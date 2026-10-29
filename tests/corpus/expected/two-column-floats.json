@@ -4,7 +4,7 @@
     { "page": 0, "text": "Zeynep Kaya1, Ahmet Demir2", "role": "heading" },
     { "page": 0, "text": "1Orta Doğu Teknik Üniversitesi, Ankara, Türkiye; zeynep@example.org", "role": "body" },
     { "page": 0, "text": "2Boğaziçi Üniversitesi, İstanbul, Türkiye; ahmet@example.org", "role": "body" },
-    { "page": 0, "text": "arXiv:2401.01234v1", "role": "label" },
+    { "page": 0, "text": "arXiv:2401.01234v1", "role": "header" },
     { "page": 0, "text": "1 Giriş", "role": "heading" },
     { "page": 0, "text": "Makine çevirisi sistemleri son on yılda", "role": "body" },
     { "page": 0, "text": "2 Yöntem", "role": "heading" },

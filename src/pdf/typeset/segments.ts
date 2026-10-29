@@ -72,11 +72,14 @@ const SUPERSCRIPT: Record<string, string> = {
   '−': '⁻',
 };
 
-/** Superscript marks (footnote numbers, ordinals): small and raised above the line's baseline. */
+/**
+ * Superscript marks (footnote numbers, ordinals): small and raised above the line's baseline.
+ * ACM's Libertine sets them at 7.3 pt in 9 pt text.
+ */
 function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolean {
   const spanBaseline = span.baseline ?? span.bbox.y1 - span.size * 0.2;
   return (
-    span.size < lineSize * 0.8 &&
+    span.size < lineSize * 0.86 &&
     baseline - spanBaseline > lineSize * 0.2 &&
     /^[\d*†‡§,–-]+$/.test(span.text.trim())
   );

@@ -142,8 +142,21 @@ function tidy(runs: EditableRun[]): EditableRun[] {
   return out.filter((r) => r.text || r.lineBreak);
 }
 
+/** The heading that ends a paper's front matter: the abstract, keywords or the first section. */
+const FRONT_END =
+  /^(?:\d+\.?\s|abstract|özet|öz$|zusammenfassung|résumé|resumen|resumo|riassunto|samenvatting|streszczenie|аннотация|анотація|keywords|introduction)/iu;
+
 /** Heading levels from font sizes: the largest heading size is level 1 (or the title). */
 function headingLevels(pages: PageIR[]): (b: BlockIR) => ParagraphKind {
+  // Author names and affiliations above the abstract are set large, but are no headings.
+  const first = pages[0];
+  const frontEnd = Math.min(
+    ...(first?.blocks ?? [])
+      .filter((b) => b.role === 'heading' && FRONT_END.test(textOfBlock(b).trim()))
+      .map((b) => b.bbox.y0),
+  );
+  const front = (b: BlockIR) =>
+    !!first && b.id.startsWith(`p${first.index}-`) && b.bbox.y1 <= frontEnd;
   const headings = pages.flatMap((p) => p.blocks.filter((b) => b.role === 'heading'));
   const sizes = [...new Set(headings.map((b) => Math.round(sizeOf(b) * 2) / 2))].sort(
     (a, b) => b - a,
@@ -157,9 +170,14 @@ function headingLevels(pages: PageIR[]): (b: BlockIR) => ParagraphKind {
     topBlocks[0]!.id.startsWith(`p${pages[0]?.index ?? 0}-`)
       ? topBlocks[0]!.id
       : null;
-  const levels = title ? sizes.slice(1) : sizes;
+  const levels = [
+    ...new Set(
+      headings.filter((b) => b.id !== title && !front(b)).map((b) => Math.round(sizeOf(b) * 2) / 2),
+    ),
+  ].sort((a, b) => b - a);
   return (b) => {
     if (b.id === title) return 'title';
+    if (front(b)) return 'body';
     const rank = levels.indexOf(Math.round(sizeOf(b) * 2) / 2);
     return rank <= 0 ? 'heading1' : rank === 1 ? 'heading2' : 'heading3';
   };
@@ -317,6 +335,18 @@ function tableItem(
   return { kind: 'table', columns, rows: grid };
 }
 
+/** A numbered reference entry's first line ("[20] …", "20. …"). */
+const ENTRY = /^(?:\[\d{1,3}\]|\d{1,3}\.)\s/u;
+
+/** A reference block split before each line after the first that starts an entry. */
+function entryParts(b: BlockIR): BlockIR[] {
+  const starts = b.lines.flatMap((l, i) =>
+    i && ENTRY.test(l.spans.map((s) => s.text).join('')) ? [i] : [],
+  );
+  if (!starts.length) return [b];
+  return [0, ...starts].map((s, k, all) => ({ ...b, lines: b.lines.slice(s, all[k + 1]) }));
+}
+
 const MARK = /^(?:\d{1,3}|[a-z]|[*†‡§¶]{1,2})$/u;
 
 /**
@@ -378,6 +408,13 @@ export function planEditable(
   const unitBlocks = new Set(units.flatMap((u) => u.unit.blocks.map((b) => b.id)));
   const pagePictureMap = new Map(shown.map((p) => [p.index, pagePictures(p, unitBlocks)]));
   const absorbed = new Set([...pagePictureMap.values()].flat().flatMap((p) => p.absorbed));
+  /** Labels drawn in a figure: the figure shows their translation, they are never text too. */
+  const figureLabels = new Set(
+    [...pagePictureMap.values()]
+      .flat()
+      .filter((p) => !p.formula)
+      .flatMap((p) => p.absorbed),
+  );
   // Where each unit's pieces go: its first block, then each block after a display formula. A
   // piece whose block is drawn in a picture (a formula set as text that starts the sentence)
   // moves to the unit's next block of text; with none, a piece with words stays as text.
@@ -407,7 +444,10 @@ export function planEditable(
           target.id,
           [...(assigned.get(target.id) ?? []), ...own].sort((x, y) => x - y),
         );
-      } else if (own.some((i) => pieces[i]!.some((r) => /\p{L}{4}/u.test(r.text))))
+      } else if (
+        !figureLabels.has(b.id) &&
+        own.some((i) => pieces[i]!.some((r) => /\p{L}{4}/u.test(r.text)))
+      )
         absorbed.delete(b.id);
     }
     for (const [id, own] of assigned)
@@ -470,29 +510,35 @@ export function planEditable(
             items.push({ kind: 'paragraph', style: 'body', align: 'left', runs });
         continue;
       }
-      // Text kept as it is that continues a chain (a reference entry's next line) joins the
-      // paragraph its chain started.
-      const chained = b.chain && b.chain.index > 0 ? kept.get(b.chain.paragraphId) : undefined;
-      if (chained && !unitBlocks.has(b.id)) {
-        const runs = blockRuns(b, false);
-        const last = chained.runs[chained.runs.length - 1];
-        if (last && /\p{L}-$/u.test(last.text))
-          last.text = joinHyphen(last.text, runs[0]?.text ?? '');
-        else chained.runs.push({ text: ' ' });
-        chained.runs.push(...runs);
-        continue;
-      }
-      const role = slots.get(b.id)?.role ?? b.role;
-      const kind = kindOf(role, b, heading);
-      for (const runs of content(b)) {
-        const item: Extract<EditableItem, { kind: 'paragraph' }> = {
-          kind: 'paragraph',
-          style: kind,
-          align: alignOf(b, kind, slots.get(b.id)?.lines ?? b.lines.length),
-          runs,
-        };
-        items.push(item);
-        if (b.chain && !unitBlocks.has(b.id)) kept.set(b.chain.paragraphId, item);
+      // A reference block can hold the start of the next entry ("… 1392. [20] Ladisa …" when the
+      // text extraction joined their lines): each entry is a paragraph of its own.
+      const parts = b.role === 'reference' && !unitBlocks.has(b.id) ? entryParts(b) : [b];
+      for (const [k, part] of parts.entries()) {
+        // Text kept as it is that continues a chain (a reference entry's next line) joins the
+        // paragraph its chain started.
+        const chained =
+          !k && b.chain && b.chain.index > 0 ? kept.get(b.chain.paragraphId) : undefined;
+        if (chained && !unitBlocks.has(b.id)) {
+          const runs = blockRuns(part, false);
+          const last = chained.runs[chained.runs.length - 1];
+          if (last && /\p{L}-$/u.test(last.text))
+            last.text = joinHyphen(last.text, runs[0]?.text ?? '');
+          else chained.runs.push({ text: ' ' });
+          chained.runs.push(...runs);
+          continue;
+        }
+        const role = slots.get(b.id)?.role ?? b.role;
+        const kind = kindOf(role, part, heading);
+        for (const runs of content(part)) {
+          const item: Extract<EditableItem, { kind: 'paragraph' }> = {
+            kind: 'paragraph',
+            style: kind,
+            align: alignOf(part, kind, slots.get(b.id)?.lines ?? part.lines.length),
+            runs,
+          };
+          items.push(item);
+          if (b.chain && !unitBlocks.has(b.id)) kept.set(b.chain.paragraphId, item);
+        }
       }
     }
     trailing.forEach(emitPicture);
