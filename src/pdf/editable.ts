@@ -1,7 +1,7 @@
 import { coverage, expand, union, unionAll } from '../core/ir/geometry';
 import type { BlockIR, PageIR, Rect, Role, SpanIR } from '../core/ir/types';
 import { DISPLAY_FORMULA, type DecodedRun } from '../core/segment/codec';
-import { equationLike, mathFragments, mathLike } from './analyze/analyze';
+import { equationLike, FRONT_END, mathFragments, mathLike } from './analyze/analyze';
 import type { Align, EditableItem, EditableRun, ParagraphKind, TableCell } from '../docx/editable';
 import { joinHyphen, type PdfStyle, type PdfUnit } from './typeset/segments';
 
@@ -141,10 +141,6 @@ function tidy(runs: EditableRun[]): EditableRun[] {
   if (last) last.text = last.text.trimEnd();
   return out.filter((r) => r.text || r.lineBreak);
 }
-
-/** The heading that ends a paper's front matter: the abstract, keywords or the first section. */
-const FRONT_END =
-  /^(?:\d+\.?\s|abstract|özet|öz$|zusammenfassung|résumé|resumen|resumo|riassunto|samenvatting|streszczenie|аннотация|анотація|keywords|introduction)/iu;
 
 /** Heading levels from font sizes: the largest heading size is level 1 (or the title). */
 function headingLevels(pages: PageIR[]): (b: BlockIR) => ParagraphKind {

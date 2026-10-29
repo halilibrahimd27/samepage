@@ -856,7 +856,55 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
     } satisfies PageIR;
   });
   linkChains(result.map((p) => p.blocks));
+  if (result[0]) orderAuthors(result[0]);
   return result;
+}
+
+/** The heading that ends a paper's front matter: the abstract, keywords or the first section. */
+export const FRONT_END =
+  /^(?:\d+\.?\s|abstract|özet|öz$|zusammenfassung|résumé|resumen|resumo|riassunto|samenvatting|streszczenie|аннотация|анотація|keywords|introduction)/iu;
+
+/**
+ * The author grid above the abstract, read author by author: each name (set as a heading) with
+ * the affiliation and e-mail below it, row by row, left to right. Column detection put the right
+ * half of the grid after the abstract's column ("Nicola Ronzoni" | … | "nicola.ronzoni@sap.com").
+ */
+function orderAuthors(page: PageIR): void {
+  const end = Math.min(
+    ...page.blocks
+      .filter((b) => b.role === 'heading' && FRONT_END.test(blockText(b).trim()))
+      .map((b) => b.bbox.y0),
+  );
+  const front = page.blocks.filter(
+    (b) => b.bbox.y1 <= end && !['header', 'footer', 'page-number'].includes(b.role),
+  );
+  const narrow = front.filter((b) => b.bbox.x1 - b.bbox.x0 < 0.6 * page.width);
+  const names = narrow.filter((b) => b.role === 'heading');
+  if (names.length < 2) return;
+  const overlap = (a: BlockIR, b: BlockIR) =>
+    Math.min(a.bbox.x1, b.bbox.x1) - Math.max(a.bbox.x0, b.bbox.x0) >
+    0.5 * Math.min(a.bbox.x1 - a.bbox.x0, b.bbox.x1 - b.bbox.x0);
+  const members = new Map<BlockIR, BlockIR[]>(names.map((n) => [n, [n]]));
+  for (const b of narrow) {
+    if (members.has(b)) continue;
+    const name = names
+      .filter((n) => n.bbox.y1 <= b.bbox.y0 + 2 && overlap(n, b))
+      .sort((p, q) => q.bbox.y1 - p.bbox.y1)[0];
+    if (!name) return; // Not a grid of names: leave the order as it is.
+    members.get(name)!.push(b);
+  }
+  const row = (b: BlockIR) => Math.round(b.bbox.y0 / 6);
+  const ordered = [
+    ...front.filter((b) => !narrow.includes(b)).sort((a, b) => a.bbox.y0 - b.bbox.y0),
+    ...names
+      .sort((a, b) => row(a) - row(b) || a.bbox.x0 - b.bbox.x0)
+      .flatMap((n) => members.get(n)!.sort((a, b) => a.bbox.y0 - b.bbox.y0)),
+  ];
+  // The grid comes as a whole where it starts, before the abstract's column.
+  const page_ = [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder);
+  const at = page_.findIndex((b) => front.includes(b));
+  const rest = page_.filter((b) => !front.includes(b));
+  [...rest.slice(0, at), ...ordered, ...rest.slice(at)].forEach((b, i) => (b.readingOrder = i));
 }
 
 export { blockText };

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { detectTables } from '../../src/pdf/analyze/tables';
 import type { RawLine, RawPage } from '../../src/pdf/extract/raw';
 
-type Cell = [x0: number, y0: number, x1: number, y1: number, text: string];
+type Cell = [x0: number, y0: number, x1: number, y1: number, text: string, size?: number];
 
-const line = ([x0, y0, x1, y1, text]: Cell): RawLine => ({
+const line = ([x0, y0, x1, y1, text, size = 9]: Cell): RawLine => ({
   bbox: { x0, y0, x1, y1 },
   dir: [1, 0],
   wmode: 0,
@@ -20,7 +20,7 @@ const line = ([x0, y0, x1, y1, text]: Cell): RawLine => ({
       y1,
     },
     font: 'Serif',
-    size: 9,
+    size,
     color: [0, 0, 0] as [number, number, number],
   })),
 });
@@ -118,5 +118,51 @@ describe('table columns', () => {
     // The group header starts in its first column and spans the group.
     expect(at('Mono-language')?.col).toBe(at('Pr.')?.col);
     expect(at('Mono-language')!.cellRect.x1).toBeGreaterThanOrEqual(at('Rec.')!.cellRect.x1);
+  });
+});
+
+describe('page 1 front matter', () => {
+  it('reads the author grid author by author, before the abstract', async () => {
+    const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
+    const body = (y: number, x: number): Cell => [
+      x,
+      y,
+      x + 240,
+      y + 9,
+      'Body text of the paper continues here with words.',
+    ];
+    const cells: Cell[] = [
+      [100, 60, 500, 76, 'A Title of the Paper', 17],
+      [90, 100, 170, 112, 'Ada Lovelace', 12],
+      [250, 100, 340, 112, 'Alan Turing', 12],
+      [420, 100, 500, 112, 'Grace Hopper', 12],
+      [80, 114, 180, 123, 'University of London'],
+      [245, 114, 345, 123, 'University of Cambridge'],
+      [410, 114, 510, 123, 'Yale University'],
+      [54, 160, 120, 171, 'ABSTRACT', 11],
+      ...[175, 186, 197, 208, 219, 230].map((y) => body(y, 54)),
+      ...[175, 186, 197, 208, 219, 230].map((y) => body(y, 318)),
+    ];
+    // MuPDF gives each author's lines a block of their own.
+    const raw = page(cells, []);
+    raw.blocks = cells.map((c) => ({
+      bbox: { x0: c[0], y0: c[1], x1: c[2], y1: c[3] },
+      lines: [line(c)],
+    }));
+    const [p] = analyzeDocument([raw]);
+    const order = [...p!.blocks]
+      .sort((a, b) => a.readingOrder - b.readingOrder)
+      .map((b) => b.lines.map((l) => l.spans.map((s) => s.text).join('')).join(' '))
+      .slice(0, 8);
+    expect(order).toEqual([
+      'A Title of the Paper',
+      'Ada Lovelace',
+      'University of London',
+      'Alan Turing',
+      'University of Cambridge',
+      'Grace Hopper',
+      'Yale University',
+      'ABSTRACT',
+    ]);
   });
 });
