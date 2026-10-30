@@ -47,11 +47,52 @@ function styleOf(span: SpanIR): PdfStyle {
 }
 
 /**
- * A line ending in a hyphen, joined with the next line's start: hyphenation is dropped before a
- * lower-case letter ("ge-" + "lişme"); a word's own hyphen stays, without a space ("Von-Neumann").
+ * How the document itself writes its words: compounds with a hyphen inside a line ("self-attention")
+ * and words without one ("pretraining"), lower-cased, with their counts.
  */
-export function joinHyphen(text: string, next: string): string {
-  if (/^\p{Ll}/u.test(next)) return text.slice(0, -1);
+export interface HyphenEvidence {
+  hyphenated: Map<string, number>;
+  plain: Map<string, number>;
+}
+
+/** Reads the document's words inside its lines (a hyphen at a line end is not evidence). */
+export function hyphenEvidence(pages: PageIR[]): HyphenEvidence {
+  const hyphenated = new Map<string, number>();
+  const plain = new Map<string, number>();
+  for (const page of pages)
+    for (const block of page.blocks)
+      for (const line of block.lines) {
+        const text = line.spans
+          .filter((s) => !s.font.isMath)
+          .map((s) => s.text)
+          .join('')
+          .toLowerCase();
+        for (const m of text.matchAll(/\p{L}+(?:[-\u2010]\p{L}+)+|\p{L}+/gu)) {
+          const word = m[0].replace(/\u2010/g, '-');
+          const map = word.includes('-') ? hyphenated : plain;
+          map.set(word, (map.get(word) ?? 0) + 1);
+        }
+      }
+  return { hyphenated, plain };
+}
+
+/**
+ * A line ending in a hyphen, joined with the next line's start: hyphenation is dropped before a
+ * lower-case letter ("ge-" + "lişme"); a word's own hyphen stays, without a space ("Von-Neumann",
+ * "COVID-19"). Before a lower-case letter the document decides when it knows the word: "self-" +
+ * "attention" keeps its hyphen when "self-attention" is written inside a line elsewhere.
+ */
+export function joinHyphen(text: string, next: string, evidence?: HyphenEvidence): string {
+  if (/^\p{Ll}/u.test(next)) {
+    const left = /(\p{L}+)-$/u.exec(text)?.[1]?.toLowerCase();
+    const right = /^\p{L}+/u.exec(next)?.[0].toLowerCase();
+    if (evidence && left && right) {
+      const kept = evidence.hyphenated.get(`${left}-${right}`) ?? 0;
+      const joined = evidence.plain.get(left + right) ?? 0;
+      if (kept > 0 && kept >= joined) return text;
+    }
+    return text.slice(0, -1);
+  }
   return /^\s/u.test(next) ? `${text} ` : text;
 }
 
@@ -85,7 +126,11 @@ function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolea
   );
 }
 
-function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[]): void {
+function blockRuns(
+  block: BlockIR,
+  runs: InlineRun<PdfStyle>[],
+  evidence?: HyphenEvidence,
+): void {
   // Spaces at the edges of a formula belong to the text around it ("katsayısı ⟦F1⟧ = 0,81"):
   // a formula that carries them reads as glued to its neighbours, and cannot travel as text.
   const spaceBefore = (space: string, span: SpanIR) => {
@@ -119,7 +164,7 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[]): void {
       // Join hyphenated line ends: "ge-" + "lişme" → "gelişme"; a hyphen before a capital or a
       // digit belongs to the word ("Von-" + "Neumann", "COVID-" + "19").
       if (isLastSpan && nextLine && /\p{L}-$/u.test(text))
-        text = joinHyphen(text, nextLine.spans[0]?.text ?? '');
+        text = joinHyphen(text, nextLine.spans[0]?.text ?? '', evidence);
       else if (isLastSpan && li < block.lines.length - 1 && !text.endsWith(' ')) text += ' ';
       const before = runs[runs.length - 1];
       if (
@@ -182,6 +227,7 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[]): void {
 export function buildPdfUnits(pages: PageIR[]): PdfUnit[] {
   const byId = new Map(pages.flatMap((p) => p.blocks).map((b) => [b.id, b]));
   const units: PdfUnit[] = [];
+  const evidence = hyphenEvidence(pages);
   for (const page of pages) {
     for (const block of [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder)) {
       if (!block.translatable || (block.chain && block.chain.index > 0)) continue;
@@ -195,12 +241,12 @@ export function buildPdfUnits(pages: PageIR[]): PdfUnit[] {
       }
       const runs: InlineRun<PdfStyle>[] = [];
       blocks.forEach((b, i) => {
-        blockRuns(b, runs);
+        blockRuns(b, runs, evidence);
         const last = runs[runs.length - 1];
         const next = blocks[i + 1]?.lines[0]?.spans[0];
         if (next && last?.type === 'text' && !last.text.endsWith(' ')) {
           // A chain continues in the next box: hyphenated words are joined, otherwise a space.
-          if (/\p{L}-$/u.test(last.text)) last.text = joinHyphen(last.text, next.text);
+          if (/\p{L}-$/u.test(last.text)) last.text = joinHyphen(last.text, next.text, evidence);
           else last.text += ' ';
         } else if (next && last && last.type !== 'text') {
           // After a formula or a mark at the end of the box ("… vn" | "= rkeinθ …").

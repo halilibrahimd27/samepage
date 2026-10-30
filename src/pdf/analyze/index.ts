@@ -4,6 +4,7 @@ import type { BlockIR, PageIR } from '../../core/ir/types';
 import { openPdfForExtraction } from '../engine';
 import { needsOcr, OCR_SCALE, ocrPage, type OcrPageInfo } from '../ocr/page';
 import type { OcrEngine } from '../ocr/tesseract';
+import { hyphenEvidence, joinHyphen } from '../typeset/segments';
 import { analyzeDocument, blockText } from './analyze';
 
 export { analyzeDocument, blockText } from './analyze';
@@ -69,6 +70,7 @@ function mainSize(block: BlockIR): number {
 export function pdfParagraphs(pages: PageIR[]): DocParagraph[] {
   const out: DocParagraph[] = [];
   const byChain = new Map<string, DocParagraph>();
+  const evidence = hyphenEvidence(pages);
   for (const page of pages) {
     for (const block of [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder)) {
       const text = blockText(block);
@@ -77,7 +79,7 @@ export function pdfParagraphs(pages: PageIR[]): DocParagraph[] {
       if (open) {
         open.text =
           /[\p{L}]-$/u.test(open.text) && /^\p{Ll}/u.test(text)
-            ? open.text.slice(0, -1) + text
+            ? joinHyphen(open.text, text, evidence) + text
             : `${open.text} ${text}`;
         open.lines!.push(...lines);
         continue;

@@ -3,7 +3,13 @@ import type { BlockIR, PageIR, Rect, Role, SpanIR } from '../core/ir/types';
 import { DISPLAY_FORMULA, type DecodedRun } from '../core/segment/codec';
 import { equationLike, FRONT_END, mathFragments, mathLike } from './analyze/analyze';
 import type { Align, EditableItem, EditableRun, ParagraphKind, TableCell } from '../docx/editable';
-import { joinHyphen, type PdfStyle, type PdfUnit } from './typeset/segments';
+import {
+  hyphenEvidence,
+  joinHyphen,
+  type HyphenEvidence,
+  type PdfStyle,
+  type PdfUnit,
+} from './typeset/segments';
 
 /**
  * Editable Word output of a translated PDF (P9.4), as a reading-order flow: paragraphs with
@@ -94,13 +100,13 @@ function unitPieces(runs: DecodedRun<PdfStyle>[]): EditableRun[][] {
 }
 
 /** Source text of a block outside the units (kept as it is), with its formatting. */
-function blockRuns(b: BlockIR, code: boolean): EditableRun[] {
+function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): EditableRun[] {
   const runs: EditableRun[] = [];
   b.lines.forEach((line, i) => {
     const last = runs[runs.length - 1];
     // Hyphenation at the line end is dropped ("Jo-" + "nes"), a word's own hyphen kept.
     if (i && !code && last && /\p{L}-$/u.test(last.text))
-      last.text = joinHyphen(last.text, line.spans[0]?.text ?? '');
+      last.text = joinHyphen(last.text, line.spans[0]?.text ?? '', evidence);
     else if (i && !code) runs.push({ text: ' ' });
     line.spans.forEach((s: SpanIR, k) => {
       const raised = s.baseline !== undefined && s.baseline < line.baseline - s.size * 0.25;
@@ -431,6 +437,7 @@ export function planEditable(
   const pictures: EditablePlan['pictures'] = [];
   let furniture = 0;
   const shown = pages.filter((p) => include(p.index));
+  const evidence = hyphenEvidence(pages);
   const heading = headingLevels(shown);
   const unitBlocks = new Set(units.flatMap((u) => u.unit.blocks.map((b) => b.id)));
   const pagePictureMap = new Map(shown.map((p) => [p.index, pagePictures(p, unitBlocks)]));
@@ -516,7 +523,7 @@ export function planEditable(
       const slot = slots.get(b.id);
       if (slot) return slot.pieces.filter((r) => r.length);
       if (unitBlocks.has(b.id)) return [];
-      const runs = blockRuns(b, b.role === 'code');
+      const runs = blockRuns(b, b.role === 'code', evidence);
       return runs.length ? [runs] : [];
     };
     const tables = new Set<string>();
@@ -546,10 +553,10 @@ export function planEditable(
         const chained =
           !k && b.chain && b.chain.index > 0 ? kept.get(b.chain.paragraphId) : undefined;
         if (chained && !unitBlocks.has(b.id)) {
-          const runs = blockRuns(part, false);
+          const runs = blockRuns(part, false, evidence);
           const last = chained.runs[chained.runs.length - 1];
           if (last && /\p{L}-$/u.test(last.text))
-            last.text = joinHyphen(last.text, runs[0]?.text ?? '');
+            last.text = joinHyphen(last.text, runs[0]?.text ?? '', evidence);
           else chained.runs.push({ text: ' ' });
           chained.runs.push(...runs);
           continue;
