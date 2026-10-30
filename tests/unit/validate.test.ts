@@ -109,6 +109,15 @@ describe('validateTranslation', () => {
     expect(
       codes(source, 'The difference is significant (p < 0,01). Machine systems are faster.'),
     ).not.toContain('PUNCTUATION_CHANGED');
+    // A plural in brackets becomes a plain plural.
+    expect(
+      validateTranslation({
+        source: 'Usage of installation hook(s)',
+        target: 'Kurulum kancalarının kullanımı',
+        sourceLang: 'en',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('PUNCTUATION_CHANGED');
   });
 
   it('accepts sentences that start with "below" and formulas in math letters', () => {

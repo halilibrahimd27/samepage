@@ -199,13 +199,13 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
   // Brackets dropped or left open, sentences run together ("anlamlıdır (p < 0,01)" →
   // "significant.p < 0,01Machine"): the engine broke the sentence there.
   const count = (t: string, c: string) => t.split(c).length - 1;
+  // A plural in brackets on its word ("package(s)", "Lehrer(innen)") becomes a plain plural.
+  const suffixes = (t: string) => t.replace(/(?<=\p{L})\(\p{Ll}{1,6}\)/gu, '');
   const bracketsLost = ['()', '[]'].some(([open, close]) => {
-    const srcOpen = count(srcPlain, open!);
-    const tgtOpen = count(tgtPlain, open!);
-    return (
-      tgtOpen < srcOpen ||
-      (srcOpen === count(srcPlain, close!) && tgtOpen !== count(tgtPlain, close!))
-    );
+    const [src, tgt] = [suffixes(srcPlain), suffixes(tgtPlain)];
+    const srcOpen = count(src, open!);
+    const tgtOpen = count(tgt, open!);
+    return tgtOpen < srcOpen || (srcOpen === count(src, close!) && tgtOpen !== count(tgt, close!));
   });
   const glued = GLUED.filter((re) => re.test(tgtPlain) && !re.test(srcPlain));
   if (bracketsLost || glued.length) {
