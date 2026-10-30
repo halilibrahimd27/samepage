@@ -193,6 +193,18 @@ describe('editable Word output of a PDF (P9.4)', () => {
       'Jones, L. (2020).',
     ]);
   });
+
+  it('draws a chart’s ticks and legend with the chart, not as pictures of their own', () => {
+    const tick = (id: string, y: number, t: string) =>
+      block(id, 'label', y, [[span(t, 70)]], { x0: 70, x1: 90 });
+    const result = plan([
+      page(0, [tick('p0-b0', 150, '0.75'), tick('p0-b1', 200, '0.5'), tick('p0-b2', 250, 'GMF')], {
+        figures: [{ bbox: { x0: 60, y0: 140, x1: 280, y1: 320 }, formula: false }],
+      }),
+    ]);
+    expect(result.pictures).toHaveLength(1);
+    expect(result.items.map(text)).toEqual(['[picture]']);
+  });
 });
 
 describe('editable Word output: front matter and references', () => {
