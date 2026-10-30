@@ -628,14 +628,22 @@ function mergeSplitParagraphs(
   return out.map((b, i) => ({ ...b, id: b.id.replace(/-b\d+$/, `-b${i}`) }));
 }
 
-/** Plain text of a block; hyphenated line ends are joined ("ge-" + "lişme" → "gelişme"). */
-export function blockText(block: BlockIR): string {
+/**
+ * Plain text of a block; hyphenated line ends are joined ("ge-" + "lişme" → "gelişme"), or as
+ * `hyphen` decides (the document's own spelling: "self-" + "attention").
+ */
+export function blockText(
+  block: BlockIR,
+  hyphen: (text: string, next: string) => string = (text) => text.slice(0, -1),
+): string {
   let out = '';
   block.lines.forEach((line, i) => {
     const text = line.spans.map((s) => s.text).join('');
     if (i > 0) {
-      // Hyphenation is dropped ("ge-" + "lişme"); a word's own hyphen stays ("Von-Neumann").
-      if (/[\p{L}]-$/u.test(out) && /^\p{Ll}/u.test(text)) out = out.slice(0, -1);
+      // Hyphenation is dropped ("ge-" + "lişme", a soft hyphen "Defini\u00AD" + "tion"); a
+      // word's own hyphen stays ("Von-Neumann").
+      if (/\u00AD$/u.test(out)) out = out.slice(0, -1);
+      else if (/[\p{L}]-$/u.test(out) && /^\p{Ll}/u.test(text)) out = hyphen(out, text);
       else if (!out.endsWith(' ') && !(/[\p{L}]-$/u.test(out) && /^[\p{Lu}\d]/u.test(text)))
         out += ' ';
     }

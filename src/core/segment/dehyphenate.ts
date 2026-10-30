@@ -24,22 +24,33 @@ export interface Dehyphenator {
 }
 
 export function createDehyphenator(documentTexts: string[]): Dehyphenator {
-  const words = new Set<string>();
+  const words = new Map<string, number>();
+  const hyphenated = new Map<string, number>();
+  const add = (map: Map<string, number>, w: string) => map.set(w, (map.get(w) ?? 0) + 1);
   for (const tagged of documentTexts) {
     for (const text of textOf(tagged)) {
-      const plain = text.replace(SOFT_HYPHEN, '').replace(HYPHENATED, ' ');
-      for (const w of plain.matchAll(WORD)) words.add(w[0].toLowerCase());
+      const plain = text
+        .replace(SOFT_HYPHEN, '')
+        .replace(HYPHENATED, (_w, a: string, b: string) => {
+          add(hyphenated, (a + b).toLowerCase());
+          return ' ';
+        });
+      for (const w of plain.matchAll(WORD)) add(words, w[0].toLowerCase());
     }
   }
+  // Joined when the document writes the word whole at least as often ("sub-layer" six times and
+  // "sublayer(x)" once stays "sub-layer").
+  const whole = (a: string, b: string) => {
+    const key = (a + b).toLowerCase();
+    return (words.get(key) ?? 0) >= Math.max(1, hyphenated.get(key) ?? 0);
+  };
   return (tagged) =>
     tokenize(tagged)
       .map((t) => {
         if (t.type === 'text') {
           return t.text
             .replace(SOFT_HYPHEN, '')
-            .replace(HYPHENATED, (whole, a: string, b: string) =>
-              words.has((a + b).toLowerCase()) ? a + b : whole,
-            );
+            .replace(HYPHENATED, (hyphen, a: string, b: string) => (whole(a, b) ? a + b : hyphen));
         }
         if (t.type === 'ph') return `⟦${t.id}⟧`;
         return t.type === 'open' ? `<${t.id}>` : `</${t.id}>`;

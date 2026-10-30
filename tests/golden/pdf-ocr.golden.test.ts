@@ -32,7 +32,7 @@ describe('scanned PDF (OCR)', () => {
     expect((await extractAndAnalyze(scanned(), 5)).flatMap((p) => p.blocks)).toEqual([]);
     const [page] = await extractAndAnalyze(scanned(), 5, ocr);
     expect(page!.ocr!.confidence).toBeGreaterThan(85);
-    const text = page!.blocks.map(blockText).join('\n');
+    const text = page!.blocks.map((b) => blockText(b)).join('\n');
     expect(text).toContain('Türkçe Akademik Metinlerde Anlam Kayması');
     expect(text).toContain('Bu çalışmada makine çevirisinde anlam kaymasının');
   }, 120_000);

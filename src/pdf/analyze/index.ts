@@ -73,7 +73,7 @@ export function pdfParagraphs(pages: PageIR[]): DocParagraph[] {
   const evidence = hyphenEvidence(pages);
   for (const page of pages) {
     for (const block of [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder)) {
-      const text = blockText(block);
+      const text = blockText(block, (t, next) => joinHyphen(t, next, evidence));
       const lines = block.lines.map((l) => l.spans.map((s) => s.text).join(''));
       const open = block.chain && block.chain.index > 0 && byChain.get(block.chain.paragraphId);
       if (open) {

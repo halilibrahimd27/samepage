@@ -172,7 +172,11 @@ describe('hyphenation at line ends', () => {
           bbox: { x0: 0, y0: 0, x1: 1, y1: 1 },
           role: 'body',
           translatable: true,
-          lines: [line1('the Self-Attention layer and pretraining of the model'), line1('self-')],
+          lines: [
+            line1('the Self-Attention layer and pretraining of the model'),
+            line1('a hyper-parameter'),
+            line1('self-'),
+          ],
           align: 'left',
           direction: [1, 0],
           columnIndex: 0,
@@ -184,6 +188,11 @@ describe('hyphenation at line ends', () => {
 
   it('keeps the hyphen of a compound the document writes with one', () => {
     expect(joinHyphen('the self-', 'attention layer', evidence)).toBe('the self-');
+  });
+
+  it('reads another form of the word as evidence too', () => {
+    expect(joinHyphen('two hyper-', 'parameters', evidence)).toBe('two hyper-');
+    expect(joinHyphen('the pre-', 'trained model', evidence)).toBe('the pre');
   });
 
   it('drops it for a word written whole, and by default', () => {

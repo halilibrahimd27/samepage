@@ -77,6 +77,21 @@ export function hyphenEvidence(pages: PageIR[]): HyphenEvidence {
 }
 
 /**
+ * How often the document writes a word, or another form of it ("hyper-parameter" for
+ * "hyper-parameters", "pre-trained" for "pre-training"): the same start, at most three letters
+ * different at the end.
+ */
+function spelled(words: Map<string, number>, word: string, min: number): number {
+  const exact = words.get(word);
+  if (exact) return exact;
+  const stem = word.slice(0, Math.max(min, word.length - 3));
+  let n = 0;
+  for (const [w, count] of words)
+    if (w.startsWith(stem) && Math.abs(w.length - word.length) <= 3) n += count;
+  return n;
+}
+
+/**
  * A line ending in a hyphen, joined with the next line's start: hyphenation is dropped before a
  * lower-case letter ("ge-" + "lişme"); a word's own hyphen stays, without a space ("Von-Neumann",
  * "COVID-19"). Before a lower-case letter the document decides when it knows the word: "self-" +
@@ -87,8 +102,8 @@ export function joinHyphen(text: string, next: string, evidence?: HyphenEvidence
     const left = /(\p{L}+)-$/u.exec(text)?.[1]?.toLowerCase();
     const right = /^\p{L}+/u.exec(next)?.[0].toLowerCase();
     if (evidence && left && right) {
-      const kept = evidence.hyphenated.get(`${left}-${right}`) ?? 0;
-      const joined = evidence.plain.get(left + right) ?? 0;
+      const kept = spelled(evidence.hyphenated, `${left}-${right}`, left.length + 5);
+      const joined = spelled(evidence.plain, left + right, left.length + 4);
       if (kept > 0 && kept >= joined) return text;
     }
     return text.slice(0, -1);

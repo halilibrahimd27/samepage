@@ -444,6 +444,8 @@ describe('helpers', () => {
     expect(isNameList('V. I. Munerman, D. V. Munerman')).toBe(true);
     expect(isNameList('Precision, Recall and F1-score')).toBe(false);
     expect(isNameList('Results and Discussion')).toBe(false);
+    expect(isNameList('Örnek Üniversitesi, Bilgisayar Mühendisliği Bölümü')).toBe(false);
+    expect(isNameList('Stanford University, Computer Science Department')).toBe(false);
     // Title-case keyword lists look alike: the pipeline also requires affiliation marks.
     expect(isNameList('Machine Learning, Deep Learning and Data Mining')).toBe(true);
     expect(academicHeading('Overall', 'en', 'tr')).toBe('Genel');
@@ -481,6 +483,12 @@ describe('helpers', () => {
     expect(fix('A state-of-the-art machine-learning model; Mal-OSS; ma-licious.')).toBe(
       'A state-of-the-art machine-learning model; Mal-OSS; malicious.',
     );
+    // A compound the document mostly writes with its hyphen keeps it.
+    const compound = createDehyphenator([
+      'Each sub-layer is normalised; the sub-layer output and a sub-layer residual.',
+      'Dropout(sublayer(x))',
+    ]);
+    expect(compound('the sub-layer output')).toBe('the sub-layer output');
     // Soft hyphens kept with a line break always join.
     expect(
       fix('Celem jest analiza jego po\u00ad tencjalnego wpływu i be\u00adwährten Standards.'),
