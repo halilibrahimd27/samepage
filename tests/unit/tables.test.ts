@@ -405,6 +405,6 @@ describe('page 1 front matter', () => {
           .join(' ')
           .slice(0, 8),
       );
-    expect(order).toEqual(['Measurin', 'Ada Love', '1Univers', 'Abstract', '1 Introd']);
+    expect(order).toEqual(['Measurin', 'Ada Love', '1Univers', '2Univers', 'Abstract', '1 Introd']);
   });
 });

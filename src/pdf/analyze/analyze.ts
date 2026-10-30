@@ -172,15 +172,21 @@ function inMargin(b: BlockIR, blocks: BlockIR[], figures: Rect[]): boolean {
 function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
   const cells = blocks.filter((b) => coverage(b.bbox, table.rect) > 0.6);
   if (!cells.length) return;
-  const rowYs = cluster(
-    cells.map((b) => (b.bbox.y0 + b.bbox.y1) / 2),
-    3,
-  );
+  // A cell of two lines belongs to the row of its first line ("Mean, std. deviation … of
+  // strings in" | "all source code files" beside "Continuous"), unless the row's other cells are
+  // centred on it.
+  const mid = (r: Rect) => (r.y0 + r.y1) / 2;
+  const singles = cells.filter((b) => b.lines.length < 2).map((b) => mid(b.bbox));
+  const centreOf = (b: BlockIR) =>
+    b.lines.length < 2 || singles.some((y) => Math.abs(y - mid(b.bbox)) < 3)
+      ? mid(b.bbox)
+      : mid(b.lines[0]!.bbox);
+  const rowYs = cluster(cells.map(centreOf), 3);
   // Columns = merged horizontal extents of the cells (works for left-, right- and centre-aligned
   // columns); vertical rules, when present, refine the boundaries. Only the rows with the most
   // cells count: a header spanning a column group ("Mono-language" over "Pr. Rec. F1 Acc.")
   // would merge its columns into one.
-  const rowOf = (b: BlockIR) => nearestIndex(rowYs, (b.bbox.y0 + b.bbox.y1) / 2);
+  const rowOf = (b: BlockIR) => nearestIndex(rowYs, centreOf(b));
   const perRow = rowYs.map((_, r) => cells.filter((b) => rowOf(b) === r).length);
   const most = Math.max(...perRow);
   const columnCells = cells.filter((b) => perRow[rowOf(b)]! >= Math.max(2, 0.8 * most));
@@ -1196,7 +1202,10 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
     entries.ids,
     footLinks,
   );
-  if (result[0]) orderAuthors(result[0]);
+  if (result[0]) {
+    orderAuthors(result[0]);
+    splitCentredLines(result[0]);
+  }
   return result;
 }
 
@@ -1237,6 +1246,25 @@ function orderAuthors(page: PageIR): void {
     if (!name) return; // Not a grid of names: leave the order as it is.
     members.get(name)!.push(b);
   }
+  // An affiliation is set line by line ("SAP Security Research" over "Mougins, France"): each
+  // line a block of its own, translated and laid out in its place.
+  let next = page.blocks.length;
+  for (const [name, blocks] of members)
+    members.set(
+      name,
+      blocks.flatMap((b) => {
+        if (b === name || b.lines.length < 2 || b.role !== 'body') return [b];
+        const lines = b.lines.map((line): BlockIR => ({
+          ...b,
+          id: `p${page.index}-b${next++}`,
+          bbox: { ...line.bbox },
+          lines: [line],
+        }));
+        page.blocks.splice(page.blocks.indexOf(b), 1, ...lines);
+        front.splice(front.indexOf(b), 1, ...lines);
+        return lines;
+      }),
+    );
   const row = (b: BlockIR) => Math.round(b.bbox.y0 / 6);
   const top = Math.min(...names.map((n) => n.bbox.y0));
   const wide = front.filter((b) => !narrow.includes(b)).sort((a, b) => a.bbox.y0 - b.bbox.y0);
@@ -1252,6 +1280,40 @@ function orderAuthors(page: PageIR): void {
   const at = page_.findIndex((b) => front.includes(b));
   const rest = page_.filter((b) => !front.includes(b));
   [...rest.slice(0, at), ...ordered, ...rest.slice(at)].forEach((b, i) => (b.readingOrder = i));
+}
+
+/**
+ * Centred lines above the abstract, each centred on its own ("†School of Computer Science …,
+ * Singapore" over "*School of Cyber Science …, China"): one affiliation per line, each a block,
+ * translated and laid out in its place. The title (a heading) stays one block.
+ */
+function splitCentredLines(page: PageIR): void {
+  const end = Math.min(
+    ...page.blocks
+      .filter((b) => b.role === 'heading' && FRONT_END.test(blockText(b).trim()))
+      .map((b) => b.bbox.y0),
+  );
+  const middle = (r: Rect) => (r.x0 + r.x1) / 2;
+  let next = page.blocks.length;
+  const order = [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder);
+  const out = order.flatMap((b) => {
+    const split =
+      b.role === 'body' &&
+      b.bbox.y1 <= end &&
+      b.lines.length >= 2 &&
+      b.lines.every((l) => Math.abs(middle(l.bbox) - middle(b.bbox)) < 3) &&
+      b.lines.some((l) => l.bbox.x1 - l.bbox.x0 < 0.9 * (b.bbox.x1 - b.bbox.x0));
+    if (!split) return [b];
+    return b.lines.map((line): BlockIR => ({
+      ...b,
+      id: `p${page.index}-b${next++}`,
+      bbox: { ...line.bbox },
+      lines: [line],
+    }));
+  });
+  if (out.length === order.length) return;
+  out.forEach((b, i) => (b.readingOrder = i));
+  page.blocks = out;
 }
 
 export { blockText };
