@@ -24,6 +24,17 @@ function inlineIdentifiers(req: SegmentRequest): { text: string; inlined: InnerT
 const untagged = (t: string) => t.replace(/<\/?t\d+>/g, '');
 
 /**
+ * A heading's section number stays in front: Google moved it into the sentence ("7 THREATS TO
+ * VALIDITY" → "GEÇERLİLİĞE YÖNELİK 7 TEHDİT"). The number is set aside and put back.
+ */
+function pinSectionNumber(req: SegmentRequest): { req: SegmentRequest; number: string } {
+  const m = req.role === 'heading' ? /^\s*\d{1,2}(?:\.\d{1,2})*\.?\s+(?=\S)/u.exec(req.text) : null;
+  return m
+    ? { req: { ...req, text: req.text.slice(m[0].length) }, number: m[0] }
+    : { req, number: '' };
+}
+
+/**
  * Google drops the spaces around placeholders it must not translate ("Yaklaşım⟦U1⟧Paketler").
  * A space is put back on each side where the source had one and the translation glued the
  * placeholder to a word; Turkish suffixes after an apostrophe ("⟦U1⟧'de") and punctuation stay.
@@ -116,13 +127,15 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets).
-    model: 'browser-page-9',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers).
+    model: 'browser-page-10',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
-    async translate(batch, ctx, signal): Promise<SegmentResult[]> {
+    async translate(whole, ctx, signal): Promise<SegmentResult[]> {
+      const pinned = whole.map(pinSectionNumber);
+      const batch = pinned.map((p) => p.req);
       const prepared = batch.map(inlineIdentifiers);
       const first = await bridge.translate(
         ctx.pair,
@@ -149,7 +162,10 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       // ("F1 skoru%94,2'lik").
       const fix = (t: string) =>
         ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t;
-      return batch.map((s, i) => ({ id: s.id, text: dropAddedFullStop(s.text, fix(out[i]!)) }));
+      return batch.map((s, i) => ({
+        id: s.id,
+        text: pinned[i]!.number + dropAddedFullStop(s.text, fix(out[i]!)),
+      }));
     },
   };
 }

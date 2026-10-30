@@ -68,3 +68,27 @@ Ayrıntılar Tablo~\ref{tab:a}'de ve 17 örnekte verilmiştir \cite{x,y}. Ayrıc
     expect(verbatim).toEqual(['8', '[1]', '9']);
   });
 });
+
+describe('headings with machine engines', () => {
+  it('keeps the section number in front and reads small capitals whole', async () => {
+    const { academicHeading } = await import('../../src/core/glossary/academic');
+    expect(academicHeading('8 R<t1>ELATED</t1> W<t2>ORK</t2>', 'en', 'tr', false, true)).toBe(
+      '8 İLGİLİ ÇALIŞMALAR',
+    );
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(texts.map(() => 'GEÇERLİLİĞE YÖNELİK TEHDİTLER'));
+      },
+    });
+    const [out] = await engine.translate(
+      [{ id: 's1', text: '7 THREATS TO VALIDITY', role: 'heading' }],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(sent).toEqual(['THREATS TO VALIDITY']);
+    expect(out!.text).toBe('7 GEÇERLİLİĞE YÖNELİK TEHDİTLER');
+  });
+});

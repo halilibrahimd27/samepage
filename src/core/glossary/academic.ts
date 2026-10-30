@@ -394,15 +394,22 @@ export function academicHeading(
 ): string | null {
   const tokens = tokenize(tagged);
   const texts = tokens.filter((t) => t.type === 'text' && t.text.trim());
-  if (texts.length !== 1) return null;
+  // Small capitals set a heading in several runs ("8 R<t1>ELATED</t1> W<t2>ORK</t2>"): the
+  // heading is read whole and comes back as one run.
+  const runs = texts.length > 1 && heading && !tokens.some((t) => t.type === 'ph');
+  if (texts.length !== 1 && !runs) return null;
+  const whole = runs
+    ? tokens.map((t) => (t.type === 'text' ? t.text : '')).join('')
+    : (texts[0] as { text: string }).text;
   const number = heading ? String.raw`(?:\d{1,2}(?:\.\d{1,2})*\.?\s+)?` : '';
   const m = new RegExp(
     String.raw`^(\s*${number})([\p{L}№][\p{L}\d /-]*?)(\s*(?:\([^()\p{L}]{1,6}\))?\s*[:.]?\s*)$`,
     'u',
-  ).exec((texts[0] as { text: string }).text);
+  ).exec(whole);
   if (!m) return null;
   const term = academicTerm(m[2]!, source, target, metrics, heading);
   if (!term) return null;
+  if (runs) return m[1]! + term + m[3]!;
   return tokens
     .map((t) => {
       if (t === texts[0]) return m[1]! + term + m[3]!;
