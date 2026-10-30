@@ -125,6 +125,22 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
   });
 
+  it('finds an asterisk in the text’s own size, and a note number set apart', () => {
+    const body = block('p0-b0', 'body', 100, [
+      [span('Zatrzymano całe życie”*. W Szwecji', 50), { sup: '31', x: 240 }],
+    ]);
+    const star = block('p0-b1', 'footnote', 760, [[span('* O. Olberg, 1905.', 50, 8)]]);
+    const numbered = block('p0-b2', 'footnote', 780, [
+      [span('31 ', 50, 8), span('Rocher de bronze.', 65, 8)],
+    ]);
+    const result = plan([page(0, [body, star, numbered])]);
+    expect(result.items.map(text)).toEqual(['Zatrzymano całe życie”. W Szwecji']);
+    expect(result.footnotes.map((n) => n.map((r) => r.text).join(''))).toEqual([
+      'O. Olberg, 1905.',
+      'Rocher de bronze.',
+    ]);
+  });
+
   it('keeps a footnote without a matching mark where it is', () => {
     const body = block('p0-b0', 'body', 100, [[span('Veriler derlemden alınmıştır.', 50)]]);
     const note = block('p0-b1', 'footnote', 780, [[span('Bu belge kurgusaldır.', 50, 8)]]);

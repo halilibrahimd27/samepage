@@ -390,8 +390,34 @@ function entryParts(b: BlockIR): BlockIR[] {
 const MARK = /^(?:\d{1,3}|[a-z]|[*†‡§¶]{1,2})$/u;
 
 /**
+ * A symbol mark set in the text's own size, glued to the word or quote it follows ("gospodarcze”*
+ * W Szwecji"): split out of its run as the footnote reference.
+ */
+function inlineMark(
+  item: EditableItem & { kind: 'paragraph' },
+  mark: string,
+): EditableRun | undefined {
+  if (!/^[*†‡§¶]{1,2}$/u.test(mark)) return undefined;
+  const at = new RegExp(`(?<=\\S)${mark.replace(/\*/g, '\\*')}(?![*†‡§¶])`, 'gu');
+  for (let k = item.runs.length - 1; k >= 0; k--) {
+    const run = item.runs[k]!;
+    if (run.superscript || run.footnote !== undefined || run.link) continue;
+    const found = [...run.text.matchAll(at)].pop();
+    if (found?.index === undefined) continue;
+    const target = { ...run, text: mark };
+    item.runs.splice(k, 1, { ...run, text: run.text.slice(0, found.index) }, target, {
+      ...run,
+      text: run.text.slice(found.index + mark.length),
+    });
+    return target;
+  }
+  return undefined;
+}
+
+/**
  * Footnotes become Word footnotes when their mark is found as a superscript earlier on the same
- * or the previous page (the nearest one); the others stay where they are, as Footnote Text.
+ * or the previous page (the nearest one), or a symbol mark glued to a word; the others stay
+ * where they are, as Footnote Text.
  */
 function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun[][] {
   const footnotes: EditableRun[][] = [];
@@ -406,7 +432,8 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
       mark = first.text.trim();
       rest = note.runs.slice(1);
     } else {
-      const m = /^(\d{1,3}|[*†‡§¶])\s*(?=\S)/u.exec(first.text);
+      // The mark may be a run of its own ("31 ", then "Rocher de bronze").
+      const m = /^(\d{1,3}|[*†‡§¶]{1,2})(?:\s+|(?=\S)|$)/u.exec(first.text);
       if (m) {
         mark = m[1]!;
         rest = [{ ...first, text: first.text.slice(m[0].length) }, ...note.runs.slice(1)];
@@ -419,9 +446,11 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
     for (let j = i - 1; j >= from && !target; j--) {
       const item = items[j]!;
       if (item.kind !== 'paragraph' || item.style === 'footnote' || removed.has(j)) continue;
-      target = [...item.runs]
-        .reverse()
-        .find((r) => r.superscript && r.footnote === undefined && r.text.trim() === mark);
+      target =
+        [...item.runs]
+          .reverse()
+          .find((r) => r.superscript && r.footnote === undefined && r.text.trim() === mark) ??
+        inlineMark(item, mark);
     }
     if (!target) continue;
     target.text = '';
