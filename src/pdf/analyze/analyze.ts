@@ -757,8 +757,13 @@ function splitReferenceEntries(
         const prev = g[k - 1];
         if (!prev) return;
         const after = finished(lineText(prev.line).trim());
-        if (o) (seen.out++, after && seen.outAfter++);
-        else (seen.ind++, after && seen.indAfter++);
+        if (o) {
+          seen.out++;
+          if (after) seen.outAfter++;
+        } else {
+          seen.ind++;
+          if (after) seen.indAfter++;
+        }
       });
     }
     if (seen.out >= 3 && seen.ind >= 3) {
