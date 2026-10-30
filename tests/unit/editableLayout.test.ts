@@ -101,6 +101,18 @@ describe('editable Word output keeps the layout of the PDF', () => {
     expect(text.some((p) => p.wide)).toBe(false);
   });
 
+  it('reads a footnote mark raised only 1.6 pt in 9 pt text as a mark', () => {
+    const b = block('p0-b0', 'body', 100, [words]);
+    const line = b.lines[0]!;
+    line.spans.push({
+      ...span(' 1', 296, 7.3),
+      bbox: { x0: 296, y0: 100, x1: 304, y1: 109 },
+      baseline: line.baseline - 1.6,
+    });
+    const [unit] = buildPdfUnits([page(0, [b])]);
+    expect(unit!.encoded.source).toMatch(/⟦N1⟧$/u);
+  });
+
   it('gives numbered headings their level from the number', () => {
     const result = plan([
       page(0, [

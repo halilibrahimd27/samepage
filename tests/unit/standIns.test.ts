@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { verbatimOf } from '../../src/core/segment/codec';
 import type { PlaceholderDef } from '../../src/core/segment/types';
-import { createBrowserPageEngine } from '../../src/engines/browserPage';
+import { confineTags, createBrowserPageEngine, unglue } from '../../src/engines/browserPage';
 import { createPseudoEngine } from '../../src/engines/pseudo';
 import type { SegmentRequest, TranslationEngine } from '../../src/engines/types';
 import { translateLatex } from '../../src/latex/pipeline';
@@ -90,5 +90,61 @@ describe('headings with machine engines', () => {
     );
     expect(sent).toEqual(['THREATS TO VALIDITY']);
     expect(out!.text).toBe('7 GEÇERLİLİĞE YÖNELİK TEHDİTLER');
+  });
+
+  it('keeps a research question label in its run-in heading', async () => {
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve([
+          '<t1>Yaklaşımımız ne kadar doğru?</t1> Altı sınıflandırıcı geliştirdik.',
+        ]);
+      },
+    });
+    const [out] = await engine.translate(
+      [
+        {
+          id: 's1',
+          text: '<t1>RQ1: How accurate is our approach?</t1> We developed six classifiers.',
+          role: 'body',
+        },
+      ],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(sent).toEqual(['<t1>How accurate is our approach?</t1> We developed six classifiers.']);
+    expect(out!.text).toBe(
+      '<t1>RQ1: Yaklaşımımız ne kadar doğru?</t1> Altı sınıflandırıcı geliştirdik.',
+    );
+  });
+
+  it('keeps a bold span to its words when Google stretches it to the next one', () => {
+    const source =
+      'we select 397 packages, named<t2> typical packages</t2>. For the malicious ones, a collection of <t3>143 malicious packages</t3>, distinct from ours.';
+    const target =
+      '397 paket seçiyoruz ve bunlara <t2>tipik paketler diyoruz. Kötü amaçlı paketler için, farklı </t2><t3>143 kötü amaçlı paketten</t3> oluşan bir koleksiyon.';
+    expect(confineTags(source, target)).toBe(
+      '397 paket seçiyoruz ve bunlara <t2>tipik paketler</t2> diyoruz. Kötü amaçlı paketler için, farklı <t3>143 kötü amaçlı paketten</t3> oluşan bir koleksiyon.',
+    );
+    // A span that holds sentences in the source too is left alone.
+    const quote = 'He wrote <t1>No. It failed.</t1> twice.';
+    expect(confineTags(quote, 'Şöyle yazdı: <t1>Hayır. Başarısız oldu.</t1> iki kez.')).toBe(
+      'Şöyle yazdı: <t1>Hayır. Başarısız oldu.</t1> iki kez.',
+    );
+  });
+
+  it('puts the space back around citations Google glued to a word', () => {
+    expect(
+      unglue(
+        'anomaly detection [32], dynamic analysis [20, 21], such as PyPI, struggle',
+        'anomali tespiti[32]dinamik analiz [20, 21]ve PyPIGünlük gelen',
+      ),
+    ).toBe('anomali tespiti [32] dinamik analiz [20, 21] ve PyPI Günlük gelen');
+    // Written so in the source: left as it is.
+    expect(unglue('see Eq.[3] and XMLHttpRequest', 'bkz. Denk.[3] ve XMLHttpRequest')).toBe(
+      'bkz. Denk.[3] ve XMLHttpRequest',
+    );
   });
 });
