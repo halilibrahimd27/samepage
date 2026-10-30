@@ -49,8 +49,25 @@ export function respacePlaceholders(source: string, target: string): string {
     const end = /^([.,;:!?])\s/u.exec(src.slice(i + ph.length));
     if (end)
       out = out.replace(new RegExp(`${escapeRe(ph)}${escapeRe(end[1]!)}(?=\\p{L})`, 'u'), `$& `);
+    // A bracket opened by a formula ("anlamlıdır (⟦F2⟧ 0,01).") that Google turned into a
+    // sentence end ("significant.⟦F2⟧ 0,01)."): the bracket comes back, the full stop after it.
+    const now = untagged(out);
+    const k = now.indexOf(ph);
+    const closes = /^[^()]*\)/u.test(now.slice(k + ph.length));
+    if (src[i - 1] === '(' && now[k - 1] !== '(' && closes)
+      out = out.replace(new RegExp(`\\s*\\.?\\s*${escapeRe(ph)}`, 'u'), ` (${ph}`);
   }
   return unglue(source, out);
+}
+
+/** A label or cell without a full stop gets none ("Anlam korunmuş" → "The meaning has been preserved."). */
+export function dropAddedFullStop(source: string, target: string): string {
+  const src = untagged(source)
+    .replace(/⟦[A-Z]\d+⟧/g, '')
+    .trim();
+  return /[.!?…:;]$/u.test(src) || !/[^.]\.$/u.test(target.trimEnd())
+    ? target
+    : target.trimEnd().slice(0, -1);
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -90,8 +107,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text).
-    model: 'browser-page-7',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops).
+    model: 'browser-page-8',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -123,7 +140,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       // ("F1 skoru%94,2'lik").
       const fix = (t: string) =>
         ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t;
-      return batch.map((s, i) => ({ id: s.id, text: fix(out[i]!) }));
+      return batch.map((s, i) => ({ id: s.id, text: dropAddedFullStop(s.text, fix(out[i]!)) }));
     },
   };
 }

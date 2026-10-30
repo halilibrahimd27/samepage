@@ -590,3 +590,21 @@ describe('glossary term protection', () => {
     expect(restoreTerms('lost term', p.targets)).toBeNull();
   });
 });
+
+describe('google output repairs', () => {
+  it('puts back a bracket opened by a formula and drops a full stop the source has not', async () => {
+    const { dropAddedFullStop, respacePlaceholders } =
+      await import('../../src/engines/browserPage');
+    expect(
+      respacePlaceholders(
+        'farkı anlamlıdır (⟦F2⟧ 0,01). Makine',
+        'difference is significant.⟦F2⟧ 0,01). Machine',
+      ),
+    ).toBe('difference is significant (⟦F2⟧ 0,01). Machine');
+    expect(dropAddedFullStop('Anlam korunmuş', 'The meaning has been preserved.')).toBe(
+      'The meaning has been preserved',
+    );
+    expect(dropAddedFullStop('Sonuç budur.', 'This is the result.')).toBe('This is the result.');
+    expect(dropAddedFullStop('vb', 'etc...')).toBe('etc...');
+  });
+});
