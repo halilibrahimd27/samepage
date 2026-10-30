@@ -37,11 +37,14 @@ the paper says.
   Source): the prose is translated and every command, formula, citation, reference and label is
   kept, the document language switched in babel/polyglossia. The project comes back as a `.zip`
   you can upload to Overleaf again.
-- **Editable Word file of a PDF.** Every translated PDF also downloads as a Word document in
-  Word's own styles — headings, paragraphs, tables and footnotes as text you can edit, figures
-  and display formulas as pictures — ready for a journal's template. Tables are found with full,
-  booktabs or single rules and also without any rule, from their caption; footnote marks become
-  Word footnotes and every reference entry its own paragraph.
+- **Editable Word file of a PDF.** Every translated PDF also downloads as a Word document laid
+  out like the PDF — its margins, one or two columns, type sizes, leading, indents and
+  justification, the title block and wide tables across both columns, an author grid as on the
+  page — in Word's own styles, so it also takes a journal's template. Headings, paragraphs,
+  tables and footnotes are text you can edit, figures and display formulas pictures. Tables are
+  found with full, booktabs or single rules and also without any rule, from their caption, and
+  keep their rules and column alignment; footnote marks become Word footnotes and every
+  reference entry its own paragraph.
 - **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. A meaning
   check translates the result back and flags lost negations, softened or hardened claims
   ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"). You can

@@ -152,7 +152,7 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
   });
 
-  it('builds a Word table from table cells, with column widths from the page', () => {
+  it('builds a Word table from table cells, each column wide enough for its text', () => {
     const cell = (id: string, row: number, col: number, t: string) => {
       const x0 = col ? 200 : 50;
       const b = block(id, 'table-cell', 300 + 20 * row, [[span(t, x0)]], { x0, x1: x0 + 100 });
@@ -174,7 +174,8 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
     const table = result.items[0] as Extract<EditableItem, { kind: 'table' }>;
     expect(table.kind).toBe('table');
-    expect(table.columns).toEqual([150, 100]);
+    // The table's width on the page; the second column's 100 pt of text and cell margins first.
+    expect(table.columns).toEqual([142, 108]);
     expect(
       table.rows.map((r) =>
         r.map((c) => c.paragraphs.map((p) => p.map((x) => x.text).join('')).join()),

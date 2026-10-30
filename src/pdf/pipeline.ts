@@ -959,6 +959,7 @@ export async function translatePdf(
         ...(title && !title.untranslated ? { title: plainText(title.text) } : {}),
         page: { width: pages[0]?.width ?? 595, height: pages[0]?.height ?? 842 },
         footnotes: plan.footnotes,
+        ...(plan.layout ? { layout: plan.layout } : {}),
       },
     );
   }

@@ -30,6 +30,13 @@ All notable changes to samepage are documented here. The format follows
   translated (no longer taken for a list of names), journal page borders no longer read as a
   figure, a note without a mark above the footnotes kept with them.
 - Structure benchmark on 19 open-access papers in 10 languages (`npm run bench`).
+- Word output of PDFs laid out like the PDF: margins, text columns (Word sections, the title
+  block, wide tables and figures across both), fonts, type sizes and leading measured from the
+  paper; first-line and list indents, justification and centring per paragraph; numbered
+  headings at the level of their number ("3.1" under "3"); tables with booktabs rules, numbers
+  set flush right and columns wide enough for their words; captions above their table when the
+  PDF sets them there; the author grid as a borderless table, affiliations line by line; text
+  inside a numbered formula drawn with it, not written out again.
 - LaTeX files saved with Windows line ends.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
