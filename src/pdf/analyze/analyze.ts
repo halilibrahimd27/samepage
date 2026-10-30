@@ -1,5 +1,9 @@
-import { coverage, expand, union } from '../../core/ir/geometry';
-import { CAPTION, REFERENCES_HEADING as REFERENCES } from '../../core/references';
+import { coverage, expand, union, unionAll } from '../../core/ir/geometry';
+import {
+  CAPTION,
+  REFERENCES_HEADING as REFERENCES,
+  SELF_CITATION_LABEL,
+} from '../../core/references';
 import type { BlockIR, PageIR, Rect, Role } from '../../core/ir/types';
 import type { RawPage } from '../extract/raw';
 import { blockText, buildBlocks } from './blocks';
@@ -272,7 +276,6 @@ function classify(
     // Books alternate running heads/feet between left and right pages: 30 % is enough.
     pages.length >= 2 && (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3);
 
-  let inReferences = false;
   for (const { raw, blocks, tables, figures } of pages) {
     for (const t of tables) assignTableCells(blocks, t);
     for (const b of blocks) {
@@ -338,9 +341,6 @@ function classify(
         role = 'heading';
       else if (size <= stats.bodySize * 0.92 && b.bbox.y0 > raw.height * 0.6) role = 'footnote';
 
-      if (role === 'heading') inReferences = REFERENCES.test(text.replace(/^\d+(\.\d+)*\s*/, ''));
-      // Reference entries low on the page look like footnotes (small type); they are references.
-      else if (inReferences && (role === 'body' || role === 'footnote')) role = 'reference';
       // Formulas set in a text font (Times italic variables, Symbol operators) come out as
       // scattered letters ("O m m", "j j j", "(W"): nothing to translate, and engines glue them.
       if (role !== 'caption' && (mathFragments(text) || equationBlock(b) || mathLike(text)))
@@ -583,12 +583,267 @@ function orderPage(blocks: BlockIR[], width: number): Rect[] {
     : [];
 }
 
+/** A numbered reference entry's first line ("[20] …", "20. …", "20) …"). */
+const ENTRY_START = /^(?:\[\s*\d{1,3}\s*\]\s*|\(?\d{1,3}[.)]\s+)(?=\S)/u;
+const entryNumber = (text: string): number | undefined => {
+  const m = ENTRY_START.exec(text);
+  return m ? Number(/\d+/.exec(m[0])![0]) : undefined;
+};
+const lineText = (l: BlockIR['lines'][number]) => l.spans.map((s) => s.text).join('');
+/** A heading inside a reference list that is not one (an entry set large, an alphabet letter). */
+const entryLike = (text: string) =>
+  text.length <= 2 ||
+  ENTRY_START.test(text) ||
+  (text.length > 40 && /\b(?:1[5-9]|20)\d\d\b/.test(text));
+
+/**
+ * Everything after a references heading (any language) up to the next heading is a reference
+ * entry, however small its type or low on the page; returns those blocks in reading order. A
+ * paper's citation of itself ("ACM Reference Format: …") is kept as published too.
+ */
+function markReferences(pages: PageIR[]): BlockIR[] {
+  const section: BlockIR[] = [];
+  let inRefs = false;
+  const keep = (b: BlockIR) => {
+    b.role = 'reference';
+    b.translatable = false;
+  };
+  for (const page of pages) {
+    const order = [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder);
+    for (const [i, b] of order.entries()) {
+      const text = blockText(b).trim();
+      if (b.role === 'heading') {
+        if (REFERENCES.test(text)) inRefs = true;
+        else if (inRefs && !entryLike(text)) inRefs = false;
+        if (!SELF_CITATION_LABEL.test(text) || inRefs) continue;
+      }
+      if (b.role !== 'body' && b.role !== 'footnote' && b.role !== 'heading') continue;
+      // A heading set as body text ("Literatura:" in the size of the text).
+      if (b.role === 'body' && b.lines.length === 1 && text.length < 70 && REFERENCES.test(text)) {
+        b.role = 'heading';
+        inRefs = true;
+        continue;
+      }
+      const label = SELF_CITATION_LABEL.exec(text);
+      if (label && !inRefs) {
+        const rest = text.slice(label[0].length).trim();
+        if (rest.length >= 20) {
+          keep(b);
+        } else {
+          // The label stays text; the blocks right below it are the citation.
+          const size = avgSize(b);
+          let prev = b;
+          for (const next of order.slice(i + 1)) {
+            if (!['body', 'footnote'].includes(next.role) || next.tableCell) break;
+            if (next.bbox.y0 - prev.bbox.y1 > 0.9 * Math.max(size, avgSize(next))) break;
+            if (SELF_CITATION_LABEL.test(blockText(next))) break;
+            keep(next);
+            prev = next;
+          }
+        }
+        continue;
+      }
+      if (inRefs && b.role !== 'heading') {
+        keep(b);
+        section.push(b);
+      }
+    }
+  }
+  return section;
+}
+
+/**
+ * A footnote is small text at the foot of a page that starts with its mark ("1 Instituto …",
+ * "* Artículo …") and goes on in the lines right below. Small text low on the page that is
+ * neither (a figure's labels, the items of a table, a licence line) is not one: it is a label
+ * next to a figure, else body text. Returns the continuation lines of each footnote, to chain.
+ */
+function refineFootnotes(pages: PageIR[]): Map<string, string> {
+  const continues = new Map<string, string>();
+  const MARKED = /^(?:\d{1,3}|[*†‡§¶]{1,3})(?:\s+|(?=\p{L}))\S/u;
+  for (const page of pages) {
+    const order = [...page.blocks]
+      .sort((a, b) => a.readingOrder - b.readingOrder)
+      .filter((b) => b.role === 'footnote');
+    let prev: BlockIR | undefined;
+    for (const b of order) {
+      const first = b.lines[0]?.spans[0];
+      const mark =
+        MARKED.test(blockText(b).trim()) ||
+        (!!first &&
+          first.size < 0.8 * Math.max(...b.lines[0]!.spans.map((s) => s.size)) &&
+          /^[\d*†‡§¶]{1,3}$/.test(first.text.trim()));
+      const size = avgSize(b);
+      const goesOn =
+        !mark &&
+        !!prev &&
+        b.bbox.y0 - prev.bbox.y1 < 0.9 * Math.max(size, avgSize(prev)) &&
+        b.bbox.y0 >= prev.bbox.y0 &&
+        Math.abs(b.bbox.x0 - prev.bbox.x0) < 3 * Math.max(size, 6) &&
+        b.columnIndex === prev.columnIndex;
+      if (mark) prev = b;
+      else if (goesOn) {
+        continues.set(b.id, prev!.id);
+        prev = b;
+      } else {
+        const nearFigure = (page.figures ?? []).some(
+          (f) => coverage(b.bbox, expand(f.bbox, 12)) > 0.5,
+        );
+        b.role = nearFigure ? 'label' : 'body';
+        prev = undefined;
+      }
+    }
+  }
+  return continues;
+}
+
+/**
+ * Splits the reference list into entries: the blocks that hold several (a line that starts the
+ * next one) are cut there, and the ids of the blocks that start an entry are returned. Entries
+ * start with a number ("[12]", "12."), or, in a list without numbers, at the outer edge of the
+ * hanging indent (or at the indented line, when the first lines are indented).
+ */
+function splitReferenceEntries(
+  pages: PageIR[],
+  sectionBlocks: BlockIR[],
+): { starts: Set<string>; ids: Set<string> } {
+  const starts = new Set<string>();
+  const ids = new Set(sectionBlocks.map((b) => b.id));
+  if (!sectionBlocks.length) return { starts, ids };
+  const pageNo = (b: BlockIR) => Number(b.id.split('-')[0]!.slice(1));
+  const section = [...sectionBlocks].sort(
+    (a, b) =>
+      pageNo(a) - pageNo(b) ||
+      a.columnIndex - b.columnIndex ||
+      a.bbox.y0 - b.bbox.y0 ||
+      a.bbox.x0 - b.bbox.x0,
+  );
+  const lines = section.flatMap((block) => block.lines.map((line, i) => ({ block, line, i })));
+  const byBlock = new Map<BlockIR, typeof lines>();
+  for (const l of lines) byBlock.set(l.block, [...(byBlock.get(l.block) ?? []), l]);
+  const size = Math.max(1, avgSize(section[0]!));
+  // Numbered: numbers in sequence ("[21]" after "[20]"; a skipped number is tolerated).
+  const isStart = new Map<(typeof lines)[number], boolean>();
+  let last = 0;
+  let numbered = 0;
+  for (const l of lines) {
+    const n = entryNumber(lineText(l.line).trim());
+    if (n !== undefined && n > last && n <= last + 3) {
+      isStart.set(l, true);
+      last = n;
+      numbered++;
+    } else isStart.set(l, false);
+  }
+  let finalMode: 'number' | 'hanging' | 'first-line' | 'blocks' = numbered >= 3 ? 'number' : 'blocks';
+  if (finalMode === 'blocks') {
+    // Where the lines of a column start: the outer edge of the text there.
+    const groups = new Map<string, typeof lines>();
+    for (const l of lines) {
+      const key = `${l.block.id.split('-')[0]}:${l.block.columnIndex}`;
+      groups.set(key, [...(groups.get(key) ?? []), l]);
+    }
+    const outer = new Map<(typeof lines)[number], boolean>();
+    // An entry's first line follows the end of the one before: the outer lines of a hanging
+    // indent (the indented lines of a first-line indent) come after a finished line.
+    const finished = (t: string) => TERMINAL.test(t) || /\d$|https?:\S+$/.test(t);
+    const seen = { out: 0, outAfter: 0, ind: 0, indAfter: 0 };
+    for (const g of groups.values()) {
+      const xs = g.map((l) => l.line.bbox.x0).sort((a, b) => a - b);
+      const edge = xs[Math.floor(xs.length * 0.1)]!;
+      g.forEach((l, k) => {
+        const o = l.line.bbox.x0 <= edge + 0.6 * size;
+        outer.set(l, o);
+        const prev = g[k - 1];
+        if (!prev) return;
+        const after = finished(lineText(prev.line).trim());
+        if (o) (seen.out++, after && seen.outAfter++);
+        else (seen.ind++, after && seen.indAfter++);
+      });
+    }
+    if (seen.out >= 3 && seen.ind >= 3) {
+      const diff = seen.outAfter / seen.out - seen.indAfter / seen.ind;
+      if (diff > 0.25) finalMode = 'hanging';
+      else if (diff < -0.25) finalMode = 'first-line';
+    }
+    for (const l of lines) {
+      const o = outer.get(l)!;
+      isStart.set(l, finalMode === 'hanging' ? o : finalMode === 'first-line' ? !o : l.i === 0);
+    }
+  }
+  // A block that continues the entry above it: lower case after an unfinished line.
+  lines.forEach((l, k) => {
+    if (k === 0) return isStart.set(l, true);
+    if (finalMode === 'number' || !isStart.get(l)) return;
+    const prev = lines[k - 1]!;
+    const text = lineText(l.line).trim();
+    const before = lineText(prev.line).trim();
+    const firstInBlock = l.i === 0;
+    if (firstInBlock && /^\p{Ll}/u.test(text) && !TERMINAL.test(before) && !/\d$/.test(before))
+      isStart.set(l, false);
+  });
+  // Cut the blocks at their entry starts.
+  for (const page of pages) {
+    const mine = new Set(section.filter((b) => page.blocks.includes(b)));
+    if (!mine.size) continue;
+    const order = [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder);
+    const out: BlockIR[] = [];
+    for (const b of order) {
+      if (!mine.has(b)) {
+        out.push(b);
+        continue;
+      }
+      const mineLines = byBlock.get(b)!;
+      const cuts = mineLines.flatMap((l) => (l.i > 0 && isStart.get(l) ? [l.i] : []));
+      if (isStart.get(mineLines[0]!)) starts.add(b.id);
+      if (!cuts.length) {
+        out.push(b);
+        continue;
+      }
+      const all = b.lines;
+      const bounds = [0, ...cuts, all.length];
+      for (let k = 0; k + 1 < bounds.length; k++) {
+        const part = all.slice(bounds[k], bounds[k + 1]);
+        const bbox = unionAll(part.map((l) => l.bbox));
+        if (k === 0) {
+          b.lines = part;
+          b.bbox = bbox;
+          out.push(b);
+          continue;
+        }
+        const piece: BlockIR = { ...b, id: `${b.id}.${k}`, lines: part, bbox };
+        delete piece.underlines;
+        delete piece.extraRedact;
+        starts.add(piece.id);
+        ids.add(piece.id);
+        out.push(piece);
+      }
+    }
+    // Columns of the list are read one after the other (the reading order may interleave them).
+    const spots = out.flatMap((b, i) => (ids.has(b.id) ? [i] : []));
+    const listed = spots
+      .map((i) => out[i]!)
+      .sort(
+        (a, b) =>
+          a.columnIndex - b.columnIndex || a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0,
+      );
+    spots.forEach((i, k) => (out[i] = listed[k]!));
+    out.forEach((b, i) => (b.readingOrder = i));
+    page.blocks = out;
+  }
+  return { starts, ids };
+}
+
 /**
  * Paragraph chains across columns and pages (ARCHITECTURE.md §4.1), and across display formulas
  * or floats that interrupt a sentence ("… ortalaması olan [equation] ölçütüyle hesaplanmıştır.").
  */
 const INTERRUPTING = new Set<Role>(['formula', 'caption', 'table-cell', 'label']);
-function linkChains(pages: BlockIR[][]): void {
+function linkChains(
+  pages: BlockIR[][],
+  entryStarts: Set<string>,
+  sectionIds: Set<string>,
+  footLinks: Map<string, string>,
+): void {
   const ordered = pages.flatMap((blocks) =>
     [...blocks].sort((x, y) => x.readingOrder - y.readingOrder),
   );
@@ -691,9 +946,9 @@ function linkChains(pages: BlockIR[][]): void {
   // Basit Brayton çevriminde elektrik üretimi" | "maliyetinin parametrik analizi. Fırat …"): a
   // line continues the entry when it is indented under the entry's first line, or when the line
   // before does not end a sentence and no entry number starts it.
-  const ENTRY = /^(?:\[\d{1,3}\]|\d{1,3}\.)\s/u;
   // By position, not reading order: two-column reference lists interleave in reading order and
-  // an entry's first line may be wider than its column.
+  // an entry's first line may be wider than its column. A block that starts an entry (found
+  // before, by number or by the hanging indent) never continues the one above.
   const references = ordered.filter((b) => b.role === 'reference');
   for (const a of references) {
     const size = avgSize(a);
@@ -713,9 +968,24 @@ function linkChains(pages: BlockIR[][]): void {
       .sort((x, y) => step(x) - step(y));
     const b = below[0];
     if (!b || !free(a, b)) continue;
+    if (entryStarts.has(b.id)) continue;
     const head = a.chain ? (byId.get(a.chain.paragraphId) ?? a) : a;
     const hanging = b.bbox.x0 > head.bbox.x0 + 0.5 * size;
-    if (hanging || (!TERMINAL.test(blockText(a).trim()) && !ENTRY.test(blockText(b)))) link(a, b);
+    if (hanging || (!TERMINAL.test(blockText(a).trim()) && !ENTRY_START.test(blockText(b))))
+      link(a, b);
+  }
+  // A footnote's next lines are part of it.
+  for (const b of ordered) {
+    const a = byId.get(footLinks.get(b.id) ?? '');
+    if (a && b.role === 'footnote' && free(a, b)) link(a, b);
+  }
+  // The rest of the list in reading order: an entry goes on in the next column or on the next
+  // page, or under its first line when the blocks were not joined by position.
+  const listed = ordered.filter((b) => sectionIds.has(b.id));
+  for (let i = 1; i < listed.length; i++) {
+    const a = listed[i - 1]!;
+    const b = listed[i]!;
+    if (!entryStarts.has(b.id) && free(a, b)) link(a, b);
   }
 
   // Paragraphs continued in the next column or on the next page. Full-width blocks on
@@ -878,7 +1148,15 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
       figures: figures.map((f) => ({ bbox: f.content, formula: f.bars })),
     } satisfies PageIR;
   });
-  linkChains(result.map((p) => p.blocks));
+  const section = markReferences(result);
+  const footLinks = refineFootnotes(result);
+  const entries = splitReferenceEntries(result, section);
+  linkChains(
+    result.map((p) => p.blocks),
+    entries.starts,
+    entries.ids,
+    footLinks,
+  );
   if (result[0]) orderAuthors(result[0]);
   return result;
 }

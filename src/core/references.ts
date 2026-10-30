@@ -3,7 +3,28 @@
  * "Literaturverzeichnis", "Bibliografía", "Список литературы", "Použitá literatura" …).
  */
 export const REFERENCES_HEADING = new RegExp(
-  `^\\s*(\\d+[.)]?\\s*)?(${[
+  `^\\s*((?:\\d+(?:\\.\\d+)*|[IVX]+)[.)]?\\s*)?(${[
+    'cited (literature|references)',
+    'literature cited',
+    'references cited',
+    'list of references',
+    'reference list',
+    'lista de (referencias|referências)',
+    'liste des références',
+    'elenco dei riferimenti',
+    'bibliographical references',
+    'bibliogra(fía|fia) citada',
+    'zdroje',
+    'použité zdroje',
+    'spis literatury',
+    'literaturliste',
+    'quellen- und literaturverzeichnis',
+    'literatur- und quellenverzeichnis',
+    'литература и источники',
+    'источники',
+    'список источников',
+    'использованная литература',
+    'cytowana literatura',
     'kaynak(ça|lar)',
     'literatür',
     'references',
@@ -33,7 +54,36 @@ export const REFERENCES_HEADING = new RegExp(
     'referințe',
     'källor',
     'referenser',
-  ].join('|')})\\s*:?\\s*$`,
+  ].join('|')})(?:\\s+(?:and|und|et|y|e|i|и|ve|en|a|a také)\\s+[\\p{L}][\\p{L}\\s-]{0,40})?\\s*:?\\s*$`,
+  'iu',
+);
+
+/**
+ * The label that introduces a paper's citation of itself ("ACM Reference Format:", "Cite this
+ * article:", "Atıf için:", "Zitierweise:", "Для цитирования:"). The citation is kept as published.
+ */
+export const SELF_CITATION_LABEL = new RegExp(
+  `^\\s*(?:${[
+    'acm reference format',
+    'reference format',
+    'cite this article',
+    'how to cite(?: this article)?',
+    'to cite this article',
+    'suggested citation',
+    'citation',
+    'atıf için',
+    'atıf',
+    'kaynak gösterimi',
+    'zitierweise',
+    'zitiervorschlag',
+    'pour citer cet article',
+    'para citar este art[ií]culo',
+    'como citar',
+    'come citare',
+    'jak cytować',
+    'для цитирования',
+    'як цитувати',
+  ].join('|')})(?:\\s*:\\s*|\\s*\\.?\\s*$)`,
   'iu',
 );
 
