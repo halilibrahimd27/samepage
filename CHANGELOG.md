@@ -37,6 +37,11 @@ All notable changes to samepage are documented here. The format follows
   set flush right and columns wide enough for their words; captions above their table when the
   PDF sets them there; the author grid as a borderless table, affiliations line by line; text
   inside a numbered formula drawn with it, not written out again.
+- Translation with Google: research question labels kept ("RQ1:"), citations no longer glued
+  to the next word, a bold term no longer stretched over the rest of the sentence, structured
+  abstract labels in the field's terms ("Results" → "Bulgular"), small raised footnote marks
+  and the math asterisk read as marks; a plural in brackets ("package(s)") no longer reported
+  as a lost bracket.
 - LaTeX files saved with Windows line ends.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
