@@ -39,7 +39,9 @@ the paper says.
   you can upload to Overleaf again.
 - **Editable Word file of a PDF.** Every translated PDF also downloads as a Word document in
   Word's own styles — headings, paragraphs, tables and footnotes as text you can edit, figures
-  and display formulas as pictures — ready for a journal's template.
+  and display formulas as pictures — ready for a journal's template. Tables are found with full,
+  booktabs or single rules and also without any rule, from their caption; footnote marks become
+  Word footnotes and every reference entry its own paragraph.
 - **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. A meaning
   check translates the result back and flags lost negations, softened or hardened claims
   ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"). You can
@@ -59,7 +61,8 @@ the paper says.
   corrections and glossary. Open it later — in any browser, on any computer — and carry on
   without translating again. API keys are never saved in it.
 - **An honest quality report.** A layout score per page and every compromise listed — nothing is
-  dropped or shrunk silently. Correct any paragraph and rebuild the document in place.
+  dropped or shrunk silently: a lost percent sign or bracket, a misread number in a scan, a
+  table that was not recognised. Correct any paragraph and rebuild the document in place.
 - **Scanned papers too.** PDFs without a text layer are read with OCR on your device.
 - **Private by design.** No backend, no account, no analytics. Your glossary and the translation
   cache stay in your browser.
@@ -115,7 +118,10 @@ translating is sent, and only to the engine you choose:
   WebAssembly are served from this site, and a Content Security Policy limits the app's own
   connections. The one exception is the Google engine: Google's translator script runs in a
   separate, invisible helper page (`translate.html`, same site, its own stricter policy), loaded
-  only when you translate with Google. It may set Google's own `googtrans` cookie.
+  only when you translate with Google. It may set Google's own `googtrans` cookie. That page is
+  on the same site as the app, so Google's script could read what the app keeps in this browser
+  (glossary, translation cache, a remembered API key); if that matters to you, don't remember
+  keys on this device, or translate with the Chrome built-in engine.
 - **The glossary and the translation cache** live only in this browser (IndexedDB) and can be
   cleared in Settings. API keys for the advanced engines are kept in memory unless you choose
   to remember them on this device.

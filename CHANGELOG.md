@@ -8,6 +8,22 @@ All notable changes to samepage are documented here. The format follows
 
 ### Added
 
+- Real papers: tables with a single rule (ACM), ruled column groups, rules drawn per cell and
+  tables without any rule, found from their caption; columns under spanning group headers;
+  multi-line cells joined in Word. A caption whose table was not recognised is reported.
+- Word output of PDFs: real Word footnotes (marks in ACM/Libertine sizes), every reference entry its
+  own paragraph, author blocks as text (sections are Heading 1), margin stamps (arXiv) left out,
+  figure labels only in the figure, chart legends no longer cut a sentence in two.
+- Reference lists after any references heading in the 17 languages, split by entry (numbered,
+  hanging or first-line indented); a paper's citation of itself ("ACM Reference Format") kept.
+- Translation integrity with Google: formulas, LaTeX references and citations, and frozen numbers
+  travel inside the sentence; percent signs locked with their numbers ("%81" in Turkish); software
+  names never translated or re-cased ("Python", "npm"); numbers keep the source's spelling;
+  brackets and spaces Google drops at its sentence breaks restored or reported; section names in
+  headings ("Giriş" → "Introduction"); scanned numbers recognised with low confidence named.
+- Compound hyphens at line ends kept when the paper writes the word with one ("self-attention").
+- LaTeX files saved with Windows line ends.
+
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
 - Default engine: Google Translate through Google's website translator in a same-site helper

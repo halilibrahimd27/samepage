@@ -21,7 +21,7 @@ this page before opening a pull request.
 ## Architecture in one minute
 
 ```
-src/app/            React UI (screens, components, i18n TR/EN, main-thread bridges)
+src/app/            React UI (screens, components, i18n EN/TR/DE/FR/ES, main-thread bridges)
 src/workers/        pipeline worker (Comlink) — all heavy work runs here
 src/core/           IR types/geometry, segment codec (tags ⟦placeholders⟧), validators,
                     translation pipeline (batching, retries, cache), glossary
@@ -49,7 +49,8 @@ npm run test:e2e      # Playwright against the production build
 - Do not update a golden snapshot to make a test pass unless the change is an intended
   improvement — explain the visual or behavioural change in the commit body
   (`npm run test:golden -- -u`).
-- UI strings go into `src/app/i18n/en.ts` and `tr.ts` (the types make a missing key a build error).
+- UI strings go into `src/app/i18n/en.ts`, `tr.ts`, `de.ts`, `fr.ts` and `es.ts` (the types make a
+  missing key a build error).
 - The synthetic corpus lives in `tests/corpus/` (`npm run fixtures`; LaTeX needs tectonic).
   Third-party documents need a license entry in `tests/corpus/LICENSES.md`.
 

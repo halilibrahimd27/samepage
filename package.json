@@ -2,7 +2,7 @@
   "name": "samepage",
   "version": "0.0.0",
   "private": true,
-  "description": "Translate PDF and DOCX documents in your browser while keeping their layout.",
+  "description": "Translate PDF, Word, PowerPoint and LaTeX documents in your browser while keeping their layout.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
