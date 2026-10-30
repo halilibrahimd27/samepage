@@ -21,7 +21,15 @@ All notable changes to samepage are documented here. The format follows
   names never translated or re-cased ("Python", "npm"); numbers keep the source's spelling;
   brackets and spaces Google drops at its sentence breaks restored or reported; section names in
   headings ("Giriş" → "Introduction"); scanned numbers recognised with low confidence named.
-- Compound hyphens at line ends kept when the paper writes the word with one ("self-attention").
+- Compound hyphens at line ends kept when the paper writes the word with one ("self-attention"),
+  in any of its forms ("hyper-parameter" for "hyper-parameters"), also in the abstract-only mode.
+- Word output of PDFs: chart ticks and legends drawn with their chart instead of as dozens of tiny
+  pictures, thumb-index letters left out, footnotes found from an asterisk set in the text's own
+  size or a number set apart, unruled tables whose long cells wrap.
+- Front matter in page order (a title over its author line is no author grid), affiliations
+  translated (no longer taken for a list of names), journal page borders no longer read as a
+  figure, a note without a mark above the footnotes kept with them.
+- Structure benchmark on 19 open-access papers in 10 languages (`npm run bench`).
 - LaTeX files saved with Windows line ends.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17

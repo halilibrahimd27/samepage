@@ -176,6 +176,8 @@ npm run test         # unit + property tests
 npm run test:golden  # DOCX/PDF golden, identity and layout-fidelity tests
 npm run test:e2e     # Playwright end-to-end tests (production build)
 npm run fixtures     # regenerate the synthetic corpus (LaTeX needs tectonic)
+npm run bench:fetch  # download the benchmark's open-access papers (not part of the repository)
+npm run bench        # structure benchmark: tables, footnotes, references, lost words per paper
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the architecture overview and the rules contributions

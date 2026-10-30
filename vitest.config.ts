@@ -25,6 +25,14 @@ export default defineConfig({
           environment: 'node',
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'bench',
+          include: ['tests/bench/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
     ],
   },
 });

@@ -1,0 +1,116 @@
+[
+  {
+    "slug": "cs-polek",
+    "source": "cs",
+    "layout": "single column, Politická ekonomie",
+    "url": "http://polek.vse.cz/doi/10.18267/j.polek.755.pdf"
+  },
+  {
+    "slug": "cs-zcu-logistika",
+    "source": "cs",
+    "layout": "thesis, many tables",
+    "url": "https://dspace.zcu.cz/bitstreams/0b4cbeda-bdd1-4c0a-b6c3-3753fb044662/download"
+  },
+  {
+    "slug": "de-rki-gesundheitskompetenz",
+    "source": "de",
+    "layout": "two columns, tables (Springer)",
+    "url": "https://edoc.rki.de/bitstream/176904/2526/1/28uA47TXhHsT2.pdf"
+  },
+  {
+    "slug": "en-arxiv-acm-bert4rec",
+    "source": "en",
+    "layout": "ACM sigconf, two columns",
+    "url": "https://arxiv.org/pdf/1904.06690"
+  },
+  {
+    "slug": "en-arxiv-acm-ncf",
+    "source": "en",
+    "layout": "ACM/WWW, two columns, charts",
+    "url": "https://arxiv.org/pdf/1708.05031"
+  },
+  {
+    "slug": "en-arxiv-resnet",
+    "source": "en",
+    "layout": "IEEE/CVPR, two columns",
+    "url": "https://arxiv.org/pdf/1512.03385"
+  },
+  {
+    "slug": "en-plos",
+    "source": "en",
+    "layout": "PLOS ONE, single column",
+    "url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0163019&type=printable"
+  },
+  {
+    "slug": "en-springer-mixed",
+    "source": "en",
+    "layout": "Springer, single column, thumb index",
+    "url": "https://link.springer.com/content/pdf/10.1007/s11577-017-0454-1.pdf"
+  },
+  {
+    "slug": "es-scielo-csc",
+    "source": "es",
+    "layout": "SciELO, single column",
+    "url": "https://www.scielo.br/pdf/csc/v17n3/v17n3a06.pdf"
+  },
+  {
+    "slug": "fr-hal-femmes",
+    "source": "fr",
+    "layout": "HAL, footnotes",
+    "url": "https://hal.science/hal-05374522/document"
+  },
+  {
+    "slug": "fr-hal-migrations",
+    "source": "fr",
+    "layout": "HAL, notes",
+    "url": "https://hal.science/hal-03685163/document"
+  },
+  {
+    "slug": "fr-hal-sava",
+    "source": "fr",
+    "layout": "HAL, figures",
+    "url": "https://shs.hal.science/halshs-00926291/document"
+  },
+  {
+    "slug": "it-scielo-remhu",
+    "source": "it",
+    "layout": "SciELO, footnotes, a table",
+    "url": "https://www.scielo.br/j/remhu/a/BqkmSqcFMRPwGGZtC9WQzvk/?lang=it&format=pdf"
+  },
+  {
+    "slug": "pl-pressto",
+    "source": "pl",
+    "layout": "page border, footnotes",
+    "url": "https://pressto.amu.edu.pl/index.php/prt/article/download/2784/2766"
+  },
+  {
+    "slug": "pt-scielo-csc1",
+    "source": "pt",
+    "layout": "SciELO, many tables",
+    "url": "https://www.scielo.br/j/csc/a/4BHTCFF4bDqq4qT7WtPhvYr/?lang=pt&format=pdf"
+  },
+  {
+    "slug": "ru-cyberleninka-1",
+    "source": "ru",
+    "layout": "CyberLeninka, bilingual tables",
+    "url": "https://cyberleninka.ru/article/n/rozhdaemost-u-zhenschin-s-raznym-urovnem-obrazovaniya-tekuschee-sostoyanie-i-prognoznye-stsenarii/pdf"
+  },
+  {
+    "slug": "ru-cyberleninka-2",
+    "source": "ru",
+    "layout": "CyberLeninka, tables",
+    "url": "https://cyberleninka.ru/article/n/analiz-ekonomicheskih-faktorov-krizisa-vliyayuschih-na-deyatelnost-realnogo-sektora-ekonomiki-v-rossii/pdf"
+  },
+  {
+    "slug": "tr-dergipark-1",
+    "source": "tr",
+    "layout": "DergiPark, single column",
+    "url": "https://dergipark.org.tr/tr/download/article-file/898942"
+  },
+  {
+    "slug": "tr-dergipark-2",
+    "source": "tr",
+    "layout": "DergiPark, tables",
+    "url": "https://dergipark.org.tr/tr/download/article-file/229755"
+  }
+]

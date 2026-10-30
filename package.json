@@ -19,6 +19,8 @@
     "test:golden": "vitest run --project golden --passWithNoTests",
     "test:e2e": "playwright test",
     "fixtures": "node scripts/fixtures.mjs",
+    "bench:fetch": "node scripts/fetchBenchPapers.mjs",
+    "bench": "vitest run --project bench",
     "extension": "node scripts/packExtension.mjs"
   },
   "dependencies": {

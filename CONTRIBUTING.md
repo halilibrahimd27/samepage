@@ -43,6 +43,7 @@ npm ci
 npm run typecheck && npm run lint && npm test
 npm run test:golden   # DOCX/PDF golden, identity check, layout fidelity
 npm run test:e2e      # Playwright against the production build
+npm run bench:fetch && npm run bench   # structure of 19 real open-access papers
 ```
 
 - Small, focused pull requests with tests. Conventional Commits (`feat:`, `fix:`, `test:` …).
@@ -53,6 +54,10 @@ npm run test:e2e      # Playwright against the production build
   missing key a build error).
 - The synthetic corpus lives in `tests/corpus/` (`npm run fixtures`; LaTeX needs tectonic).
   Third-party documents need a license entry in `tests/corpus/LICENSES.md`.
+- The structure benchmark (`tests/bench/papers.json`) downloads open-access papers in 10
+  languages to `tests/private/bench/`, outside the repository, and writes what the analysis and
+  the Word file hold (tables, footnotes, references, pictures, lost words) to `RESULTS.md` there:
+  compare it before and after a change to the PDF analysis.
 
 ## Reporting security issues
 
