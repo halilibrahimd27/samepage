@@ -148,8 +148,13 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
     }
     regions.push(r);
   }
-  // A lone rule (e.g. the footnote separator) is not a figure.
-  return regions.filter((r) => r.y1 - r.y0 > 30 && r.x1 - r.x0 > 30);
+  // A lone rule (e.g. the footnote separator) is not a figure, nor a frame around the running
+  // text (a journal's page border).
+  const running = (r: Rect) =>
+    lines
+      .filter((l) => l.chars.length > 40 && coverage(l.bbox, r) > 0.8)
+      .reduce((n, l) => n + l.chars.length, 0);
+  return regions.filter((r) => r.y1 - r.y0 > 30 && r.x1 - r.x0 > 30 && running(r) < 800);
 }
 
 /**
@@ -681,15 +686,28 @@ function refineFootnotes(pages: PageIR[]): Map<string, string> {
     const order = [...page.blocks]
       .sort((a, b) => a.readingOrder - b.readingOrder)
       .filter((b) => b.role === 'footnote');
-    let prev: BlockIR | undefined;
-    for (const b of order) {
+    const marked = (b: BlockIR) => {
       const first = b.lines[0]?.spans[0];
-      const mark =
+      return (
         MARKED.test(blockText(b).trim()) ||
         (!!first &&
           first.size < 0.8 * Math.max(...b.lines[0]!.spans.map((s) => s.size)) &&
-          /^[\d*†‡§¶]{1,3}$/.test(first.text.trim()));
+          /^[\d*†‡§¶]{1,3}$/.test(first.text.trim()))
+      );
+    };
+    let prev: BlockIR | undefined;
+    for (const [i, b] of order.entries()) {
+      const mark = marked(b);
       const size = avgSize(b);
+      // A note without a mark right above the marked ones ("This document is fictional"): a
+      // footnote too, not the end of the column's text.
+      const next = order[i + 1];
+      const aboveNotes =
+        !!next &&
+        marked(next) &&
+        next.columnIndex === b.columnIndex &&
+        next.bbox.y0 >= b.bbox.y1 - 1 &&
+        next.bbox.y0 - b.bbox.y1 < 1.5 * size;
       const goesOn =
         !mark &&
         !!prev &&
@@ -697,7 +715,7 @@ function refineFootnotes(pages: PageIR[]): Map<string, string> {
         b.bbox.y0 >= prev.bbox.y0 &&
         Math.abs(b.bbox.x0 - prev.bbox.x0) < 3 * Math.max(size, 6) &&
         b.columnIndex === prev.columnIndex;
-      if (mark) prev = b;
+      if (mark || aboveNotes) prev = b;
       else if (goesOn) {
         continues.set(b.id, prev!.id);
         prev = b;
@@ -1202,7 +1220,11 @@ function orderAuthors(page: PageIR): void {
   );
   const narrow = front.filter((b) => b.bbox.x1 - b.bbox.x0 < 0.6 * page.width);
   const names = narrow.filter((b) => b.role === 'heading');
-  if (names.length < 2) return;
+  // A grid has names side by side; a title over its author line is none.
+  const beside = (a: BlockIR, b: BlockIR) =>
+    Math.min(a.bbox.y1, b.bbox.y1) > Math.max(a.bbox.y0, b.bbox.y0) &&
+    (a.bbox.x1 <= b.bbox.x0 || b.bbox.x1 <= a.bbox.x0);
+  if (!names.some((a) => names.some((b) => beside(a, b)))) return;
   const overlap = (a: BlockIR, b: BlockIR) =>
     Math.min(a.bbox.x1, b.bbox.x1) - Math.max(a.bbox.x0, b.bbox.x0) >
     0.5 * Math.min(a.bbox.x1 - a.bbox.x0, b.bbox.x1 - b.bbox.x0);
@@ -1216,11 +1238,14 @@ function orderAuthors(page: PageIR): void {
     members.get(name)!.push(b);
   }
   const row = (b: BlockIR) => Math.round(b.bbox.y0 / 6);
+  const top = Math.min(...names.map((n) => n.bbox.y0));
+  const wide = front.filter((b) => !narrow.includes(b)).sort((a, b) => a.bbox.y0 - b.bbox.y0);
   const ordered = [
-    ...front.filter((b) => !narrow.includes(b)).sort((a, b) => a.bbox.y0 - b.bbox.y0),
+    ...wide.filter((b) => b.bbox.y0 < top),
     ...names
       .sort((a, b) => row(a) - row(b) || a.bbox.x0 - b.bbox.x0)
       .flatMap((n) => members.get(n)!.sort((a, b) => a.bbox.y0 - b.bbox.y0)),
+    ...wide.filter((b) => b.bbox.y0 >= top),
   ];
   // The grid comes as a whole where it starts, before the abstract's column.
   const page_ = [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder);

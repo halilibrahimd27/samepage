@@ -380,4 +380,31 @@ describe('page 1 front matter', () => {
       'ABSTRACT',
     ]);
   });
+
+  it('keeps a title, its author line and the affiliations in page order', async () => {
+    const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
+    const cells: Cell[] = [
+      [121, 59, 474, 76, 'Measuring Meaning Shift in Academic Texts', 17],
+      [219, 106, 376, 118, 'Ada Lovelace1, Alan Turing2', 12],
+      [137, 123, 458, 132, '1University of London, Department of Mathematics'],
+      [111, 134, 484, 143, '2University of Cambridge, Department of Computer Science'],
+      [54, 168, 541, 177, 'Abstract. Machine translation is used more and more in publishing.'],
+      [51, 283, 108, 296, '1 Introduction', 12],
+    ];
+    const raw = page(cells, []);
+    raw.blocks = cells.map((c) => ({
+      bbox: { x0: c[0], y0: c[1], x1: c[2], y1: c[3] },
+      lines: [line(c)],
+    }));
+    const [p] = analyzeDocument([raw]);
+    const order = [...p!.blocks]
+      .sort((a, b) => a.readingOrder - b.readingOrder)
+      .map((b) =>
+        b.lines
+          .map((l) => l.spans.map((s) => s.text).join(''))
+          .join(' ')
+          .slice(0, 8),
+      );
+    expect(order).toEqual(['Measurin', 'Ada Love', '1Univers', 'Abstract', '1 Introd']);
+  });
 });
