@@ -137,7 +137,7 @@ function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolea
   return (
     span.size < lineSize * 0.86 &&
     baseline - spanBaseline > lineSize * 0.15 &&
-    /^[\d*†‡§,–-]+$/.test(span.text.trim())
+    /^[\d*∗†‡§,–-]+$/.test(span.text.trim())
   );
 }
 

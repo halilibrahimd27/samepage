@@ -645,7 +645,7 @@ function entryParts(b: BlockIR): BlockIR[] {
   return [0, ...starts].map((s, k, all) => ({ ...b, lines: b.lines.slice(s, all[k + 1]) }));
 }
 
-const MARK = /^(?:\d{1,3}|[a-z]|[*†‡§¶]{1,2})$/u;
+const MARK = /^(?:\d{1,3}|[a-z]|[*∗†‡§¶]{1,2})$/u;
 
 /**
  * A symbol mark set in the text's own size, glued to the word or quote it follows ("gospodarcze”*
@@ -655,8 +655,8 @@ function inlineMark(
   item: EditableItem & { kind: 'paragraph' },
   mark: string,
 ): EditableRun | undefined {
-  if (!/^[*†‡§¶]{1,2}$/u.test(mark)) return undefined;
-  const at = new RegExp(`(?<=\\S)${mark.replace(/\*/g, '\\*')}(?![*†‡§¶])`, 'gu');
+  if (!/^[*∗†‡§¶]{1,2}$/u.test(mark)) return undefined;
+  const at = new RegExp(`(?<=\\S)${mark.replace(/\*/g, '\\*')}(?![*∗†‡§¶])`, 'gu');
   for (let k = item.runs.length - 1; k >= 0; k--) {
     const run = item.runs[k]!;
     if (run.superscript || run.footnote !== undefined || run.link) continue;
@@ -691,7 +691,7 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
       rest = note.runs.slice(1);
     } else {
       // The mark may be a run of its own ("31 ", then "Rocher de bronze").
-      const m = /^(\d{1,3}|[*†‡§¶]{1,2})(?:\s+|(?=\S)|$)/u.exec(first.text);
+      const m = /^(\d{1,3}|[*∗†‡§¶]{1,2})(?:\s+|(?=\S)|$)/u.exec(first.text);
       if (m) {
         mark = m[1]!;
         rest = [{ ...first, text: first.text.slice(m[0].length) }, ...note.runs.slice(1)];

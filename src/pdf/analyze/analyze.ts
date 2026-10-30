@@ -687,7 +687,7 @@ function markReferences(pages: PageIR[]): BlockIR[] {
  */
 function refineFootnotes(pages: PageIR[]): Map<string, string> {
   const continues = new Map<string, string>();
-  const MARKED = /^(?:\d{1,3}|[*†‡§¶]{1,3})(?:\s+|(?=\p{L}))\S/u;
+  const MARKED = /^(?:\d{1,3}|[*∗†‡§¶]{1,3})(?:\s+|(?=\p{L}))\S/u;
   for (const page of pages) {
     const order = [...page.blocks]
       .sort((a, b) => a.readingOrder - b.readingOrder)
