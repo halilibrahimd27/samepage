@@ -275,6 +275,18 @@ function classify(
   const repeated = (k: string) =>
     // Books alternate running heads/feet between left and right pages: 30 % is enough.
     pages.length >= 2 && (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3);
+  // A short mark at the same height on many pages, outside the bands: a thumb index ("K") or
+  // a section tab in the margin.
+  const place = (b: BlockIR) => `${normalizeRepeat(blockText(b))}@${Math.round(b.bbox.y0 / 3)}`;
+  const placeCounts = new Map<string, number>();
+  for (const { blocks } of pages)
+    new Set(blocks.filter((b) => blockText(b).trim().length <= 3).map(place)).forEach((k) =>
+      placeCounts.set(k, (placeCounts.get(k) ?? 0) + 1),
+    );
+  const marked = (b: BlockIR) =>
+    blockText(b).trim().length <= 3 &&
+    pages.length >= 3 &&
+    (placeCounts.get(place(b)) ?? 0) >= Math.max(3, pages.length * 0.3);
 
   for (const { raw, blocks, tables, figures } of pages) {
     for (const t of tables) assignTableCells(blocks, t);
@@ -312,6 +324,7 @@ function classify(
         role = 'page-number';
       else if ((inTopBand || inBottomBand) && repeated(normalizeRepeat(text)))
         role = inTopBand ? 'header' : 'footer';
+      else if (marked(b)) role = 'header';
       else if (mathRatio(b) >= 0.3 && !worded) role = 'formula';
       else if (allMono(b)) role = 'code';
       else if (CAPTION.test(text)) role = 'caption';
@@ -343,7 +356,10 @@ function classify(
 
       // Formulas set in a text font (Times italic variables, Symbol operators) come out as
       // scattered letters ("O m m", "j j j", "(W"): nothing to translate, and engines glue them.
-      if (role !== 'caption' && (mathFragments(text) || equationBlock(b) || mathLike(text)))
+      if (
+        !['caption', 'header', 'footer', 'page-number'].includes(role) &&
+        (mathFragments(text) || equationBlock(b) || mathLike(text))
+      )
         role = 'formula';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);

@@ -222,7 +222,11 @@ function formulaPiece(text: string): boolean {
   const t = text.trim();
   // Equation numbers go with the formula on their line (below), whatever the distance.
   if (!t || t.length > 80 || EQUATION_NUMBER.test(t)) return false;
-  const short = (t.match(/\p{L}+/gu) ?? []).every((run) => run.length <= 3);
+  // Short words, but not an identifier ("ACM 978-1-4503-4913-0/17/04.") or a lone full stop.
+  const short =
+    (t.match(/\p{L}+/gu) ?? []).every((run) => run.length <= 3) &&
+    !/\d{3}/u.test(t) &&
+    /[^\s.,;:…]/u.test(t);
   return (short && t.length <= 40) || mathLike(t) || equationLike(t) || mathFragments(t);
 }
 
@@ -251,13 +255,16 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
     pictures.push({ rect: f.bbox, formula: false, absorbed: [] });
   }
   // Display formulas: formula blocks and the pieces of a formula set as text ("∂ . (2)", "i T",
-  // "Txt Tx ht h"), joined when they touch, with their fraction bars.
+  // "Txt Tx ht h"), joined when they touch, with their fraction bars. Text in a figure (a chart's
+  // ticks "0.75", its legend "BPR GMF") is drawn with the figure, not as pictures of its own.
+  const inFigure = (b: BlockIR) => pictures.some((p) => coverage(b.bbox, expand(p.rect, 12)) > 0.5);
   const shapes = [
     ...blocks
       .filter(
         (b) =>
-          (b.role === 'formula' && !unitBlocks.has(b.id)) ||
-          (FRAGMENT_ROLES.includes(b.role) && formulaPiece(textOfBlock(b))),
+          !inFigure(b) &&
+          ((b.role === 'formula' && !unitBlocks.has(b.id)) ||
+            (FRAGMENT_ROLES.includes(b.role) && formulaPiece(textOfBlock(b)))),
       )
       .map((b) => ({ rect: b.bbox, ids: [b.id] })),
     ...(page.figures ?? []).filter((f) => f.formula).map((f) => ({ rect: f.bbox, ids: [] })),
