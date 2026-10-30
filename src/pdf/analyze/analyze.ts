@@ -175,13 +175,36 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
   const perRow = rowYs.map((_, r) => cells.filter((b) => rowOf(b) === r).length);
   const most = Math.max(...perRow);
   const columnCells = cells.filter((b) => perRow[rowOf(b)]! >= Math.max(2, 0.8 * most));
-  const intervals: [number, number][] = [];
-  for (const [x0, x1] of (columnCells.length ? columnCells : cells)
-    .map((b) => [b.bbox.x0, b.bbox.x1] as [number, number])
-    .sort((p, q) => p[0] - q[0])) {
-    const last = intervals[intervals.length - 1];
-    if (last && x0 <= last[1] + 2) last[1] = Math.max(last[1], x1);
-    else intervals.push([x0, x1]);
+  const mergeIntervals = (boxes: BlockIR[]) => {
+    const out: [number, number][] = [];
+    for (const [x0, x1] of boxes
+      .map((b) => [b.bbox.x0, b.bbox.x1] as [number, number])
+      .sort((p, q) => p[0] - q[0])) {
+      const last = out[out.length - 1];
+      if (last && x0 <= last[1] + 2) last[1] = Math.max(last[1], x1);
+      else out.push([x0, x1]);
+    }
+    return out;
+  };
+  const intervals = mergeIntervals(columnCells.length ? columnCells : cells);
+  // A label column whose cells wrap onto rows of their own ("1. High interest rates … |" with
+  // the figures on the first line only) has no cell in the rows with the most cells: cells that
+  // lie beside every known column are a column of their own.
+  if (columnCells.length) {
+    const beside = cells.filter(
+      (b) =>
+        !columnCells.includes(b) && !intervals.some(([x0, x1]) => b.bbox.x1 > x0 && b.bbox.x0 < x1),
+    );
+    if (beside.length) {
+      intervals.push(...mergeIntervals(beside));
+      intervals.sort((p, q) => p[0] - q[0]);
+      for (let i = intervals.length - 1; i > 0; i--) {
+        if (intervals[i]![0] <= intervals[i - 1]![1] + 2) {
+          intervals[i - 1]![1] = Math.max(intervals[i - 1]![1], intervals[i]![1]);
+          intervals.splice(i, 1);
+        }
+      }
+    }
   }
   const colBounds = intervals.map(([x0, x1], i) => {
     const left = i === 0 ? table.rect.x0 : (intervals[i - 1]![1] + x0) / 2;
