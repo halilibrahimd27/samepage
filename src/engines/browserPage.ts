@@ -65,9 +65,18 @@ export function dropAddedFullStop(source: string, target: string): string {
   const src = untagged(source)
     .replace(/⟦[A-Z]\d+⟧/g, '')
     .trim();
-  return /[.!?…:;]$/u.test(src) || !/[^.]\.$/u.test(target.trimEnd())
-    ? target
-    : target.trimEnd().slice(0, -1);
+  const out = /\(\s*\)/u.test(src) ? target : closeEmptyBracket(target);
+  return /[.!?…:;]$/u.test(src) || !/[^.]\.$/u.test(out.trimEnd())
+    ? out
+    : out.trimEnd().slice(0, -1);
+}
+
+/** An empty pair Google made of a closing bracket ("(yani, DT, RF, XGBoost( ) sırasıyla"). */
+function closeEmptyBracket(target: string): string {
+  return target.replace(/\(\s*\)/gu, (_pair, at: number) => {
+    const before = target.slice(0, at);
+    return before.split('(').length > before.split(')').length ? ')' : '';
+  });
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -107,8 +116,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops).
-    model: 'browser-page-8',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets).
+    model: 'browser-page-9',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

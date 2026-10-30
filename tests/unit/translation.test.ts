@@ -606,5 +606,11 @@ describe('google output repairs', () => {
     );
     expect(dropAddedFullStop('Sonuç budur.', 'This is the result.')).toBe('This is the result.');
     expect(dropAddedFullStop('vb', 'etc...')).toBe('etc...');
+    expect(
+      dropAddedFullStop(
+        'algorithm (i.e., DT, RF, ⟦U1⟧) is trained.',
+        'algoritma (yani, DT, RF, ⟦U1⟧( ) eğitilir.',
+      ),
+    ).toBe('algoritma (yani, DT, RF, ⟦U1⟧) eğitilir.');
   });
 });
