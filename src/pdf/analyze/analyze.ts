@@ -734,7 +734,8 @@ function splitReferenceEntries(
       numbered++;
     } else isStart.set(l, false);
   }
-  let finalMode: 'number' | 'hanging' | 'first-line' | 'blocks' = numbered >= 3 ? 'number' : 'blocks';
+  let finalMode: 'number' | 'hanging' | 'first-line' | 'blocks' =
+    numbered >= 3 ? 'number' : 'blocks';
   if (finalMode === 'blocks') {
     // Where the lines of a column start: the outer edge of the text there.
     const groups = new Map<string, typeof lines>();
@@ -823,8 +824,7 @@ function splitReferenceEntries(
     const listed = spots
       .map((i) => out[i]!)
       .sort(
-        (a, b) =>
-          a.columnIndex - b.columnIndex || a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0,
+        (a, b) => a.columnIndex - b.columnIndex || a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0,
       );
     spots.forEach((i, k) => (out[i] = listed[k]!));
     out.forEach((b, i) => (b.readingOrder = i));

@@ -54,7 +54,9 @@ export const REFERENCES_HEADING = new RegExp(
     'referințe',
     'källor',
     'referenser',
-  ].join('|')})(?:\\s+(?:and|und|et|y|e|i|и|ve|en|a|a také)\\s+[\\p{L}][\\p{L}\\s-]{0,40})?\\s*:?\\s*$`,
+  ].join(
+    '|',
+  )})(?:\\s+(?:and|und|et|y|e|i|и|ve|en|a|a také)\\s+[\\p{L}][\\p{L}\\s-]{0,40})?\\s*:?\\s*$`,
   'iu',
 );
 

@@ -40,7 +40,9 @@ const page = (index: number, cells: Cell[]): RawPage => ({
 });
 
 const body = (y: number): Cell[] =>
-  [0, 1, 2].map((i) => [72, y + i * 12, 'The quick brown fox jumps over the lazy dog again.'] as Cell);
+  [0, 1, 2].map(
+    (i) => [72, y + i * 12, 'The quick brown fox jumps over the lazy dog again.'] as Cell,
+  );
 
 describe('reference lists', () => {
   const pages = analyzeDocument([
@@ -84,13 +86,19 @@ describe('reference lists', () => {
       'Zdroje',
     ])
       expect(REFERENCES_HEADING.test(t), t).toBe(true);
-    for (const t of ['Literature review', '2. Related work']) expect(REFERENCES_HEADING.test(t)).toBe(false);
+    for (const t of ['Literature review', '2. Related work'])
+      expect(REFERENCES_HEADING.test(t)).toBe(false);
   });
 });
 
 describe('a paper citing itself', () => {
   it('knows the labels', () => {
-    for (const t of ['ACM Reference Format:', 'Cite this article:', 'Pour citer cet article :', 'Для цитирования:'])
+    for (const t of [
+      'ACM Reference Format:',
+      'Cite this article:',
+      'Pour citer cet article :',
+      'Для цитирования:',
+    ])
       expect(SELF_CITATION_LABEL.test(t), t).toBe(true);
     expect(SELF_CITATION_LABEL.test('Citation analysis shows that')).toBe(false);
   });
@@ -100,7 +108,11 @@ describe('a paper citing itself', () => {
       page(0, [
         ...body(60),
         [72, 200, 'ACM Reference Format:'],
-        [72, 214, 'Jane Doe. 2023. On the Feasibility of Things. In Annual Conference (ACSAC 23), December 4-8.'],
+        [
+          72,
+          214,
+          'Jane Doe. 2023. On the Feasibility of Things. In Annual Conference (ACSAC 23), December 4-8.',
+        ],
         ...body(300),
       ]),
     ]);

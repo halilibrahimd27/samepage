@@ -126,11 +126,7 @@ function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolea
   );
 }
 
-function blockRuns(
-  block: BlockIR,
-  runs: InlineRun<PdfStyle>[],
-  evidence?: HyphenEvidence,
-): void {
+function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[], evidence?: HyphenEvidence): void {
   // Spaces at the edges of a formula belong to the text around it ("katsayısı ⟦F1⟧ = 0,81"):
   // a formula that carries them reads as glued to its neighbours, and cannot travel as text.
   const spaceBefore = (space: string, span: SpanIR) => {
