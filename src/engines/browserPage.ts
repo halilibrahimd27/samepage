@@ -34,10 +34,20 @@ function pinSectionNumber(req: SegmentRequest): {
   number: string;
   tag: string;
 } {
-  const m = req.role === 'heading' ? /^\s*\d{1,2}(?:\.\d{1,2})*\.?\s+(?=\S)/u.exec(req.text) : null;
+  const m =
+    req.role === 'heading'
+      ? /^\s*(?:\d{1,2}(?:\.\d{1,2})*|⟦D\d+⟧)\.?\s+(?=\S)/u.exec(req.text)
+      : null;
   if (m) return { req: { ...req, text: req.text.slice(m[0].length) }, number: m[0], tag: '' };
-  const label = /^(\s*(?:<t\d+>)?)((?:RQ|H|Q)\d{1,2}[a-z]?\s*:\s*)(?=\S)/u.exec(req.text);
-  return label
+  // The label may be an identifier set aside as a whole ("⟦U1⟧: How accurate …").
+  const label =
+    /^(\s*(?:<t\d+>)?)((?:(?:RQ|H|Q)(?:\d{1,2}|⟦D\d+⟧)|⟦U(\d+)⟧)[a-z]?\s*:\s*)(?=\S)/u.exec(
+      req.text,
+    );
+  const isLabel =
+    !!label &&
+    (!label[3] || /^(?:RQ|H|Q)\d{1,2}[a-z]?$/u.test(req.verbatim?.[`U${label[3]}`] ?? ''));
+  return label && isLabel
     ? {
         req: { ...req, text: label[1]! + req.text.slice(label[0].length) },
         number: label[2]!,
@@ -68,8 +78,14 @@ export function respacePlaceholders(source: string, target: string): string {
     const before = tgt[j - 1];
     if (/\s/.test(src[i - 1] ?? '') && before && !/[\s([{“"‘'/-]/u.test(before))
       out = out.replace(ph, ` ${ph}`);
+    // Also where the source has a comma or bracket after it that Google dropped ("detection
+    // ⟦D1⟧, dynamic" → "tespiti) kapsamaktadır. ⟦D1⟧dinamik", a citation frozen in a retry).
     const after = tgt[j + ph.length];
-    if (/\s/.test(src[i + ph.length] ?? '') && after && /[\p{L}\p{N}([{“]/u.test(after))
+    if (
+      /^(?:\s|[,;:.)\]]{1,3}\s)/u.test(src.slice(i + ph.length)) &&
+      after &&
+      /[\p{L}\p{N}([{“]/u.test(after)
+    )
       out = out.replace(ph, `${ph} `);
     // A mark on its word ends a sentence ("incelenmiştir⟦N1⟧. Ayrıntılar"): Google returns
     // "systems ⟦N1⟧.See". The mark goes back on the word, the sentence end gets its space.

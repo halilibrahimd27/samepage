@@ -146,6 +146,60 @@ describe('headings with machine engines', () => {
     );
   });
 
+  it('does the same when a retry froze the numbers and citations', async () => {
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve([
+          '<t1>Ne kadar doğru?</t1> Örneğin anomali tespiti) kapsamaktadır. ⟦D2⟧dinamik analiz.',
+        ]);
+      },
+    });
+    const [out] = await engine.translate(
+      [
+        {
+          id: 's1',
+          text: '<t1>RQ⟦D1⟧: How accurate?</t1> For example anomaly detection ⟦D2⟧, dynamic analysis.',
+          role: 'body',
+          verbatim: { D1: '1', D2: '[32]' },
+        },
+      ],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(sent[0]).toMatch(/^<t1>How accurate\?<\/t1>/u);
+    expect(out!.text).toBe(
+      '<t1>RQ⟦D1⟧: Ne kadar doğru?</t1> Örneğin anomali tespiti) kapsamaktadır. ⟦D2⟧ dinamik analiz.',
+    );
+  });
+
+  it('keeps a label set aside as an identifier, and spaces after a closing bracket', async () => {
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) =>
+        Promise.resolve(
+          texts.map(() => '<t1>Ne kadar doğru?</t1> Denetimli öğrenme ⟦D1⟧Ancak büyük kayıtlar.'),
+        ),
+    });
+    const [out] = await engine.translate(
+      [
+        {
+          id: 's1',
+          text: '<t1>⟦U1⟧: How accurate?</t1> Supervised learning ⟦D1⟧). However, large registries.',
+          role: 'body',
+          verbatim: { U1: 'RQ1', D1: '[48]' },
+        },
+      ],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(out!.text).toBe(
+      '<t1>⟦U1⟧: Ne kadar doğru?</t1> Denetimli öğrenme ⟦D1⟧ Ancak büyük kayıtlar.',
+    );
+  });
+
   it('puts the space back around citations Google glued to a word', () => {
     expect(
       unglue(
