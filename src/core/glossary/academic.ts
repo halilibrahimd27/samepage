@@ -381,6 +381,27 @@ export function academicTerm(
 }
 
 /**
+ * A structured abstract's run-in labels ("<t1>Results</t1>. In evaluations … <t5>Conclusions</t5>.
+ * This tool …") in the field's own terms: engines give both "Sonuçlar". Each label is a
+ * formatted run followed by "." or ":", in the translation under the same tag.
+ */
+export function runInLabels(source: string, target: string, from: string, to: string): string {
+  let out = target;
+  for (const m of source.matchAll(
+    /<t(\d+)>([^<]{2,40}?)(\s*[.:]?)<\/t\1>(?=\s*[.:]|(?<=[.:]<\/t\d+>))/gu,
+  )) {
+    const term = academicTerm(m[2]!, from, to);
+    if (!term) continue;
+    out = out.replace(
+      new RegExp(`(<t${m[1]}>)([^<]*?)(\\s*[.:]?\\s*)(</t${m[1]}>)`, 'u'),
+      (_whole, open: string, _label: string, end: string, close: string) =>
+        open + term + end + close,
+    );
+  }
+  return out;
+}
+
+/**
  * The translated heading (any term above) with the source's markup and letter case, or null.
  * A unit in brackets may follow the term ("Recall (%)"); a section heading may be numbered
  * ("1 INTRODUCTION", "2.1. Related Work").

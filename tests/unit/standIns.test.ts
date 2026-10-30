@@ -135,6 +135,17 @@ describe('headings with machine engines', () => {
     );
   });
 
+  it('gives a structured abstract its labels in the field’s terms', async () => {
+    const { runInLabels } = await import('../../src/core/glossary/academic');
+    const source =
+      '<t1>Results</t1>. We achieved 0.94. <t2>Conclusions</t2>. This tool helps. <t3>Note</t3>: fine.';
+    const target =
+      '<t1>Sonuçlar</t1>. 0,94 elde ettik. <t2>Sonuçlar</t2>. Bu araç yardımcı olur. <t3>Not</t3>: iyi.';
+    expect(runInLabels(source, target, 'en', 'tr')).toBe(
+      '<t1>Bulgular</t1>. 0,94 elde ettik. <t2>Sonuçlar</t2>. Bu araç yardımcı olur. <t3>Not</t3>: iyi.',
+    );
+  });
+
   it('puts the space back around citations Google glued to a word', () => {
     expect(
       unglue(

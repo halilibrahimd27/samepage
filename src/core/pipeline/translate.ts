@@ -15,7 +15,13 @@ import {
   type TranslationEngine,
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
-import { academicHeading, isNameList, metricGlossary, usesMetrics } from '../glossary/academic';
+import {
+  academicHeading,
+  isNameList,
+  metricGlossary,
+  runInLabels,
+  usesMetrics,
+} from '../glossary/academic';
 import { glossaryHash } from '../glossary/glossary';
 import { protectNumbers, protectTerms, restoreTerms, withBuiltInNames } from '../glossary/protect';
 import { splitSentences } from '../../engines/plainText';
@@ -403,10 +409,12 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     const accept = (req: SegmentRequest, r: SegmentResult, issues: ValidationIssue[]) => {
       const notes = r.notes ?? [];
       // Machine translators localise some decimals in running text but not in table cells.
-      const text =
+      const spelled =
         engine.capabilities.glossary || ctx.numberLocalization
           ? r.text
           : keepNumberSpelling(req.text, r.text);
+      // A structured abstract's labels in the field's terms ("Results" → "Bulgular").
+      const text = runInLabels(req.text, spelled, ctx.pair.source, ctx.pair.target);
       r = { ...r, text };
       outcomes.set(req.id, {
         id: req.id,
