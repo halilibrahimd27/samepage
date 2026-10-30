@@ -5,14 +5,16 @@ import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
 /**
  * Single-word identifiers ("permutation_importance", "RQ3", URLs), short inline formulas ("κ")
  * and glossary terms travel as text: Google reads a no-translate span as a sentence break ("Biz
- * bunu kullanıyoruz. permutation_importance …"). Frozen numbers (⟦D⟧) stay spans — they are
- * frozen because the engine changed them.
+ * bunu kullanıyoruz. permutation_importance …"). Frozen numbers (⟦D⟧) too: as spans they cut
+ * the retried sentence ("…katsayısı κ = 0,81 olarak hesaplanmıştır" → "…coefficient was
+ * calculated. = 0,81 was calculated."); a number the engine changes again fails the restore, and
+ * the retry with spans follows.
  */
 function inlineIdentifiers(req: SegmentRequest): { text: string; inlined: InnerTag[] } {
   const inlined: InnerTag[] = [];
   const text = req.text.replace(/⟦([A-Z]\d+)⟧/g, (ph, id: string) => {
     const v = req.verbatim?.[id];
-    if (!v || id.startsWith('D') || !/^\S+$/u.test(v)) return ph;
+    if (!v || !/^\S+$/u.test(v)) return ph;
     inlined.push({ id, text: v });
     return v;
   });
@@ -88,8 +90,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text).
-    model: 'browser-page-6',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text).
+    model: 'browser-page-7',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
