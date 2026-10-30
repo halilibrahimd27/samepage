@@ -283,8 +283,14 @@ function tableFromRows(
     if (row.some((l) => CAPTION.test(l.text))) break;
     const sizes = rows.flat().map((l) => l.size);
     if (sizes.length && row.some((l) => l.size > 1.2 * median(sizes))) break;
+    // A long cell's next line, under a column after the first: part of the table.
+    const wrapped =
+      row.length === 1 &&
+      row[0]!.bbox.x1 - row[0]!.bbox.x0 <= 0.75 * bandWidth &&
+      rows.some((r) => r.slice(1).some((l) => Math.abs(l.bbox.x0 - row[0]!.bbox.x0) <= 3));
     // A paragraph line: one long line.
     if (
+      !wrapped &&
       row.length === 1 &&
       (row[0]!.text.length > 70 || row[0]!.bbox.x1 - row[0]!.bbox.x0 > 0.75 * bandWidth)
     ) {

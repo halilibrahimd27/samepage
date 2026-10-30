@@ -260,6 +260,35 @@ describe('tables found from their caption', () => {
     expect(t!.rect.y1).toBeLessThan(160);
   });
 
+  it('keeps the next line of a long cell in the table', () => {
+    const wide: Cell = [54, 100, 400, 109, 'Table 2: Instruments used in the studies'];
+    const rows = grid(
+      [
+        ['Code', 'Description', 'Year'],
+        ['A1', 'Short description', '2019'],
+      ],
+      [54, 120, 420],
+    );
+    const next: Cell = [
+      120,
+      142,
+      370,
+      151,
+      'a questionnaire of thirty items on a five-point scale, given twice, two weeks apart',
+      7,
+    ];
+    const more = grid(
+      [
+        ['B2', 'Another one', '2020'],
+        ['C3', 'More', '2021'],
+      ],
+      [54, 120, 420],
+      154,
+    );
+    const [t] = detectTables(cellPage([wide, ...rows, next, ...more], []));
+    expect(t!.rect.y1).toBeGreaterThan(170);
+  });
+
   it('ignores running text and one-column lists', () => {
     const text: Cell[] = [0, 1, 2, 3, 4].map((i): Cell => [
       54,
