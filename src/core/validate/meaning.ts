@@ -372,6 +372,8 @@ const CUES: Record<string, Cues> = {
       // "However", "no doubt": nothing negated.
       'sin embargo',
       'sin duda',
+      // "No obstante" is "nevertheless".
+      'no obstante',
     ],
     negation: [
       'no',
@@ -476,6 +478,12 @@ const CUES: Record<string, Cues> = {
       'não[ -]governamenta\\p{L}*',
       'sem fins lucrativos',
       'sem dúvida',
+      // "Não obstante" is "nevertheless", "sem prejuízo" "without affecting", "enquanto não"
+      // "until", "s/n" an address without a house number.
+      'não obstante',
+      'sem prejuízo',
+      'enquanto não',
+      's/(?:n|não)',
     ],
     negation: ['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais'],
     soft: [
@@ -486,6 +494,8 @@ const CUES: Record<string, Cues> = {
       'insuficient\\p{L}*',
       'impossív\\p{L}*',
       'inadequad\\p{L}*',
+      // "meses sem educação formal" ↔ "meses de privação da educação formal".
+      'privaç(?:ão|ões)',
     ],
     hedge: [
       'poderi(?:a|am)',

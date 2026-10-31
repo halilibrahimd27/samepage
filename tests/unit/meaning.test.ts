@@ -245,6 +245,37 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Portuguese: "não obstante", "sem prejuízo", "enquanto não", "s/n" negate nothing', () => {
+    expect(
+      issues(
+        'Todavia, a única certeza é que as decisões futuras precisarão ser informadas por uma vigilância contínua.',
+        'Não obstante, a única certeza é que as decisões futuras devem ser respaldadas por uma vigilância contínua.',
+        'pt',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Redução do quadro de pessoal das indústrias, sem prejuízo aos salários, e transporte fretado.',
+        'Redução da força de trabalho nas indústrias, garantindo os salários, e transporte fretado.',
+        'pt',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'O limite de 1000 pessoas e outras restrições regionais até a introdução do bloqueio.',
+        'Enquanto não for imposto um bloqueio, o limite de 1000 pessoas e outras restrições permanecerão.',
+        'pt',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Instituto de Saúde Coletiva, Universidade Federal da Bahia. R. Basílio da Gama s/n, Canela.',
+        'Instituto de Saúde Coletiva, Universidade Federal da Bahia. R. Basílio da Gama s/não, Canela.',
+        'pt',
+      ),
+    ).toEqual([]);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(
