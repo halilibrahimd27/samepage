@@ -183,6 +183,39 @@ describe('translateSegments', () => {
     expect(restoreInline('⟦F2⟧ kümesi', [{ id: 'F1', text: 'F' }])).toBeNull();
   });
 
+  it('Google engine: only a frozen number it changed goes again as a span', async () => {
+    const sent: string[][] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(texts);
+        // The repeated year is dropped when it travels as text.
+        return Promise.resolve(
+          texts.map((t) =>
+            t.includes('⟦D6⟧')
+              ? "2001'de %4,4'ten 2024'te %8,6'ya çıkar, erkeklerde ise %61,5 ⟦D6⟧"
+              : "2001'de %4,4'ten 2024'te %8,6'ya çıkar, erkeklerde ise %61,5",
+          ),
+        );
+      },
+    });
+    const [r] = await engine.translate(
+      [
+        {
+          id: 'a',
+          text: 'passe de ⟦D1⟧ en ⟦D2⟧ à ⟦D3⟧ en ⟦D4⟧, mais ⟦D5⟧ en ⟦D6⟧',
+          role: 'body',
+          verbatim: { D1: '%4,4', D2: '2001', D3: '%8,6', D4: '2024', D5: '%61,5', D6: '2024' },
+        },
+      ],
+      { pair: { source: 'fr', target: 'tr' }, glossary: [], numberLocalization: false },
+      new AbortController().signal,
+    );
+    expect(sent[1]).toEqual(['passe de %4,4 en 2001 à %8,6 en 2024, mais %61,5 en ⟦D6⟧']);
+    expect(sent).toHaveLength(2);
+    expect(r!.text).toBe("⟦D2⟧'de ⟦D1⟧'ten ⟦D4⟧'te ⟦D3⟧'ya çıkar, erkeklerde ise ⟦D5⟧ ⟦D6⟧");
+  });
+
   it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {
     const engine = createBrowserPageEngine({
       availability: () => Promise.resolve('available'),

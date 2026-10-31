@@ -10,15 +10,29 @@ import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
  * calculated. = 0,81 was calculated."); a number the engine changes again fails the restore, and
  * the retry with spans follows.
  */
-function inlineIdentifiers(req: SegmentRequest): { text: string; inlined: InnerTag[] } {
+function inlineIdentifiers(
+  req: SegmentRequest,
+  asSpans: ReadonlySet<string> = new Set(),
+): { text: string; inlined: InnerTag[] } {
   const inlined: InnerTag[] = [];
   const text = req.text.replace(/⟦([A-Z]\d+)⟧/g, (ph, id: string) => {
     const v = req.verbatim?.[id];
-    if (!v || !/^\S+$/u.test(v)) return ph;
+    if (!v || !/^\S+$/u.test(v) || asSpans.has(id)) return ph;
     inlined.push({ id, text: v });
     return v;
   });
   return { text, inlined };
+}
+
+/** The inlined identifiers missing from a translation, taken in source order like restoreInline. */
+function lostInline(t: string, inlined: InnerTag[]): Set<string> {
+  const kept: InnerTag[] = [];
+  const lost = new Set<string>();
+  for (const it of inlined) {
+    if (restoreInline(t, [...kept, it]) === null) lost.add(it.id);
+    else kept.push(it);
+  }
+  return lost;
 }
 
 const untagged = (t: string) => t.replace(/<\/?t\d+>/g, '');
@@ -298,8 +312,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept).
-    model: 'browser-page-16',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span).
+    model: 'browser-page-17',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -307,7 +321,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     async translate(whole, ctx, signal): Promise<SegmentResult[]> {
       const pinned = whole.map(pinSectionNumber);
       const batch = pinned.map((p) => p.req);
-      const prepared = batch.map(inlineIdentifiers);
+      const prepared = batch.map((s) => inlineIdentifiers(s));
       const shielded = prepared.map((p) => shieldGlosses(p.text, ctx.pair.source));
       const first = (
         await bridge.translate(
@@ -322,7 +336,25 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         const restored = inlined.length ? restoreInline(text, inlined) : text;
         return restored === null ? null : respacePlaceholders(s.text, restored);
       });
-      // An identifier the engine changed: the segment again, identifiers as no-translate spans.
+      // An identifier the engine changed: the segment again, that one as a no-translate span.
+      // Only that one: Google translates the text between spans apart ("passe de 4,4 % en 2001
+      // à 8,6 %" with every number a span → "%4,4 içinde 2001 sahip olmak %8,6").
+      const partly = out.flatMap((t, i) => (t === null ? [i] : []));
+      if (partly.length) {
+        const retry = partly.map((i) =>
+          inlineIdentifiers(batch[i]!, lostInline(first[i] ?? '', prepared[i]!.inlined)),
+        );
+        const texts = await bridge.translate(
+          ctx.pair,
+          retry.map((r) => r.text),
+        );
+        signal.throwIfAborted();
+        partly.forEach((i, k) => {
+          const restored = restoreInline(texts[k] ?? '', retry[k]!.inlined);
+          if (restored !== null) out[i] = respacePlaceholders(batch[i]!.text, restored);
+        });
+      }
+      // Changed again: every identifier as a span.
       const again = out.flatMap((t, i) => (t === null ? [i] : []));
       if (again.length) {
         const texts = await bridge.translate(
