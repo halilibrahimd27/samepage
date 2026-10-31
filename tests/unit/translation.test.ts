@@ -235,11 +235,6 @@ describe('translateSegments', () => {
         );
       },
     });
-    const ctx = {
-      pair: { source: 'fr', target: 'tr' },
-      glossary: [],
-      numberLocalization: false,
-    } as const;
     const [cited, note] = await engine.translate(
       [
         {
@@ -250,7 +245,7 @@ describe('translateSegments', () => {
         },
         { id: 'b', text: '3 Vœux ⟦D1⟧.', role: 'footnote', verbatim: { D1: 'n°18.2003.150' } },
       ],
-      ctx,
+      { pair: { source: 'fr', target: 'tr' }, glossary: [], numberLocalization: false },
       new AbortController().signal,
     );
     expect(cited!.notes).toBeUndefined();
