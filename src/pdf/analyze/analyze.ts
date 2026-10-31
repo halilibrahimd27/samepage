@@ -725,7 +725,38 @@ function markReferences(pages: PageIR[]): BlockIR[] {
       }
     }
   }
+  if (!section.length) section.push(...unheadedList(pages));
+  section.forEach(keep);
   return section;
+}
+
+/** An entry's start: numbered ("[3] …", "3. …") or by its first author ("Baltacı, A. (2019)"). */
+const ENTRY_HEAD =
+  /^(?:\[\s*\d{1,3}\s*\]|\d{1,3}[.)]\s|\p{Lu}[\p{L}'’-]+,\s*(?:\p{Lu}\.\s*-?){1,3})/u;
+const YEAR = /\b(?:1[5-9]|20)\d\d[a-z]?\b/u;
+
+/**
+ * A reference list without a heading (the heading drawn as a picture, or none): the run of
+ * blocks that ends the paper, five or more, each opening like an entry and nearly all with a
+ * year. Endnotes, also numbered, seldom have a year in each.
+ */
+function unheadedList(pages: PageIR[]): BlockIR[] {
+  const flow = pages
+    .slice(Math.floor(pages.length * 0.6))
+    .flatMap((p) => [...p.blocks].sort((a, b) => a.readingOrder - b.readingOrder))
+    .filter((b) => !['header', 'footer', 'page-number', 'footnote', 'label'].includes(b.role));
+  const run: BlockIR[] = [];
+  for (let i = flow.length - 1; i >= 0; i--) {
+    const b = flow[i]!;
+    const text = blockText(b).trim();
+    // Lines of an entry that MuPDF set apart go with it.
+    const entry = ENTRY_HEAD.test(text);
+    if (b.role !== 'body' || (!entry && !(run.length && /^\p{Ll}|^\d/u.test(text)))) break;
+    run.unshift(b);
+  }
+  const entries = run.filter((b) => ENTRY_HEAD.test(blockText(b).trim()));
+  const dated = entries.filter((b) => YEAR.test(blockText(b))).length;
+  return entries.length >= 5 && dated >= 0.8 * entries.length ? run : [];
 }
 
 /** A page locator at the end of a citation ("s. 365.", "pp. 12–15", "S. 780-781", "с. 42"). */

@@ -91,6 +91,30 @@ describe('reference lists', () => {
   });
 });
 
+describe('a reference list without a heading', () => {
+  const entries = (texts: string[]): Cell[] =>
+    texts.map((t, i) => [72, 400 + 14 * i, t, 9] as Cell);
+  it('is found at the end of the paper from its entries, endnotes are not', () => {
+    const refs = [
+      'Baltacı, A. (2019). Nitel araştırma süreci. Ahi Evran Üniversitesi Dergisi, 5(2), 368-388.',
+      'Creswell, J. W. (2013). Qualitative inquiry and research design. Sage.',
+      'Denzin, N. K. (2008). The landscape of qualitative research. Sage.',
+      'Merriam, S. B. (2009). Qualitative research: A guide. Jossey-Bass.',
+      'Patton, M. Q. (2002). Qualitative research and evaluation methods. Sage.',
+      'Yin, R. K. (2014). Case study research: Design and methods. Sage.',
+    ];
+    const [p] = analyzeDocument([page(0, [...body(100), ...body(200), ...entries(refs)])]);
+    const role = (t: string) => p!.blocks.find((b) => blockText(b).startsWith(t))!.role;
+    expect(role('Baltacı')).toBe('reference');
+    expect(role('Yin')).toBe('reference');
+    const notes = [1, 2, 3, 4, 5, 6].map(
+      (n) => `${n}. A note that explains a point of the text above.`,
+    );
+    const [q] = analyzeDocument([page(0, [...body(100), ...body(200), ...entries(notes)])]);
+    expect(q!.blocks.filter((b) => b.role === 'reference')).toEqual([]);
+  });
+});
+
 describe('a paper citing itself', () => {
   it('knows the labels', () => {
     for (const t of [
