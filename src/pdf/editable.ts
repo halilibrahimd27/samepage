@@ -57,8 +57,12 @@ const RUNNING: Role[] = [
   'table-cell',
 ];
 
+/**
+ * A run's colour; near black is Word's default, and so is near white: text set on a coloured
+ * bar in the PDF (a white table caption on blue) would vanish on Word's white page.
+ */
 const hex = (c: [number, number, number]) =>
-  c.every((v) => v < 0.25)
+  c.every((v) => v < 0.25) || 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.85
     ? undefined
     : c
         .map((v) =>
@@ -665,13 +669,23 @@ function tableItem(
       rowsOut.some((r) => plain(r[0]!)) &&
       texts.some(Boolean) &&
       texts.every((t) => !t || /^\p{Ll}/u.test(t));
-    if (!continues) {
+    // A figure's interval or count under it ("21,4" | "(19,9–23,0)"): the cell's second line.
+    const under =
+      prev &&
+      !texts[0] &&
+      texts.some(Boolean) &&
+      texts.every((t, i) => !t || (/^\(.*\)$/u.test(t) && !!plain(prev[i]!)));
+    if (!continues && !under) {
       rowsOut.push(row);
       continue;
     }
     row.forEach((cell, i) => {
       if (!cell.paragraphs.length) return;
       const target = prev[i]!;
+      if (under) {
+        target.paragraphs.push(cell.paragraphs.flat());
+        return;
+      }
       if (!target.paragraphs.length) target.paragraphs.push([]);
       const para = target.paragraphs[0]!;
       if (para.length) para.push({ text: ' ' });
@@ -1038,16 +1052,19 @@ export function planEditable(
               rect.y0 - c.bbox.y1 < 30 &&
               xOverlap(c.bbox, rect) > 0,
           );
+          const wide = !!layout && layout.columns > 1 && acrossColumns(page, rect, layout);
           if (caption) {
+            const from = items.length;
             emitBlock(caption);
             done.add(caption.id);
+            // Over a table across both columns, its caption is too.
+            if (wide)
+              for (const it of items.slice(from)) if (it.kind === 'paragraph') it.wide = true;
           }
           items.push({
             ...table,
             borders: tableBorders(page, cells),
-            ...(layout && layout.columns > 1 && acrossColumns(page, rect, layout)
-              ? { wide: true }
-              : {}),
+            ...(wide ? { wide: true } : {}),
           });
         } else
           // …each in its own kind: a listing framed by rules stays code.

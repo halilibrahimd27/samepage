@@ -248,6 +248,50 @@ describe('editable Word output of a PDF (P9.4)', () => {
     expect(item!.runs.find((r) => r.text === 'v')?.subscript).toBeUndefined();
   });
 
+  it('puts an interval set under its figure in that cell, and white caption text in black', () => {
+    const cell = (id: string, row: number, col: number, t: string, x0: number) => {
+      const b = block(id, 'table-cell', 300 + 12 * row, [[span(t, x0)]], {
+        x0,
+        x1: x0 + 5 * t.length,
+      });
+      b.tableCell = {
+        tableId: 't0',
+        row,
+        col,
+        cellRect: {
+          x0: col ? 200 : 50,
+          y0: 300 + 12 * row,
+          x1: col ? 300 : 200,
+          y1: 312 + 12 * row,
+        },
+      };
+      return b;
+    };
+    const caption = block('p0-c', 'caption', 270, [[span('Tab. 2 Prozentuale Häufigkeiten', 50)]]);
+    caption.lines[0]!.spans[0]!.color = [1, 1, 1];
+    const result = plan([
+      page(0, [
+        caption,
+        cell('p0-b0', 0, 0, 'Informationen finden?', 50),
+        cell('p0-b1', 0, 1, '21,4', 205),
+        cell('p0-b2', 1, 1, '(19,9–23,0)', 205),
+        cell('p0-b3', 2, 0, 'Hilfe erhalten?', 50),
+        cell('p0-b4', 2, 1, '15,7', 205),
+      ]),
+    ]);
+    const table = result.items.find((i) => i.kind === 'table') as Extract<
+      EditableItem,
+      { kind: 'table' }
+    >;
+    expect(table.rows).toHaveLength(2);
+    expect(table.rows[0]![1]!.paragraphs.map((p) => p.map((r) => r.text).join(''))).toEqual([
+      '21,4',
+      '(19,9–23,0)',
+    ]);
+    const cap = result.items.find((i) => i.kind === 'paragraph' && i.style === 'caption');
+    expect(cap?.kind === 'paragraph' && cap.runs.some((r) => r.color)).toBe(false);
+  });
+
   it('places a figure before the first block below it and joins hyphenated kept text', () => {
     const above = block('p0-b0', 'body', 100, [[span('Şekil 1 sonuçları gösterir.', 50)]]);
     const caption = block('p0-b1', 'caption', 330, [[span('Şekil 1: Sonuçlar.', 50)]]);

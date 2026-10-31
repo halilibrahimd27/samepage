@@ -256,7 +256,17 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
       Math.min(x1, b.bbox.x1) - Math.max(x0, b.bbox.x0) > 0 ? [i] : [],
     );
     const centred = intervals.findIndex(([x0, x1]) => cx >= x0 - 1 && cx <= x1 + 1);
-    const col = covered.length > 1 ? covered[0]! : Math.max(0, centred);
+    // Centred on no column: the one it overlaps ("(19,9–23,0)" wider than the "21,4" above),
+    // else the nearest — never the first column by default.
+    const nearest = intervals.reduce(
+      (best, [x0, x1], i) =>
+        Math.abs((x0 + x1) / 2 - cx) <
+        Math.abs((intervals[best]![0] + intervals[best]![1]) / 2 - cx)
+          ? i
+          : best,
+      0,
+    );
+    const col = covered.length > 1 ? covered[0]! : centred >= 0 ? centred : (covered[0] ?? nearest);
     const last = covered.length > 1 ? covered[covered.length - 1]! : col;
     b.role = 'table-cell';
     b.tableCell = {

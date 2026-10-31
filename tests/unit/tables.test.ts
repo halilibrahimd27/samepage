@@ -120,6 +120,33 @@ describe('table columns', () => {
     expect(at('Mono-language')!.cellRect.x1).toBeGreaterThanOrEqual(at('Rec.')!.cellRect.x1);
   });
 
+  it('puts a line wider than its column, centred on none, in the column it overlaps', async () => {
+    const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
+    const cells: Cell[] = [
+      [55, 102, 75, 111, 'Frage'],
+      [86, 102, 300, 111, 'Wie einfach ist es Ihrer Meinung nach'],
+      [325, 102, 331, 111, '%'],
+      [55, 116, 59, 125, '1'],
+      [86, 116, 300, 125, 'Informationen über Therapien zu finden?'],
+      [325, 116, 338, 125, '21,4'],
+      [325, 128, 360, 137, '(19,9–23,0)'],
+      [55, 140, 59, 149, '2'],
+      [86, 140, 300, 149, 'herauszufinden, wo Sie Hilfe erhalten?'],
+      [325, 140, 338, 149, '15,7'],
+    ];
+    const [pageIR] = analyzeDocument([
+      page(cells, [
+        [50, 100, 380],
+        [50, 113, 380],
+        [50, 152, 380],
+      ]),
+    ]);
+    const at = (t: string) =>
+      pageIR!.blocks.find((b) => b.lines.some((l) => l.spans.map((s) => s.text).join('') === t))
+        ?.tableCell;
+    expect(at('(19,9–23,0)')?.col).toBe(at('21,4')?.col);
+  });
+
   it('cuts two cells the PDF set as one line at the column edge', async () => {
     const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
     const cells: Cell[] = [
