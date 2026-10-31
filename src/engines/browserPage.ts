@@ -171,6 +171,28 @@ export function unglue(source: string, target: string): string {
 }
 
 /**
+ * A closing bracket Google dropped with the sentence end after it ("(Sír. 11,20-21). Luther …"
+ * → "(Sir. 11,20-21 Luther …"): where the translation leaves a bracket open, it closes after
+ * the token the source closes it after, when that token is a number the translation keeps.
+ */
+export function closeBrackets(source: string, target: string): string {
+  const count = (t: string, c: string) => t.split(c).length - 1;
+  let out = target;
+  for (const m of untagged(source).matchAll(/(\S*\d\S*?)\)([.,;:]?)(?=\s|$)/gu)) {
+    if (count(out, '(') <= count(out, ')')) break;
+    const token = m[1]!.replace(/^\(/u, '');
+    const at = new RegExp(`${escapeRe(token)}(?![)\\d])(?=\\s+\\p{Lu}|\\s*$)`, 'u');
+    const hit = at.exec(out);
+    if (!hit) continue;
+    const before = out.slice(0, hit.index);
+    if (count(before, '(') <= count(before, ')')) continue;
+    const end = hit.index + token.length;
+    out = `${out.slice(0, end)})${m[2] ?? ''}${out.slice(end)}`;
+  }
+  return out;
+}
+
+/**
  * Spaces Google puts inside punctuation, mostly at the edge of a formatted span ("grevleri ,",
  * "eserlerinde ,", "( yani", "\"Sosyal Devrim \"") — unless the source spaces it so, or French
  * typography wants a space before ; : ! ?.
@@ -223,8 +245,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation).
-    model: 'browser-page-12',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets).
+    model: 'browser-page-13',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -259,7 +281,10 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       const fix = (t: string, source: string) =>
         unspace(
           source,
-          ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t,
+          closeBrackets(
+            source,
+            ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t,
+          ),
           ctx.pair.target,
         );
       return batch.map((s, i) => ({

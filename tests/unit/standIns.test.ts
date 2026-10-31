@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { verbatimOf } from '../../src/core/segment/codec';
 import type { PlaceholderDef } from '../../src/core/segment/types';
 import {
+  closeBrackets,
   confineTags,
   createBrowserPageEngine,
   unglue,
@@ -219,6 +220,19 @@ describe('headings with machine engines', () => {
     // French sets a space before a colon; a source that spaces its full stops keeps them.
     expect(unspace('He said: yes', 'Il a dit : oui', 'fr')).toBe('Il a dit : oui');
     expect(unspace('a . b', 'a . b', 'en')).toBe('a . b');
+  });
+
+  it('closes a bracket Google dropped with the sentence end after it', () => {
+    expect(
+      closeBrackets(
+        'Weber cituje knihu Sírachovcovu (Sír. 11,20-21). Luther opovrhoval mnichy.',
+        'Weber, Sirah kitabında (Sir. 11,20-21 Luther, rahiplerden nefret ediyordu.',
+      ),
+    ).toBe('Weber, Sirah kitabında (Sir. 11,20-21). Luther, rahiplerden nefret ediyordu.');
+    // Closed in the translation: left alone.
+    expect(closeBrackets('(viz Weber, 1996). Dále', '(bkz. Weber, 1996). Ayrıca')).toBe(
+      '(bkz. Weber, 1996). Ayrıca',
+    );
   });
 
   it('puts the space back around citations Google glued to a word', () => {
