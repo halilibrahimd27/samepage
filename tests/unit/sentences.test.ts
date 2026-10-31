@@ -60,4 +60,35 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.issues.map((i) => [i.code, i.severity])).toEqual([['REVIEW_SUGGESTED', 'info']]);
     expect(engine.sent).toContain('Sonuçlar tutarlıdır.');
   });
+
+  it('takes a translation that writes a number the source spells out, flagged', async () => {
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text: b.text
+              .replace(
+                'Rewolucja końca osiemnastego wieku była inna.',
+                '18. yüzyıl devrimi farklıydı.',
+              )
+              .replace('Tak było.', 'Öyleydi.'),
+          })),
+        ),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [
+        { id: 'p', text: 'Rewolucja końca osiemnastego wieku była inna. Tak było.', role: 'body' },
+      ],
+      ctx: { pair: { source: 'pl', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(out!.untranslated).toBe(false);
+    expect(out!.text).toBe('18. yüzyıl devrimi farklıydı. Öyleydi.');
+    expect(out!.issues).toContainEqual(
+      expect.objectContaining({ code: 'NUMBER_MISMATCH', severity: 'warning' }),
+    );
+  });
 });

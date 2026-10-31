@@ -405,6 +405,23 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   async function runBatch(batch: SegmentRequest[]) {
     let failing = batch;
     const lastIssues = new Map<string, ValidationIssue[]>();
+    /**
+     * The last translation whose only fault is a number the source does not write in digits
+     * ("końca osiemnastego wieku" → "18. yüzyılın sonu"): taken, flagged for review, when no
+     * try does better, rather than leaving the paragraph in the source language.
+     */
+    const onlyAddedNumbers = new Map<string, { r: SegmentResult; issues: ValidationIssue[] }>();
+    const remember = (req: SegmentRequest, r: SegmentResult, issues: ValidationIssue[]) => {
+      const errors = issues.filter((i) => i.severity === 'error');
+      if (
+        errors.length &&
+        errors.every((i) => i.code === 'NUMBER_MISMATCH' && /^unexpected /u.test(i.detail))
+      )
+        onlyAddedNumbers.set(req.id, {
+          r,
+          issues: issues.map((i) => (i.severity === 'error' ? { ...i, severity: 'warning' } : i)),
+        });
+    };
     const attempts = new Map<string, number>();
     const accept = (req: SegmentRequest, r: SegmentResult, issues: ValidationIssue[]) => {
       const notes = r.notes ?? [];
@@ -463,6 +480,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
             ];
         if (r && !issues.some((i) => i.severity === 'error')) accept(req, r, issues);
         else {
+          if (r) remember(req, r, issues);
           lastIssues.set(req.id, issues);
           stillFailing.push(req);
         }
@@ -514,6 +532,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       const text = texts.map((t) => t.trim()).join(' ');
       const issues = validate(req, text, notes);
       if (issues.some((i) => i.severity === 'error')) {
+        remember(req, { id: req.id, text, notes }, issues);
         // Reported against the original text that is kept: not "translated sentence by sentence".
         lastIssues.set(
           req.id,
@@ -526,6 +545,11 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       batch.filter((b) => !outcomes.has(b.id) && !unresolved.includes(b)),
     )) {
       if (outcomes.has(req.id)) continue;
+      const added = onlyAddedNumbers.get(req.id);
+      if (added) {
+        accept(req, added.r, added.issues);
+        continue;
+      }
       outcomes.set(req.id, {
         id: req.id,
         text: originalText.get(req.id) ?? req.text,
