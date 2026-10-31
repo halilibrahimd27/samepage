@@ -719,7 +719,69 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     });
   }
 
+  /**
+   * Free repair, without a post-editor: what the meaning check flagged (a "not" or a "may" a
+   * machine translator dropped inside a long paragraph) is translated again sentence by
+   * sentence, alone, and checked again. It replaces the draft only when the check then finds
+   * nothing; otherwise the finding stays for the reader.
+   */
+  async function selfRepair() {
+    const flagged = segments
+      .map((s) => ({ s, o: outcomes.get(s.id)! }))
+      .filter(({ o }) => !o.untranslated && o.findings.length > 0)
+      .slice(0, 40);
+    for (const { s, o } of flagged) {
+      signal.throwIfAborted();
+      const pieces = sentencePieces(s.text) ?? [s.text];
+      const parts = pieces.map((text, k) => ({ ...s, id: `${s.id}~m${k + 1}`, text }));
+      const results = await call(parts).catch(() => null);
+      if (!results) continue;
+      const texts = parts.map((p) => results.get(p.id)?.text.trim() ?? '');
+      if (texts.some((t) => !t)) continue;
+      const joined = texts.join(' ');
+      const spelled = ctx.numberLocalization ? joined : keepNumberSpelling(s.text, joined);
+      const text = runInLabels(s.text, spelled, ctx.pair.source, ctx.pair.target);
+      const problems = validateTranslation({
+        source: s.text,
+        target: text,
+        sourceLang: ctx.pair.source,
+        targetLang: ctx.pair.target,
+        glossary: ctx.glossary,
+        checkLanguage,
+        checkChatter: true,
+      }).filter((i) => i.severity === 'error' && i.code !== 'SENTENCE_LOST');
+      if (problems.length) continue;
+      const again = await engine.checkFidelity!(
+        [
+          {
+            id: s.id,
+            source: s.text,
+            target: text,
+            ...(s.verbatim ? { verbatim: s.verbatim } : {}),
+          },
+        ],
+        ctx,
+        signal,
+      ).catch(() => null);
+      if (!again || again.findings.length) continue;
+      const found = o.findings.map((f) => f.issue).join('; ');
+      o.text = text;
+      o.findings = [];
+      delete o.back;
+      o.notes.push('sentences');
+      o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
+      o.issues.push({
+        code: 'POST_EDITED',
+        severity: 'info',
+        detail: `translated again sentence by sentence after the meaning check found: ${found}`,
+      });
+      fresh.push([keyOf.get(s.id)!, { text, notes: o.notes, findings: [] }]);
+    }
+  }
+
   if (job.postEditor?.postEdit) await postEdit(job.postEditor);
+  else if (job.fidelityCheck && engine.checkFidelity && !engine.capabilities.glossary)
+    await selfRepair();
 
   if (job.cache && fresh.length) await job.cache.set(fresh);
   // After caching: the cache keeps the engine's text, the option applies on every run.

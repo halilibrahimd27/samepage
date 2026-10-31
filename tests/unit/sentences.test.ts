@@ -78,6 +78,36 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.untranslated).toBe(true);
   });
 
+  it('translates a flagged paragraph again sentence by sentence and keeps it when it checks out', async () => {
+    const whole: Record<string, string> = {
+      'Bu yöntem işe yaramadı. Sonuçlar tutarlıdır.':
+        'This method worked. The results are consistent.',
+      'Bu yöntem işe yaramadı.': 'This method did not work.',
+      'Sonuçlar tutarlıdır.': 'The results are consistent.',
+    };
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(batch.map((b) => ({ id: b.id, text: whole[b.text] ?? b.text }))),
+      checkFidelity: (pairs) =>
+        Promise.resolve({
+          findings: pairs
+            .filter((p) => !p.target.includes(' not '))
+            .map((p) => ({ id: p.id, issue: 'negation lost', severity: 'major' as const })),
+        }),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [{ id: 'n', text: 'Bu yöntem işe yaramadı. Sonuçlar tutarlıdır.', role: 'body' }],
+      ctx: { pair: { source: 'tr', target: 'en' }, glossary: [], numberLocalization: false },
+      fidelityCheck: true,
+      signal: new AbortController().signal,
+    });
+    expect(out!.text).toBe('This method did not work. The results are consistent.');
+    expect(out!.issues.map((i) => i.code)).not.toContain('MEANING_DRIFT');
+    expect(out!.findings).toEqual([]);
+  });
+
   it('keeps an author line with math-asterisk marks as it is', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),
