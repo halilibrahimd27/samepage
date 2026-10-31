@@ -57,12 +57,19 @@ All notable changes to samepage are documented here. The format follows
   a caption set white on a coloured bar shown, and as wide as its table; a section number
   ("IV") stays text and its note mark is linked; a footnote going on to the next page is one
   note, an address line set under its note stays in it, a table's note links to its mark in a
-  cell; a bar holding only the running head or the page number is no picture.
+  cell; a bar holding only the running head or the page number is no picture, nor an empty tab
+  at the page's edge; a figure's caption and the journal's logo stay out of its picture; a
+  table cell across columns spans them, a column is aligned one way; a short line at the
+  column's right edge is set right, lines centred on a one-column page stay centred and an
+  abstract set in from both sides is; a reference list without a heading is found from its
+  entries; a two-column table of long cells is recognised whole.
 - Translation with Google: lines a hair apart in type size no longer cut the sentence into
   formatted pieces, no space before punctuation or inside quotes, a paragraph whose only fault is
   a spelled-out number written in digits ("osiemnastego wieku" → "18. yüzyıl") translated and
   flagged instead of kept in the source language, a closing bracket Google dropped with the
-  sentence end put back; decades in words in more languages ("los noventa" → 1990s); an NGO, a
+  sentence end put back, and a comma it turned into a closing bracket; percentage points are no
+  percent sign, French ordinals in Roman numerals ("XVIIIe") are numbers; decades in words in
+  more languages ("los noventa" → 1990s); an NGO, a
   non-profit, "sin embargo" or "sans doute" is no negation for the meaning check.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
