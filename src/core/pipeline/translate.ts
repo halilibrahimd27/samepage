@@ -28,6 +28,7 @@ import { splitSentences } from '../../engines/plainText';
 import { plainText, tokenize } from '../segment/codec';
 import { createDehyphenator } from '../segment/dehyphenate';
 import { keepNumberSpelling } from '../validate/numbers';
+import { softenClaims } from './hedges';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
 
 export interface SegmentOutcome {
@@ -747,17 +748,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       .map((s) => ({ s, o: outcomes.get(s.id)! }))
       .filter(({ o }) => !o.untranslated && o.findings.length > 0)
       .slice(0, 40);
-    for (const { s, o } of flagged) {
-      signal.throwIfAborted();
-      const pieces = sentencePieces(s.text) ?? [s.text];
-      const parts = pieces.map((text, k) => ({ ...s, id: `${s.id}~m${k + 1}`, text }));
-      const results = await call(parts).catch(() => null);
-      if (!results) continue;
-      const texts = parts.map((p) => results.get(p.id)?.text.trim() ?? '');
-      if (texts.some((t) => !t)) continue;
-      const joined = texts.join(' ');
-      const spelled = ctx.numberLocalization ? joined : keepNumberSpelling(s.text, joined);
-      const text = runInLabels(s.text, spelled, ctx.pair.source, ctx.pair.target);
+    const checksOut = async (s: SegmentRequest, text: string) => {
       const problems = validateTranslation({
         source: s.text,
         target: text,
@@ -767,7 +758,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         checkLanguage,
         checkChatter: true,
       }).filter((i) => i.severity === 'error' && i.code !== 'SENTENCE_LOST');
-      if (problems.length) continue;
+      if (problems.length) return false;
       const again = await engine.checkFidelity!(
         [
           {
@@ -780,19 +771,47 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         ctx,
         signal,
       ).catch(() => null);
-      if (!again || again.findings.length) continue;
+      return !!again && !again.findings.length;
+    };
+    const soften = (s: SegmentRequest, text: string) =>
+      softenClaims(s.text, text, ctx.pair.source, ctx.pair.target);
+    for (const { s, o } of flagged) {
+      signal.throwIfAborted();
       const found = o.findings.map((f) => f.issue).join('; ');
-      o.text = text;
-      o.findings = [];
-      delete o.back;
-      o.notes.push('sentences');
-      o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
-      o.issues.push({
-        code: 'POST_EDITED',
-        severity: 'info',
-        detail: `translated again sentence by sentence after the meaning check found: ${found}`,
-      });
-      fresh.push([keyOf.get(s.id)!, { text, notes: o.notes, findings: [] }]);
+      const adopt = (text: string, note: string, detail: string) => {
+        o.text = text;
+        o.findings = [];
+        delete o.back;
+        o.notes.push(note);
+        o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
+        o.issues.push({ code: 'POST_EDITED', severity: 'info', detail: `${detail}: ${found}` });
+        fresh.push([keyOf.get(s.id)!, { text, notes: o.notes, findings: [] }]);
+      };
+      // A "suggests" the engine wrote as "shows" is put back first: no new translation needed.
+      const softened = soften(s, o.text);
+      if (softened !== o.text && (await checksOut(s, softened))) {
+        adopt(
+          softened,
+          'softened',
+          'a claim worded as in the source after the meaning check found',
+        );
+        continue;
+      }
+      const pieces = sentencePieces(s.text) ?? [s.text];
+      const parts = pieces.map((text, k) => ({ ...s, id: `${s.id}~m${k + 1}`, text }));
+      const results = await call(parts).catch(() => null);
+      if (!results) continue;
+      const texts = parts.map((p) => results.get(p.id)?.text.trim() ?? '');
+      if (texts.some((t) => !t)) continue;
+      const joined = texts.join(' ');
+      const spelled = ctx.numberLocalization ? joined : keepNumberSpelling(s.text, joined);
+      const text = soften(s, runInLabels(s.text, spelled, ctx.pair.source, ctx.pair.target));
+      if (!(await checksOut(s, text))) continue;
+      adopt(
+        text,
+        'sentences',
+        'translated again sentence by sentence after the meaning check found',
+      );
     }
   }
 
