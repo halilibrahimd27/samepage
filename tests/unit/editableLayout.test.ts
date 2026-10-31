@@ -160,7 +160,7 @@ describe('editable Word output keeps the layout of the PDF', () => {
           gap: 20,
           font: 'Times New Roman',
           headingFont: 'Arial',
-          sizes: { body: 9, heading1: 10 },
+          sizes: { body: 9, heading1: 10, reference: 7 },
           leading: 11,
           after: 0,
         },
@@ -180,6 +180,8 @@ describe('editable Word output keeps the layout of the PDF', () => {
     expect(styles).toContain('w:ascii="Times New Roman"');
     expect(styles).toContain('<w:sz w:val="18"/>');
     expect(styles).toContain('w:line="220" w:lineRule="atLeast"');
+    // The reference list at 7 pt keeps the PDF's proportion of leading: 11 × 7 / 9.
+    expect(styles).toContain('w:line="171" w:lineRule="atLeast"');
     // Justified columns hyphenate, as the paper's do.
     expect(await zip.file('word/settings.xml')!.async('string')).toContain('<w:autoHyphenation/>');
   });
@@ -216,6 +218,14 @@ describe('editable Word output keeps the layout of the PDF', () => {
     ]);
     expect(paragraphs(right.items)[0]).toMatchObject({ align: 'right' });
     expect(abstract).toMatchObject({ align: 'justify', indent: { left: 30, right: 30 } });
+  });
+
+  it('measures paragraph spacing from baselines: none where paragraphs follow line by line', () => {
+    const one = (id: string, y: number) =>
+      block(id, 'body', y, [words, words, words], { first: 64 });
+    // Paragraphs one leading apart, as ACM sets them (block boxes 2 pt apart).
+    const result = plan([page(0, [one('p0-a', 100), one('p0-b', 133), one('p0-c', 166)])]);
+    expect(result.layout?.after).toBe(0);
   });
 
   it('keeps three columns, and a title across the second and third as wide', () => {

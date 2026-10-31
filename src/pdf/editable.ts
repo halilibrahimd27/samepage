@@ -311,11 +311,13 @@ function wordLayout(
       .sort((a, b) => a.readingOrder - b.readingOrder);
     for (let i = 1; i < flow.length; i++) {
       const [a, b] = [flow[i - 1]!, flow[i]!];
-      const gap = b.bbox.y0 - a.bbox.y1;
-      if (a.columnIndex === b.columnIndex && gap >= 0 && gap < 3 * leading) gaps.push(gap);
+      // From baseline to baseline: glyph boxes vary with the font (ascenders, accents).
+      const gap = b.lines[0]!.baseline - a.lines[a.lines.length - 1]!.baseline - leading;
+      if (a.columnIndex === b.columnIndex && gap > -0.25 * leading && gap < 2 * leading)
+        gaps.push(Math.max(0, gap));
     }
   }
-  const after = half(Math.max(0, quantile(gaps, 0.5) - Math.max(0, leading - bodySize)));
+  const after = half(quantile(gaps, 0.5));
   const clamp = (v: number) => Math.max(18, Math.min(0.25 * width, v));
   const top = pages.map((p) =>
     Math.min(...p.blocks.filter((b) => !FURNITURE.includes(b.role)).map((b) => b.bbox.y0)),

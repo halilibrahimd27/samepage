@@ -388,7 +388,12 @@ function stylesXml(locale: string, layout?: WordLayout): string {
       'paragraph',
       'Bibliography',
       'Bibliography',
-      `<w:spacing w:after="${layout ? twips(0.2 * layout.leading) : 120}"/><w:ind w:left="360" w:hanging="360"/>`,
+      // The list's own leading: set small, its lines are as close as in the PDF.
+      `<w:spacing w:after="${layout ? twips(0.2 * layout.leading) : 120}"${
+        layout?.sizes.reference
+          ? ` w:line="${twips((layout.leading * layout.sizes.reference) / (layout.sizes.body ?? layout.sizes.reference))}" w:lineRule="atLeast"`
+          : ''
+      }/><w:ind w:left="360" w:hanging="360"/>`,
       sz(size('reference', 20)),
       '<w:basedOn w:val="Normal"/>',
     ) +
