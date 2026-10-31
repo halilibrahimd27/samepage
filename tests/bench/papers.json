@@ -72,6 +72,12 @@
     "url": "https://shs.hal.science/halshs-00926291/document"
   },
   {
+    "slug": "hu-real-pleh",
+    "source": "hu",
+    "layout": "scanned with a text layer, single column (Magyar Pszichológiai Szemle, 1976)",
+    "url": "https://real.mtak.hu/177254/1/Pleh_Csaba_A_magyar_pszicho_fejl.pdf"
+  },
+  {
     "slug": "it-scielo-remhu",
     "source": "it",
     "layout": "SciELO, footnotes, a table",

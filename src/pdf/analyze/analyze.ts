@@ -79,6 +79,22 @@ const allMono = (b: BlockIR) =>
  * Running heads/feet compared by their letters only: page numbers differ per page, and fonts
  * with a broken text mapping turn them into a different invisible character on every page.
  */
+/** Levenshtein distance of two short strings. */
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++)
+      cur[j] = Math.min(
+        prev[j]! + 1,
+        cur[j - 1]! + 1,
+        prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    prev = cur;
+  }
+  return prev[b.length]!;
+}
+
 const normalizeRepeat = (t: string) =>
   t
     .normalize('NFKC')
@@ -311,6 +327,26 @@ function classify(
     seen.delete('');
     seen.forEach((k) => bandCounts.set(k, (bandCounts.get(k) ?? 0) + 1));
   }
+  // Scanned pages read the same running line a little differently ("Közl", "Kőzi", "Közt"):
+  // lines of ten letters or more that differ in a fifth of them at most count together.
+  // Short words ("II" read for "11") are left out of the comparison.
+  const core = (k: string) =>
+    k
+      .split(' ')
+      .filter((w) => w.length > 2)
+      .join(' ');
+  const nearCount = (k: string) => {
+    const a = core(k);
+    if (a.length < 10) return 0;
+    return [...bandCounts].reduce((n, [o, c]) => {
+      const b = core(o);
+      return o !== k &&
+        Math.abs(b.length - a.length) <= 0.2 * a.length &&
+        editDistance(a, b) <= 0.2 * a.length
+        ? n + c
+        : n;
+    }, 0);
+  };
   const repeated = (k: string, b: BlockIR) => {
     // The paper's title and author on its first page, set large, repeat as its running heads:
     // they are not running heads themselves.
@@ -319,7 +355,7 @@ function classify(
     return (
       // Books alternate running heads/feet between left and right pages: 30 % is enough.
       pages.length >= 2 &&
-      (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3) &&
+      (bandCounts.get(k) ?? 0) + nearCount(k) >= Math.max(2, pages.length * 0.3) &&
       !(avgSize(b) > 1.3 * usual)
     );
   };

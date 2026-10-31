@@ -297,6 +297,26 @@ describe('figures', () => {
   });
 });
 
+describe('running lines of a scan', () => {
+  it('reads a library stamp OCR spells a little differently on each page as the page foot', () => {
+    const stamps = [
+      'MTA 11. Oszt. Közl. 28. 1979.',
+      'MTA II. Oszt. Kőzi. 28. 1979.',
+      'MTA 11. Oszt. Közt. 28. 1979.',
+      'MTA II. Oszt. Közl. 28. 197».',
+    ];
+    const pages = analyzeDocument(
+      stamps.map((t, i) => page(i, [...body(100), ...body(300), [72, 740, t, 9] as Cell])),
+    );
+    expect(pages.map((p) => p.blocks.find((b) => blockText(b).startsWith('MTA'))!.role)).toEqual([
+      'footer',
+      'footer',
+      'footer',
+      'footer',
+    ]);
+  });
+});
+
 describe('citation notes', () => {
   it('keeps a footnote that is only a citation as published, and translates one that says more', () => {
     const [p] = analyzeDocument([
