@@ -41,19 +41,45 @@ const TR_SUGGESTS: Record<string, string> = {
   mekte: 'mekte',
 };
 
+/**
+ * "Seems" Google leaves out ("blijkt dat KA effectief lijkt" → "KA'nın etkili olduğunu"): in a
+ * sentence with one "olduğunu" (that it is), "göründüğünü" (that it appears) puts it back.
+ */
+const SEEMS: Record<string, string> = {
+  en: 'seem(?:s|ed)?|appear(?:s|ed)? to',
+  nl: 'lijk(?:t|en)',
+  de: 'schein(?:t|en)',
+  fr: 'sembl\\p{L}*',
+  es: 'parec\\p{L}*',
+  it: 'sembr\\p{L}*',
+  pt: 'parec\\p{L}*',
+  ru: 'кажется|по-видимому|видимо',
+};
+const TR_IS = /(?<![\p{L}\p{M}])ol(duğunu|duklarını)(?![\p{L}\p{M}])/gu;
+const TR_APPEARS: Record<string, string> = { duğunu: 'göründüğünü', duklarını: 'göründüklerini' };
+
 function soften(source: string, target: string, lang: string): string {
+  let out = target;
   const suggests = SUGGESTS[lang];
   const shows = SHOWS[lang];
-  if (!suggests || !shows || !word(suggests).test(source) || word(shows).test(source))
-    return target;
-  return target.replace(
-    TR_SHOWS,
-    (_, clause: string, ending: string, plural = '') =>
-      `${clause}düşündür${TR_SUGGESTS[ending]!}${plural}`,
-  );
+  if (suggests && shows && word(suggests).test(source) && !word(shows).test(source))
+    out = out.replace(
+      TR_SHOWS,
+      (_, clause: string, ending: string, plural = '') =>
+        `${clause}düşündür${TR_SUGGESTS[ending]!}${plural}`,
+    );
+  const seems = SEEMS[lang];
+  if (
+    seems &&
+    word(seems).test(source) &&
+    !/görün|görül/u.test(out) &&
+    out.match(TR_IS)?.length === 1
+  )
+    out = out.replace(TR_IS, (_, ending: string) => TR_APPEARS[ending]!);
+  return out;
 }
 
-/** The translation with "shows" put back to "suggests" where the source suggests. */
+/** The translation with the source's "suggests" and "seems" put back. */
 export function softenClaims(
   source: string,
   target: string,

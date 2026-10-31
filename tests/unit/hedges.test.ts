@@ -23,6 +23,36 @@ describe('softenClaims', () => {
     ).toBe('Çeşitli çalışmalar olumlu sonuçlar olduğunu (Grigos vd., 2010) düşündürdü.');
   });
 
+  it('puts back "seems" that Google left out', () => {
+    expect(
+      softenClaims(
+        'Uit onderzoek blijkt dat KA effectief lijkt bij het behandelen van articulatiestoornissen.',
+        "Araştırmalar, KA'nın artikülasyon bozukluklarının tedavisinde etkili olduğunu göstermiştir.",
+        'nl',
+        'tr',
+      ),
+    ).toBe(
+      "Araştırmalar, KA'nın artikülasyon bozukluklarının tedavisinde etkili göründüğünü göstermiştir.",
+    );
+    // Kept where the translation already says it, or where there is more than one clause.
+    expect(
+      softenClaims(
+        'The method seems effective.',
+        'Yöntem etkili gibi görünüyor ve etkili olduğunu düşünüyoruz.',
+        'en',
+        'tr',
+      ),
+    ).toBe('Yöntem etkili gibi görünüyor ve etkili olduğunu düşünüyoruz.');
+    expect(
+      softenClaims(
+        'It seems that A is larger than B.',
+        "A'nın büyük olduğunu ve B'nin küçük olduğunu söylüyor.",
+        'en',
+        'tr',
+      ),
+    ).toBe("A'nın büyük olduğunu ve B'nin küçük olduğunu söylüyor.");
+  });
+
   it('only in the sentence that suggests, and not where the source also shows', () => {
     expect(
       softenClaims(
