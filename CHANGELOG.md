@@ -47,9 +47,16 @@ All notable changes to samepage are documented here. The format follows
   cells the PDF set as one line are cut at the column edge, a bold bulleted item is no heading,
   a line split at its sub- and superscripts is one line again ("p_u be Pᵀvᵁᵤ and item …") and a
   lone subscript joins its formula; a footnote that is only a citation ("K. Kautsky, …, bd. II,
-  s. 365.") is kept as published.
+  s. 365.") is kept as published; rules alone (crop marks, page frames, the borders of a caption
+  bar) are no figure; a first-page title that repeats as the running head is the title, an
+  abstract set a little larger no heading, a large ornament decoration; an accent a font draws
+  apart is put back on its letter ("Róża").
 - Word output of PDFs: code listings in Consolas, indented as on the page and fitted to their
-  lines; inline formulas with real sub- and superscripts.
+  lines; inline formulas with real sub- and superscripts; three-column papers kept in three
+  columns, justified columns hyphenated; a table's interval line ("(19,9–23,0)") in its cell;
+  a caption set white on a coloured bar shown, and as wide as its table; a section number
+  ("IV") stays text and its note mark is linked; a footnote going on to the next page is one
+  note.
 - Translation with Google: lines a hair apart in type size no longer cut the sentence into
   formatted pieces, no space before punctuation or inside quotes, a paragraph whose only fault is
   a spelled-out number written in digits ("osiemnastego wieku" → "18. yüzyıl") translated and
