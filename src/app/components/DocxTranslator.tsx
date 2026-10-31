@@ -280,57 +280,80 @@ export function DocxTranslator({
 
       {result && outBlob && (
         <>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
-              onClick={() => downloadBlob(outBlob, outName)}
-              data-testid="download-docx"
-            >
-              {t(
-                format === 'pptx'
-                  ? 'download.pptx'
-                  : format === 'latex'
-                    ? 'download.latex'
-                    : 'download.docx',
-              )}
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
-              onClick={() =>
-                downloadBlob(
-                  new Blob([JSON.stringify(result.report, null, 2)], { type: 'application/json' }),
-                  `${base}.${config.target}.report.json`,
-                )
-              }
-            >
-              {t('download.report')}
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
-              onClick={() => void downloadBilingual()}
-              data-testid="download-bilingual"
-            >
-              {t('download.bilingual')}
-            </button>
-            {projectFile.canSave && (
+          <section
+            className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm"
+            aria-labelledby="result-title"
+          >
+            <div className="flex items-center gap-2">
+              <svg aria-hidden="true" viewBox="0 0 20 20" className="h-6 w-6 text-emerald-600">
+                <circle cx="10" cy="10" r="9" className="fill-emerald-100" />
+                <path fill="currentColor" d="M8.4 13.4 5.3 10.3l1-1 2.1 2.1 5.3-5.3 1 1z" />
+              </svg>
+              <h2 id="result-title" className="text-lg font-semibold text-slate-900">
+                {t('result.ready')}
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-600">
+              {t('result.integrity', {
+                translated: result.report.summary.translated + result.report.summary.warnings,
+                review: result.report.summary.warnings,
+                untranslated: result.report.summary.untranslated,
+              })}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
+                onClick={() => downloadBlob(outBlob, outName)}
+                data-testid="download-docx"
+              >
+                {t(
+                  format === 'pptx'
+                    ? 'download.pptx'
+                    : format === 'latex'
+                      ? 'download.latex'
+                      : 'download.docx',
+                )}
+              </button>
               <button
                 type="button"
                 className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
                 onClick={() =>
-                  void projectFile
-                    .save(glossary.usable, edits)
-                    .catch((e: unknown) => setError(runErrorText(e, t)))
+                  downloadBlob(
+                    new Blob([JSON.stringify(result.report, null, 2)], {
+                      type: 'application/json',
+                    }),
+                    `${base}.${config.target}.report.json`,
+                  )
                 }
-                title={t('project.saveHint')}
-                data-testid="save-project"
               >
-                {t('project.save')}
+                {t('download.report')}
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                onClick={() => void downloadBilingual()}
+                data-testid="download-bilingual"
+              >
+                {t('download.bilingual')}
+              </button>
+              {projectFile.canSave && (
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                  onClick={() =>
+                    void projectFile
+                      .save(glossary.usable, edits)
+                      .catch((e: unknown) => setError(runErrorText(e, t)))
+                  }
+                  title={t('project.saveHint')}
+                  data-testid="save-project"
+                >
+                  {t('project.save')}
+                </button>
+              )}
+            </div>
+          </section>
           {pendingEdits > 0 && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-300 bg-violet-50 p-3 text-sm">
               <span>{t('review.pending', { count: pendingEdits })}</span>
