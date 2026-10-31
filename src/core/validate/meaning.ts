@@ -191,7 +191,7 @@ const CUES: Record<string, Cues> = {
       'above all',
       'after all',
       // "with and without pre-training" compares, it negates nothing.
-      'with(?: and| or) without',
+      'with(?: and| or)(?: one| those)? without',
       'without (?:and|or) with',
     ]),
     quantifiers: {

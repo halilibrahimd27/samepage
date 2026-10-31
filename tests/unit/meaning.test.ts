@@ -186,6 +186,13 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
     expect(
       issues(
+        'We compared the performance of two versions of NeuMF — with and without pre-training.',
+        'We compared the performance of two NeuMF versions—one with and one without pretraining.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
         'The prediction score then represents how likely i is relevant to u.',
         'The prediction score then represents the probability of i being related to u.',
         'en',
