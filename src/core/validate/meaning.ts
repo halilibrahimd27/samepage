@@ -1,6 +1,6 @@
 import type { FidelityFinding, FidelityPair } from '../../engines/types';
 import { splitSentences } from '../../engines/plainText';
-import { functionWords } from '../detectLanguage';
+import { functionWords, languageScore } from '../detectLanguage';
 import { tokenize } from '../segment/codec';
 
 /**
@@ -75,6 +75,10 @@ const TR_WEAK_HEDGE = [
   'olanak\\p{L}*',
   'imk[âa]n\\p{L}*',
 ];
+
+/** A French "ne" that "pas", "plus", "jamais" … follow is a negation, whatever comes before. */
+const NOT_PAS =
+  "(?!\\s+(?:\\p{L}+[’'\\s]+)?(?:pas|plus|jamais|rien|personne|guère|point|aucun\\p{L}*)(?!\\p{L}))";
 
 /**
  * Cyrillic negation "не" in lower case, or capitalised at a sentence start: "Не" alone is also
@@ -281,6 +285,10 @@ const CUES: Record<string, Cues> = {
       'non seulement',
       // "ne … que" is "only": "ne repose que sur" = "relies only on".
       "n(?:e\\s+|[’'])\\p{L}+\\s+que",
+      // An expletive "ne" negates nothing: "avant qu'un projet ne soit proposé", "plus
+      // qu'elle ne l'est déjà".
+      `(?<=(?:avant|à moins|de peur|de crainte) qu(?:e\\s|[’'])[^.;:!?]{0,80}?)ne(?=\\s)${NOT_PAS}`,
+      `(?<=(?:plus|moins|davantage|mieux|autrement)\\s[^.;:!?]{0,60}?qu(?:e\\s|[’'])\\s*(?:\\p{L}+\\s+)?)ne(?=\\s)${NOT_PAS}`,
     ],
     // Written negation always has "ne"/"n'": "pas" alone is also a step, "rien" a trifle.
     negation: ['ne', "n[’']\\p{L}+", 'aucun\\p{L}*', 'sans', 'ni'],
@@ -294,6 +302,10 @@ const CUES: Record<string, Cues> = {
       'insuffisan\\p{L}*',
       'impossibl\\p{L}*',
       'in(?:adapt|capab|exact|valide|correct)\\p{L}*',
+      // "ne pas en tenir compte" comes back as "l'ignorer", "n'est pas surveillé" as "faute de".
+      'ignor\\p{L}*',
+      "faute d(?:e|[’']\\p{L}+)",
+      "à défaut d(?:e|[’']\\p{L}+)",
     ],
     hedge: [
       'pourraient',
@@ -818,29 +830,40 @@ interface Difference {
   sentence?: string;
 }
 
-/** Cue differences between one source passage and its back-translation. */
-function differences(sourceText: string, backText: string, cues: Cues): Difference[] {
+/**
+ * Cue differences between one source passage and its back-translation. `own` reads the source
+ * when it is written in another language than the paper (an English quotation in a French one).
+ */
+function differences(
+  sourceText: string,
+  backText: string,
+  cues: Cues,
+  own: Cues = cues,
+): Difference[] {
   const out: Difference[] = [];
-  const clean = (t: string) => (cues.ignore ? t.replace(cues.ignore, ' ') : t);
-  const source = clean(sourceText);
-  const back = clean(backText);
-  const negSource = has(cues.negation, source);
+  const clean = (t: string, c: Cues) => (c.ignore ? t.replace(c.ignore, ' ') : t);
+  const source = clean(sourceText, own);
+  const back = clean(backText, cues);
+  const negSource = has(own.negation, source);
   const negBack = has(cues.negation, back);
   const soft =
-    !!cues.softNegation && (has(cues.softNegation, source) || has(cues.softNegation, back));
+    (!!own.softNegation && has(own.softNegation, source)) ||
+    (!!cues.softNegation && has(cues.softNegation, back));
   if (negSource && !negBack && !soft) out.push({ issue: 'negation lost', severity: 'major' });
   if (!negSource && negBack && !soft) out.push({ issue: 'negation added', severity: 'major' });
   // Only a hedge that disappears is reported: one the back-translation adds is nearly always
   // paraphrase ("would have been unattainable" → "could not have been achieved").
-  if (cues.hedge && cues.weakHedge && has(cues.hedge, source) && !has(cues.weakHedge, back))
+  if (own.hedge && cues.weakHedge && has(own.hedge, source) && !has(cues.weakHedge, back))
     out.push({
       issue: 'hedging lost: the claim may read stronger than in the source',
       severity: 'major',
     });
   if (cues.quantifiers) {
-    const classes = Object.entries(cues.quantifiers);
-    const lost = classes.filter(([, re]) => has(re, source) && !has(re, back)).map(([k]) => k);
-    const added = classes.filter(([, re]) => !has(re, source) && has(re, back)).map(([k]) => k);
+    const classes = Object.entries(cues.quantifiers).map(
+      ([k, re]) => [k, own.quantifiers?.[k] ?? re, re] as const,
+    );
+    const lost = classes.filter(([, s, b]) => has(s, source) && !has(b, back)).map(([k]) => k);
+    const added = classes.filter(([, s, b]) => !has(s, source) && has(b, back)).map(([k]) => k);
     if (lost.length && added.length)
       out.push({
         issue: `quantifier changed: ${lost.join(', ')} → ${added.join(', ')}`,
@@ -848,6 +871,21 @@ function differences(sourceText: string, backText: string, cues: Cues): Differen
       });
   }
   return out;
+}
+
+/**
+ * The language a passage is written in when it is clearly not the paper's (a quotation), read
+ * from its function words; otherwise the paper's.
+ */
+function writtenIn(text: string, lang: string): string {
+  const own = languageScore(text, lang);
+  let best = lang;
+  let score = 0;
+  for (const l of Object.keys(CUES)) {
+    const s = l === lang ? 0 : languageScore(text, l);
+    if (s > score) [best, score] = [l, s];
+  }
+  return score >= 3 && score > 3 * own ? best : lang;
 }
 
 /** Stems of the longer words and the numbers of a sentence. */
@@ -895,10 +933,11 @@ export function compareMeaning(source: string, back: string, lang: string): Diff
       const r = words(backSentences[i]!) / words(t);
       return r > 0.5 && r < 2 && overlapping(t, backSentences[i]!);
     });
-  if (!aligned) return differences(source, back, cues);
+  const own = CUES[writtenIn(source, lang)] ?? cues;
+  if (!aligned) return differences(source, back, cues, own);
   const seen = new Set<string>();
   return sourceSentences.flatMap((sentence, i) =>
-    differences(sentence, backSentences[i]!, cues)
+    differences(sentence, backSentences[i]!, cues, own)
       .filter((d) => !seen.has(d.issue) && seen.add(d.issue))
       .map((d) => ({ ...d, sentence: backSentences[i]!.trim() })),
   );

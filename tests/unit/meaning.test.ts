@@ -104,6 +104,48 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('French: an expletive "ne" and "faute de" or "ignorer" for "ne pas" are no difference', () => {
+    expect(
+      issues(
+        "Ainsi, avant qu'un projet de délibération ne soit proposé au vote du Conseil de Paris, il doit être approuvé par la présidente.",
+        "Par conséquent, pour qu'une proposition soit soumise au vote du Conseil de Paris, elle doit être approuvée par la présidente.",
+        'fr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Or, le Conseil de Paris a décidé de ne pas en tenir compte, ce qui ralentirait encore plus la production.',
+        "Cependant, le Conseil de Paris a choisi de l'ignorer, ce qui ralentirait davantage la production.",
+        'fr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        "En effet, dès lors que chaque détail de la dimension qualitative n'est pas surveillé, les rues sont moins importantes.",
+        "En effet, faute d'une prise en compte de tous les aspects qualitatifs, les rues sont moins visibles.",
+        'fr',
+      ),
+    ).toEqual([]);
+    // "ne … pas" after "avant que" is still a negation.
+    expect(
+      issues(
+        'Avant que le projet soit voté, le texte ne doit pas être publié par la commission.',
+        'Avant que le projet soit voté, le texte doit être publié par la commission.',
+        'fr',
+      ),
+    ).toEqual(['major: negation lost']);
+  });
+
+  it('an English quotation in a French paper is read with English cues', () => {
+    expect(
+      issues(
+        '« Public commemoration is not simply about determining the appropriateness of remembering the past in a certain way; it is also a struggle over where best to locate that memory. »',
+        '« La commémoration publique ne se limite pas à déterminer la pertinence d’une manière particulière de se souvenir du passé ; elle constitue également un débat sur la place de cette mémoire. »',
+        'fr',
+      ),
+    ).toEqual([]);
+  });
+
   it('Turkish: a negated verbal noun is a negation, "allows" keeps a possibility', () => {
     expect(
       issues(
