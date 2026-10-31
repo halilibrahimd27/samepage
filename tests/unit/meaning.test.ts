@@ -104,6 +104,31 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Turkish: "-ebilmesi için" (in order to) and "-ebilecek" before a noun are no hedges', () => {
+    expect(
+      issues(
+        'Ancak bir araştırmanın geçerli olabilmesi için öncelikle güvenilir olması gereklidir.',
+        'Bununla birlikte, bir araştırmanın geçerli olması için öncelikle güvenilir olması gerekir.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Bu tip sorular, anlaşılmayan bir noktayı onaylamak için sorulabilecek sorulardır.',
+        'Bu tür sorular, anlaşılmayan bir noktayı doğrulamak için kullanılır.',
+        'tr',
+      ),
+    ).toEqual([]);
+    // A possibility the source states is still one.
+    expect(
+      issues(
+        'Bu sonuç örneklemden kaynaklanıyor olabilir.',
+        'Bu sonuç örneklemden kaynaklanıyor.',
+        'tr',
+      ),
+    ).toEqual(['major: hedging lost']);
+  });
+
   it('Turkish: words that only begin like a quantifier, and litotes, are not cues', () => {
     // "tümce" is a sentence, "tamamlanmıştır" is "was completed": no "all" to lose.
     expect(

@@ -58,9 +58,10 @@ const TR_HEDGE = [
   'ihtimal\\p{L}*',
   'gibi görün\\p{L}*',
   'düşündür\\p{L}*',
-  'olabil\\p{L}*',
-  // "-abileceğini" (that it may …) reports a possibility.
-  '\\p{L}+[ae]bilece[ğk]\\p{L}*',
+  // "olabilir" (may be) and "-abileceğini" (that it may …) report a possibility; "olabilmesi
+  // için" (in order to be) and "sorulabilecek sorular" (questions that can be asked) do not.
+  'olabilir\\p{L}*',
+  '\\p{L}+[ae]bileceğ(?:i|in|ini|inden|ine)',
 ];
 /** "-abilir" is also plain ability ("uygulanabilir" = applicable), "olası" an adjective. */
 const TR_WEAK_HEDGE = [
