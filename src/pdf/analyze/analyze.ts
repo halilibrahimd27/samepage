@@ -114,11 +114,18 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
         !page.vectors.some(
           (o) => o !== v && !withText.has(o) && !thin(o.bbox) && coverage(o.bbox, v.bbox) > 0.8,
         )));
-  const vectors = page.vectors
+  const kept = page.vectors
     .filter((v) => !isTextBackground(v))
     .filter((v) => !tables.some((t) => coverage(v.bbox, expand(t.rect, 2)) > 0.9))
-    .filter((v) => v.bbox.x1 - v.bbox.x0 > 3 || v.bbox.y1 - v.bbox.y0 > 3)
-    .map((v) => v.bbox);
+    .filter((v) => v.bbox.x1 - v.bbox.x0 > 3 || v.bbox.y1 - v.bbox.y0 > 3);
+  const vectors = kept.map((v) => v.bbox);
+  // Something drawn: a picture, a curve or a box, not only rules (a frame, the borders of a
+  // caption's bar).
+  const solid = new Set(
+    kept
+      .filter((v) => !v.isRectangle || (v.bbox.x1 - v.bbox.x0 > 2 && v.bbox.y1 - v.bbox.y0 > 2))
+      .map((v) => v.bbox),
+  );
   // A fraction bar is a short thin rule on its own; a table's borders come in segments that
   // join at the same height.
   const bar = (r: Rect) =>
@@ -130,18 +137,19 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
         (Math.abs(o.x0 - r.x1) < 3 || Math.abs(r.x0 - o.x1) < 3),
     );
   const shapes = [
-    ...page.images.map((i) => ({ rect: i.bbox, bar: false })),
-    ...vectors.map((v) => ({ rect: v, bar: bar(v) })),
+    ...page.images.map((i) => ({ rect: i.bbox, bar: false, solid: true })),
+    ...vectors.map((v) => ({ rect: v, bar: bar(v), solid: solid.has(v) })),
   ];
-  const regions: FigureRegion[] = [];
+  const regions: (FigureRegion & { solid: boolean })[] = [];
   for (const s of shapes) {
-    let r: FigureRegion = { ...expand(s.rect, 12), bars: s.bar, content: s.rect };
+    let r = { ...expand(s.rect, 12), bars: s.bar, content: s.rect, solid: s.solid };
     for (let i = regions.length - 1; i >= 0; i--) {
       if (coverage(regions[i]!, r) > 0 || coverage(r, regions[i]!) > 0) {
         r = {
           ...union(r, regions[i]!),
           bars: r.bars && regions[i]!.bars,
           content: union(r.content, regions[i]!.content),
+          solid: r.solid || regions[i]!.solid,
         };
         regions.splice(i, 1);
       }
@@ -154,7 +162,9 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
     lines
       .filter((l) => l.chars.length > 40 && coverage(l.bbox, r) > 0.8)
       .reduce((n, l) => n + l.chars.length, 0);
-  return regions.filter((r) => r.y1 - r.y0 > 30 && r.x1 - r.x0 > 30 && running(r) < 800);
+  return regions
+    .filter((r) => r.solid && r.y1 - r.y0 > 30 && r.x1 - r.x0 > 30 && running(r) < 800)
+    .map(({ solid: _, ...r }) => r);
 }
 
 /**

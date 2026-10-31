@@ -247,6 +247,32 @@ describe('first page', () => {
   });
 });
 
+describe('figures', () => {
+  it('takes rules alone (crop marks, a frame) for no figure, drawn shapes for one', () => {
+    const v = (x0: number, y0: number, x1: number, y1: number) => ({
+      bbox: { x0, y0, x1, y1 },
+      isRectangle: true,
+      isStroked: true,
+      color: [0, 0, 0] as [number, number, number],
+    });
+    const raw = page(0, [...body(300)]);
+    raw.vectors = [
+      // A crop mark in the corner, and a frame of four rules.
+      v(20, 20, 40, 20.3),
+      v(20, 20, 20.3, 40),
+      v(60, 100, 500, 100.3),
+      v(60, 160, 500, 160.3),
+      v(60, 100, 60.3, 160),
+      v(500, 100, 500.3, 160),
+      // Bars of a chart.
+      { ...v(100, 500, 130, 600), isStroked: false },
+      { ...v(150, 450, 180, 600), isStroked: false },
+    ];
+    const [p] = analyzeDocument([raw]);
+    expect(p!.figures!.map((f) => f.bbox.y0)).toEqual([450]);
+  });
+});
+
 describe('citation notes', () => {
   it('keeps a footnote that is only a citation as published, and translates one that says more', () => {
     const [p] = analyzeDocument([
