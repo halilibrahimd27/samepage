@@ -133,6 +133,13 @@ describe('back-translation meaning check', () => {
         'tr',
       ),
     ).toEqual([]);
+    expect(
+      issues(
+        'İncelenen olguya esas oluşturabilecek bir kuramın olmaması durumunda içerik analizi gereklidir.',
+        'İncelenen olgunun temelini oluşturabilecek bir teorinin yokluğunda içerik analizi gereklidir.',
+        'tr',
+      ),
+    ).toEqual([]);
     // "tamamen" (completely) is no negation.
     expect(
       issues(
