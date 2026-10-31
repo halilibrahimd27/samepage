@@ -144,6 +144,31 @@ describe('back-translation meaning check', () => {
     ).toEqual(['major: negation lost']);
   });
 
+  it('German: "nicht allein … sondern" is "not only", "mag" keeps a hedge', () => {
+    expect(
+      issues(
+        'Die Stärkung von GK sollte dabei nicht allein auf die Förderung individueller Fähigkeiten abzielen, sondern auch Lebenswelten stärken.',
+        'Die Stärkung der Gesundheitskompetenz sollte sich nicht nur auf individuelle Fähigkeiten konzentrieren, sondern auch Lebensumgebungen stärken.',
+        'de',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Dies dürfte zum Teil auf unterschiedliche Methoden zur Erfassung der Ernährung zurückzuführen sein.',
+        'Dies mag teilweise an den unterschiedlichen Methoden zur Messung der Ernährung liegen.',
+        'de',
+      ),
+    ).toEqual([]);
+    // "nicht allein" without "sondern" is "not alone".
+    expect(
+      issues(
+        'Die befragten Personen waren bei der Entscheidung nicht allein und wurden beraten.',
+        'Die befragten Personen waren bei der Entscheidung allein und wurden beraten.',
+        'de',
+      ),
+    ).toEqual(['major: negation lost']);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(

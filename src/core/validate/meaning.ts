@@ -234,7 +234,13 @@ const CUES: Record<string, Cues> = {
     },
   },
   de: cues({
-    ignore: ['vor allem', 'oder nicht', 'nicht nur'],
+    ignore: [
+      'vor allem',
+      'oder nicht',
+      'nicht nur',
+      // "nicht allein … sondern" is "not only … but"; "nicht allein" alone is "not alone".
+      'nicht (?:allein|bloß|lediglich|einzig)(?=[^.;]*sondern)',
+    ],
     negation: ['nicht', 'kein\\p{L}*', 'nie', 'niemals', 'nichts', 'niemand', 'ohne', 'weder'],
     soft: [
       'ausgeschlossen',
@@ -272,6 +278,9 @@ const CUES: Record<string, Cues> = {
       'anscheinend',
       'offenbar',
       'denkbar',
+      // "dürfte … zurückzuführen sein" comes back as "mag … liegen".
+      'mag',
+      'mögen',
     ],
     all: ['alle[nmrs]?', 'jede[nmrs]?', 'immer', 'stets', 'gesamte\\p{L}*', 'sämtliche\\p{L}*'],
     most: ['meist\\p{L}*', 'Mehrheit', 'überwiegend', 'größtenteils'],
