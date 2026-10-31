@@ -17,7 +17,7 @@ import papers from './papers.json';
  */
 const DIR = 'tests/private/bench';
 const TABLE_CAPTION =
-  /^\s*(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabela|Tabella|Tabel|Tabulka|Таблица)\s*([A-Z]?\d+(?:\.\d+)?|[IVX]+)/iu;
+  /^\s*(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabela|Tabella|Tabel|Tabulka|Таблица|Таблиця|Πίνακας|Táblázat|Tabell)\s*([A-Z]?\d+(?:\.\d+)?|[IVX]+)/iu;
 const SOURCE_ROLES = new Set(['body', 'heading', 'caption', 'table-cell', 'footnote']);
 const wordsOf = (s: string) =>
   (s.toLowerCase().match(/\p{L}{3,}/gu) ?? []).map((w) => w.normalize('NFC'));
