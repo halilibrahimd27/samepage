@@ -447,10 +447,11 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
   const rules = page.vectors
     .filter((v) => v.bbox.y1 - v.bbox.y0 < 1.5 && v.bbox.x1 - v.bbox.x0 > 3)
     .map((v) => v.bbox);
+  const cuts = cutAtColumns(page, tables);
   for (const raw of rejoinSplitLines(page.blocks)) {
     const sizes = raw.lines.map(dominantSize);
     const em = sizes.length ? Math.max(...sizes) : 10;
-    const cellLines = raw.lines.filter((l) => inTable(l.bbox));
+    const cellLines = raw.lines.filter((l) => inTable(l.bbox)).flatMap((l) => cuts.get(l) ?? [l]);
     const flowLines = raw.lines.filter((l) => !inTable(l.bbox));
     const groups = [
       ...cellLines.map((l) => [l]),
@@ -514,6 +515,72 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
     }
   }
   return dropDuplicates(mergeSplitParagraphs(blocks, layout, cells));
+}
+
+/**
+ * Cells set close together come out of the PDF as one line ("Malware Checks [35] setup.py
+ * file"): such a line is cut before a word that starts where two other lines of the table
+ * start (a column's left edge), and after a word that ends where two others end (a right-aligned
+ * column's edge).
+ */
+function cutAtColumns(page: RawPage, tables: TableRegion[]): Map<RawLine, RawLine[]> {
+  const cuts = new Map<RawLine, RawLine[]>();
+  const words = (l: RawLine) => {
+    const out: RawChar[][] = [];
+    let cur: RawChar[] = [];
+    for (const c of l.chars) {
+      if (/\s/.test(c.c)) {
+        if (cur.length) out.push(cur);
+        cur = [];
+      } else cur.push(c);
+    }
+    if (cur.length) out.push(cur);
+    return out;
+  };
+  for (const t of tables) {
+    const lines = page.blocks
+      .flatMap((b) => b.lines)
+      .filter((l) => l.dir[1] === 0 && coverage(l.bbox, t.rect) > 0.6)
+      .map((l) => ({ l, words: words(l) }))
+      .filter((x) => x.words.length);
+    const start = (o: (typeof lines)[number]) => o.words[0]![0]!.bbox.x0;
+    const end = (o: (typeof lines)[number]) => o.words.at(-1)!.at(-1)!.bbox.x1;
+    const edge = (x: (typeof lines)[number], at: number, side: 'x0' | 'x1') => {
+      const along = lines.filter(
+        (o) => o !== x && Math.abs((side === 'x0' ? start(o) : end(o)) - at) < 1.5,
+      );
+      // Lines that end together but also start together ("package" under "package") are a
+      // left-aligned column, no right edge.
+      return (
+        along.length >= 2 &&
+        (side === 'x0' ||
+          Math.max(...along.map(start)) - Math.min(...along.map(start)) > 1.5)
+      );
+    };
+    for (const x of lines) {
+      const pieces: RawChar[][][] = [[x.words[0]!]];
+      for (let i = 1; i < x.words.length; i++) {
+        const w = x.words[i]!;
+        const before = x.words[i - 1]!;
+        // Cells are set apart by more than a word space (a note under the table is not cut).
+        const apart = w[0]!.bbox.x0 - before.at(-1)!.bbox.x1 >= 0.45 * w[0]!.size;
+        if (apart && (edge(x, w[0]!.bbox.x0, 'x0') || edge(x, before.at(-1)!.bbox.x1, 'x1')))
+          pieces.push([w]);
+        else pieces.at(-1)!.push(w);
+      }
+      if (pieces.length < 2) continue;
+      cuts.set(
+        x.l,
+        pieces.map((ws) => {
+          const first = ws[0]![0]!;
+          const last = ws.at(-1)!.at(-1)!;
+          const chars = x.l.chars.slice(x.l.chars.indexOf(first), x.l.chars.indexOf(last) + 1);
+          return { ...x.l, bbox: unionAll(chars.map((c) => c.bbox)), chars };
+        }),
+      );
+    }
+  }
+  return cuts;
 }
 
 /**

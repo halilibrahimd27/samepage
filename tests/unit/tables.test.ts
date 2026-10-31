@@ -119,6 +119,42 @@ describe('table columns', () => {
     expect(at('Mono-language')?.col).toBe(at('Pr.')?.col);
     expect(at('Mono-language')!.cellRect.x1).toBeGreaterThanOrEqual(at('Rec.')!.cellRect.x1);
   });
+
+  it('cuts two cells the PDF set as one line at the column edge', async () => {
+    const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
+    const cells: Cell[] = [
+      [60, 100, 80, 109, 'Tool'],
+      [120, 100, 140, 109, 'Input'],
+      [180, 100, 220, 109, 'Technique'],
+      [60, 113, 100, 122, 'OSSGadget'],
+      [120, 113, 150, 122, 'package'],
+      [180, 113, 205, 122, 'static'],
+      [180, 125, 205, 134, 'static'],
+      [60, 137, 80, 146, 'Packj'],
+      [120, 137, 150, 146, 'package'],
+      [180, 137, 205, 146, 'hybrid'],
+    ];
+    const raw = page(cells, [
+      [50, 98, 260],
+      [50, 111, 260],
+      [50, 148, 260],
+    ]);
+    // "Malware" and "setup.py" come as one line, 25 pt apart.
+    const a = line([60, 125, 95, 134, 'Malware']);
+    const b = line([120, 125, 150, 134, 'setup.py']);
+    const space = { ...a.chars.at(-1)!, c: ' ' };
+    raw.blocks[0]!.lines.push({
+      ...a,
+      bbox: { ...a.bbox, x1: b.bbox.x1 },
+      chars: [...a.chars, space, ...b.chars],
+    });
+    const [pageIR] = analyzeDocument([raw]);
+    const at = (t: string) =>
+      pageIR!.blocks.find((x) => x.lines.some((l) => l.spans.map((s) => s.text).join('') === t))
+        ?.tableCell;
+    expect(at('Malware')?.col).toBe(at('Tool')?.col);
+    expect(at('setup.py')?.col).toBe(at('Input')?.col);
+  });
 });
 
 // One raw block per cell, as MuPDF delivers cells that are far apart.
