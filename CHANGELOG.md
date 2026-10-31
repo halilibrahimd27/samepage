@@ -72,6 +72,15 @@ All notable changes to samepage are documented here. The format follows
   percent sign, French ordinals in Roman numerals ("XVIIIe") are numbers; decades in words in
   more languages ("los noventa" → 1990s); an NGO, a
   non-profit, "sin embargo" or "sans doute" is no negation for the meaning check.
+- Meaning never lost: a sentence the engine left out is caught and the paragraph translated again
+  sentence by sentence; what the meaning check flags is translated again and kept when it checks
+  out; the check reads a quotation in its own language and knows the fixed phrases that only look
+  like a negation or a hedge in Turkish, French, German, Spanish, Portuguese, Italian and Russian
+  ("olabilmesi için", "ne explétif", "nicht allein … sondern", "não obstante", "не менее").
+- Translation with Google: a number Google keeps changing is held in place alone, so the rest of
+  the sentence is translated whole, and the paragraph is flagged for review when that number sits
+  in running text; a note keeps its own number in front; a source year written once more is
+  taken, flagged, instead of leaving the paragraph in the source language.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
