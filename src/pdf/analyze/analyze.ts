@@ -315,6 +315,7 @@ function classify(
   // page (books have wide margins) on enough pages.
   const bandCounts = new Map<string, number>();
   const bandSizes = new Map<string, number[]>();
+  const bandTops = new Map<string, number[]>();
   for (const { raw, blocks } of pages) {
     const seen = new Set<string>();
     for (const b of blocks) {
@@ -322,6 +323,7 @@ function classify(
         const k = normalizeRepeat(blockText(b));
         seen.add(k);
         bandSizes.set(k, [...(bandSizes.get(k) ?? []), avgSize(b)]);
+        bandTops.set(k, [...(bandTops.get(k) ?? []), b.bbox.y0]);
       }
     }
     seen.delete('');
@@ -335,27 +337,33 @@ function classify(
       .split(' ')
       .filter((w) => w.length > 2)
       .join(' ');
-  const nearCount = (k: string) => {
+  const near = (k: string): string[] => {
     const a = core(k);
-    if (a.length < 10) return 0;
-    return [...bandCounts].reduce((n, [o, c]) => {
+    if (a.length < 10) return [];
+    return [...bandCounts.keys()].filter((o) => {
       const b = core(o);
-      return o !== k &&
+      return (
+        o !== k &&
         Math.abs(b.length - a.length) <= 0.2 * a.length &&
         editDistance(a, b) <= 0.2 * a.length
-        ? n + c
-        : n;
-    }, 0);
+      );
+    });
   };
   const repeated = (k: string, b: BlockIR) => {
     // The paper's title and author on its first page, set large, repeat as its running heads:
     // they are not running heads themselves.
     const sizes = [...(bandSizes.get(k) ?? [])].sort((x, y) => x - y);
     const usual = sizes[Math.floor(sizes.length / 2)] ?? 0;
+    // …nor set well away from where the running head stands (the author under the journal's
+    // line on page 1, the running head of the pages after).
+    const alike = [k, ...near(k)];
+    const tops = alike.flatMap((o) => bandTops.get(o) ?? []).sort((x, y) => x - y);
+    const at = tops[Math.floor(tops.length / 2)] ?? b.bbox.y0;
+    if (tops.length >= 3 && Math.abs(b.bbox.y0 - at) > 3 * Math.max(usual, 1)) return false;
     return (
       // Books alternate running heads/feet between left and right pages: 30 % is enough.
       pages.length >= 2 &&
-      (bandCounts.get(k) ?? 0) + nearCount(k) >= Math.max(2, pages.length * 0.3) &&
+      alike.reduce((n, o) => n + (bandCounts.get(o) ?? 0), 0) >= Math.max(2, pages.length * 0.3) &&
       !(avgSize(b) > 1.3 * usual)
     );
   };

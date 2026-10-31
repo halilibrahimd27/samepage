@@ -297,6 +297,20 @@ describe('figures', () => {
   });
 });
 
+describe('the author on page 1', () => {
+  it('is no running head though the pages after carry the name at the top', () => {
+    const pages = analyzeDocument([
+      page(0, [[72, 92, 'Δημήτρης Κυρίτσης', 10], ...body(160), ...body(300)]),
+      ...[1, 2, 3].map((i) =>
+        page(i, [[300, 40, 'ΔΗΜΗΤΡΗΣ ΚΥΡΙΤΣΗΣ', 8], ...body(100), ...body(300)]),
+      ),
+    ]);
+    const role = (i: number) => pages[i]!.blocks.find((b) => /κυρ/iu.test(blockText(b)))!.role;
+    expect(role(0)).not.toBe('header');
+    expect(role(1)).toBe('header');
+  });
+});
+
 describe('running lines of a scan', () => {
   it('reads a library stamp OCR spells a little differently on each page as the page foot', () => {
     const stamps = [
