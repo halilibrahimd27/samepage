@@ -146,6 +146,67 @@ describe('bold lines', () => {
   });
 });
 
+describe('scripts set apart', () => {
+  it('joins a subscript that came out as its own block to the formula in its line', () => {
+    const math = (c: Cell) => {
+      const l = line(c);
+      for (const ch of l.chars) ch.font = 'CMMI10';
+      return l;
+    };
+    const a = line([72, 140, 'chronological order for user u, where ']);
+    const v = math([a.bbox.x1, 140, 'v']);
+    const b = line([v.bbox.x1 + 3, 140, ' is the item that the user has interacted with.']);
+    const raw = page(0, [...body(60), ...body(200)]);
+    raw.blocks.push({
+      bbox: { ...a.bbox, x1: b.bbox.x1 },
+      lines: [
+        { ...a, bbox: { ...a.bbox, x1: b.bbox.x1 }, chars: [...a.chars, ...v.chars, ...b.chars] },
+      ],
+    });
+    const t = math([v.bbox.x1, 146, 't', 7]);
+    raw.blocks.push({ bbox: t.bbox, lines: [t] });
+    const [p] = analyzeDocument([raw]);
+    expect(p!.blocks.some((x) => blockText(x).trim() === 't')).toBe(false);
+    const host = p!.blocks.find((x) => blockText(x).startsWith('chronological'))!;
+    expect(host.lines[0]!.spans.map((sp) => sp.text.trim()).filter(Boolean)).toContain('t');
+  });
+});
+
+describe('a line in pieces', () => {
+  it('keeps a line that came in blocks split at its scripts in one paragraph', () => {
+    const at = (c: Cell, dy = 0) => {
+      const l = line(c);
+      for (const ch of l.chars) ch.y += dy;
+      return l;
+    };
+    const one = at([72, 100, 'Due to the one-hot encoding of user ID of the input layer,']);
+    const two = at([72, 112, 'latent vector of user. Let the user latent vector p be P v']);
+    const sup = at([two.bbox.x1, 108, 'U', 6], -4);
+    const sub = at([two.bbox.x1, 115, 'u', 6], 2);
+    const rest = at([sub.bbox.x1 + 2, 112, ' and item latent vector q be Q v. We define']);
+    const next = at([72, 124, 'the mapping function of the first neural CF layer as follows.']);
+    const raw = page(0, [...body(300)]);
+    const tail = {
+      ...two,
+      bbox: { ...two.bbox, x1: sup.bbox.x1 },
+      chars: [...two.chars, ...sup.chars],
+    };
+    const head = {
+      ...sub,
+      bbox: { ...sub.bbox, x1: rest.bbox.x1 },
+      chars: [...sub.chars, ...rest.chars],
+    };
+    raw.blocks.push(
+      { bbox: { ...one.bbox, y1: tail.bbox.y1 }, lines: [one, tail] },
+      { bbox: { ...head.bbox, y1: next.bbox.y1 }, lines: [head, next] },
+    );
+    const [p] = analyzeDocument([raw]);
+    const host = p!.blocks.find((b) => blockText(b).startsWith('Due to'))!;
+    expect(blockText(host)).toContain('and item latent vector');
+    expect(blockText(host)).toContain('mapping function');
+  });
+});
+
 describe('footnotes', () => {
   it('keeps a marked note with its lines, and reads other small text as body', () => {
     const [p] = analyzeDocument([

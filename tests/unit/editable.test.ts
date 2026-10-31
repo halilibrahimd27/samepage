@@ -209,6 +209,21 @@ describe('editable Word output of a PDF (P9.4)', () => {
     expect(item!.size).toBe(6.5);
   });
 
+  it('sets an inline formula’s subscript as a Word subscript', () => {
+    const m = (t: string, x: number, size = 10) => ({
+      ...span(t, x, size),
+      font: { ...span(t, x).font, name: 'CMMI10', isMath: true },
+    });
+    const b = block('p0-b0', 'body', 300, [
+      [span('where ', 50), m('v', 80), m('t', 85, 7), span(' is the item.', 90)],
+    ]);
+    const t = b.lines[0]!.spans[2]!;
+    t.baseline = b.lines[0]!.baseline + 3;
+    const [item] = plan([page(0, [b])]).items as Extract<EditableItem, { kind: 'paragraph' }>[];
+    expect(item!.runs.find((r) => r.text === 't')).toMatchObject({ subscript: true, math: true });
+    expect(item!.runs.find((r) => r.text === 'v')?.subscript).toBeUndefined();
+  });
+
   it('places a figure before the first block below it and joins hyphenated kept text', () => {
     const above = block('p0-b0', 'body', 100, [[span('Şekil 1 sonuçları gösterir.', 50)]]);
     const caption = block('p0-b1', 'caption', 330, [[span('Şekil 1: Sonuçlar.', 50)]]);

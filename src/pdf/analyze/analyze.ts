@@ -1160,6 +1160,45 @@ function formulaPieces(blocks: BlockIR[]): void {
   }
 }
 
+/**
+ * A subscript or superscript that came out as a block of its own ("t" under the "v" of
+ * "v_t^(u)" in a sentence) joins the line it belongs to, beside the formula there: it then
+ * travels and is set with that formula, not left behind as a lone letter.
+ */
+function joinScripts(blocks: BlockIR[]): BlockIR[] {
+  const joined = new Set<BlockIR>();
+  for (const s of blocks) {
+    if (s.role !== 'formula' || s.lines.length !== 1) continue;
+    const t = blockText(s).replace(/\s/g, '');
+    if (!t || [...t].length > 3) continue;
+    const cy = (s.bbox.y0 + s.bbox.y1) / 2;
+    const size = avgSize(s);
+    for (const host of blocks) {
+      if (!['body', 'caption', 'footnote'].includes(host.role) || host.direction[1] !== 0) continue;
+      // The line it hangs from or rises above, with a formula piece right beside it.
+      const line = host.lines.find(
+        (l) =>
+          cy > l.bbox.y0 - 0.5 * size &&
+          cy < l.bbox.y1 + 0.6 * size &&
+          l.spans.some(
+            (sp) => sp.font.isMath && sp.bbox.x1 >= s.bbox.x0 - 3 && sp.bbox.x0 <= s.bbox.x1 + 1,
+          ),
+      );
+      if (!line) continue;
+      const baseline = s.lines[0]!.baseline;
+      line.spans = [
+        ...line.spans,
+        ...s.lines[0]!.spans.map((sp) => ({ ...sp, baseline: sp.baseline ?? baseline })),
+      ].sort((a, b) => a.bbox.x0 - b.bbox.x0);
+      line.bbox = union(line.bbox, s.bbox);
+      host.bbox = union(host.bbox, s.bbox);
+      joined.add(s);
+      break;
+    }
+  }
+  return blocks.filter((b) => !joined.has(b));
+}
+
 /** Full analysis: raw MuPDF pages → IR pages with roles, columns, reading order, chains and tables. */
 export function analyzeDocument(raw: RawPage[]): PageIR[] {
   const pages = raw.map((r) => {
@@ -1179,7 +1218,10 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
   );
   for (const p of pages) p.blocks = absorbDropCaps(p.blocks, stats.bodySize, words);
   classify(pages, stats);
-  for (const p of pages) formulaPieces(p.blocks);
+  for (const p of pages) {
+    formulaPieces(p.blocks);
+    p.blocks = joinScripts(p.blocks);
+  }
   const result = pages.map(({ raw: r, blocks, figures }) => {
     const columns = orderPage(blocks, r.width);
     return {

@@ -13,6 +13,9 @@ export interface EditableRun {
   underline?: boolean;
   mono?: boolean;
   superscript?: boolean;
+  subscript?: boolean;
+  /** Part of an inline formula: its raised digits are exponents, never footnote marks. */
+  math?: boolean;
   /** RGB hex without '#'; unset for black. */
   color?: string;
   link?: string;
@@ -155,6 +158,7 @@ function runXml(r: EditableRun, hyperlink: boolean, size?: number): string {
     size ? `<w:sz w:val="${halfPoints(size)}"/><w:szCs w:val="${halfPoints(size)}"/>` : '',
     r.underline && !hyperlink ? '<w:u w:val="single"/>' : '',
     r.superscript ? '<w:vertAlign w:val="superscript"/>' : '',
+    r.subscript ? '<w:vertAlign w:val="subscript"/>' : '',
   ].join('');
   const rPr = props ? `<w:rPr>${props}</w:rPr>` : '';
   const parts = r.text.split('\t');

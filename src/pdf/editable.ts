@@ -16,6 +16,7 @@ import {
   hyphenEvidence,
   joinHyphen,
   type HyphenEvidence,
+  type MathPart,
   type PdfStyle,
   type PdfUnit,
 } from './typeset/segments';
@@ -90,6 +91,15 @@ function styledRun(text: string, style: PdfStyle | undefined): EditableRun {
   };
 }
 
+/** An inline formula's parts, its sub- and superscripts set as such ("v" "(u)" "t" → vₜ⁽ᵘ⁾). */
+function formulaRuns(ref: string): EditableRun[] {
+  return (JSON.parse(ref) as MathPart[]).map((p) => ({
+    text: p.t,
+    math: true,
+    ...(p.d > 0.15 ? { superscript: true } : p.d < -0.1 ? { subscript: true } : {}),
+  }));
+}
+
 /** A unit's runs, split where a display formula interrupts the sentence. */
 function unitPieces(runs: DecodedRun<PdfStyle>[]): EditableRun[][] {
   const pieces: EditableRun[][] = [[]];
@@ -105,6 +115,7 @@ function unitPieces(runs: DecodedRun<PdfStyle>[]): EditableRun[][] {
     else if (ph?.kind === 'B') piece.push({ text: '', lineBreak: true });
     else if (ph?.kind === 'T') piece.push({ text: '\t' });
     else if (ph?.kind === 'C') piece.push({ text: r.text, mono: true });
+    else if (ph?.kind === 'F' && ph.ref?.startsWith('[')) piece.push(...formulaRuns(ph.ref));
     else if (ph?.kind !== 'I') piece.push({ text: r.text });
   }
   return pieces.map(tidy);
@@ -125,6 +136,7 @@ function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): Editab
     else if (i && !code) runs.push({ text: ' ' });
     line.spans.forEach((s: SpanIR, k) => {
       const raised = s.baseline !== undefined && s.baseline < line.baseline - s.size * 0.25;
+      const lowered = s.baseline !== undefined && s.baseline > line.baseline + s.size * 0.15;
       const color = hex(s.color);
       runs.push({
         text: k === 0 ? pad + s.text : s.text,
@@ -132,7 +144,7 @@ function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): Editab
         ...(s.font.bold ? { bold: true } : {}),
         ...(s.font.italic ? { italic: true } : {}),
         ...(s.font.family === 'mono' ? { mono: true } : {}),
-        ...(raised ? { superscript: true } : {}),
+        ...(raised ? { superscript: true } : lowered ? { subscript: true } : {}),
         ...(color ? { color } : {}),
         ...(s.linkUri ? { link: s.linkUri } : {}),
       });
@@ -741,8 +753,9 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
       target =
         [...item.runs]
           .reverse()
-          .find((r) => r.superscript && r.footnote === undefined && r.text.trim() === mark) ??
-        inlineMark(item, mark);
+          .find(
+            (r) => r.superscript && !r.math && r.footnote === undefined && r.text.trim() === mark,
+          ) ?? inlineMark(item, mark);
     }
     if (!target) continue;
     target.text = '';

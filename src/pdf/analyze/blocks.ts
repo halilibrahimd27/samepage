@@ -77,6 +77,8 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
     if (!cur.length) return;
     const first = cur[0]!;
     const bbox = unionAll(cur.map((c) => c.bbox));
+    const inked = cur.filter((c) => /\S/.test(c.c));
+    const ink = inked.length ? inked : cur;
     const span: SpanIR = {
       // Some PDFs store accents as combining marks ("e" + U+0301): composed text reads as words.
       text: cur
@@ -87,7 +89,8 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
       font: fontInfo(first.font, page.fonts[first.font]),
       size: first.size,
       color: first.color,
-      baseline: cur.reduce((sum, c) => sum + c.y, 0) / cur.length,
+      // Of the inked characters: a space takes the height of the script before it.
+      baseline: ink.reduce((sum, c) => sum + c.y, 0) / ink.length,
     };
     const letters = cur.filter((c) => /\p{L}/u.test(c.c));
     if (letters.length && letters.filter((c) => MATH_LETTER.test(c.c)).length * 2 >= letters.length)
@@ -101,7 +104,10 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
     const prev = cur[cur.length - 1];
     if (
       prev &&
-      (!sameStyle(prev, ch) || linkAt(prev.bbox, page.links) !== linkAt(ch.bbox, page.links))
+      (!sameStyle(prev, ch) ||
+        linkAt(prev.bbox, page.links) !== linkAt(ch.bbox, page.links) ||
+        // A superscript and the subscript under it ("vᵁᵤ") are two scripts, not one.
+        (/\S/.test(ch.c) && /\S/.test(prev.c) && Math.abs(ch.y - prev.y) > 0.4 * ch.size))
     )
       flush();
     cur.push(ch);
@@ -146,20 +152,22 @@ function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
   const out: RawLine[] = [];
   for (const line of lines) {
     const prev = out[out.length - 1];
-    const by = (l: RawLine) => l.chars[0]!.y;
+    // The text's baseline, not the first character's: a piece may start with a subscript.
     if (
       prev &&
       line.dir[1] === 0 &&
       prev.dir[1] === 0 &&
-      Math.abs(by(prev) - by(line)) < 1 &&
+      Math.abs(baselineOf(prev) - baselineOf(line)) < 1 &&
       line.bbox.x0 - prev.bbox.x1 < gapLimit &&
       line.bbox.x0 >= prev.bbox.x0
     ) {
       const space: RawChar = { ...prev.chars[prev.chars.length - 1]!, c: ' ' };
+      // A script stacked under the one before it ("vᵁᵤ") is no new word.
+      const apart = line.bbox.x0 > prev.bbox.x1;
       out[out.length - 1] = {
         ...prev,
         bbox: union(prev.bbox, line.bbox),
-        chars: [...prev.chars, space, ...line.chars],
+        chars: apart ? [...prev.chars, space, ...line.chars] : [...prev.chars, ...line.chars],
       };
     } else {
       out.push(line);
@@ -317,19 +325,26 @@ function rejoinSplitLines(blocks: RawTextBlock[]): RawTextBlock[] {
   for (let i = 0; i + 1 < out.length; i++) {
     const a = out[i]!;
     const b = out[i + 1]!;
-    const last = a.lines[a.lines.length - 1];
-    const first = b.lines[0];
-    if (!last || !first || a.lines.length < 2 || last.dir[1] !== 0) continue;
-    const size = Math.max(...last.chars.map((c) => c.size), 1);
-    const sameBaseline = Math.abs((last.chars[0]?.y ?? 0) - (first.chars[0]?.y ?? 0)) < 0.5;
-    const gap = first.bbox.x0 - last.bbox.x1;
-    if (!sameBaseline || gap < -1 || gap > 3 * size) continue;
-    a.lines.pop();
-    a.bbox = unionAll(a.lines.map((l) => l.bbox));
-    b.lines.unshift(last);
-    b.bbox = union(b.bbox, last.bbox);
+    // A line with sub- and superscripts can come in several pieces, one per block ("be Pᵀvᵁ" |
+    // "ᵤ and item latent vector qᵢ be Qᵀvᴵ" | "ᵢ. We define the"): all of it moves on.
+    for (;;) {
+      const last = a.lines[a.lines.length - 1];
+      const first = b.lines[0];
+      if (!last || !first || last.dir[1] !== 0) break;
+      if (a.lines.length < 2 && !b.lines.slice(1).length) break;
+      const size = Math.max(...last.chars.map((c) => c.size), 1);
+      const sameBaseline = Math.abs(baselineOf(last) - baselineOf(first)) < 0.5;
+      const gap = first.bbox.x0 - last.bbox.x1;
+      // A script stacked under the one before it ("vᵁᵤ") starts left of where that one ends.
+      const script = (first.chars.find((c) => c.c.trim())?.size ?? size) < 0.8 * size;
+      if (!sameBaseline || gap < (script ? -0.8 * size : -1) || gap > 3 * size) break;
+      a.lines.pop();
+      if (a.lines.length) a.bbox = unionAll(a.lines.map((l) => l.bbox));
+      b.lines.unshift(last);
+      b.bbox = union(b.bbox, last.bbox);
+    }
   }
-  return out;
+  return out.filter((b) => b.lines.length);
 }
 
 interface PageLayout {
