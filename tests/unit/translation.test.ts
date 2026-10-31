@@ -218,6 +218,47 @@ describe('translateSegments', () => {
     expect(r!.notes).toEqual(['numbers-held']);
   });
 
+  it('Google engine: a number held in brackets is not flagged, a note keeps its number', async () => {
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(
+          texts.map((t) =>
+            t.startsWith('Vœux')
+              ? 'Karar ⟦D1⟧.'
+              : t.includes('⟦D3⟧')
+                ? 'Görüşme (⟦D1⟧/⟦D2⟧/⟦D3⟧).'
+                : 'Görüşme (8 Nisan 2022).',
+          ),
+        );
+      },
+    });
+    const ctx = {
+      pair: { source: 'fr', target: 'tr' },
+      glossary: [],
+      numberLocalization: false,
+    } as const;
+    const [cited, note] = await engine.translate(
+      [
+        {
+          id: 'a',
+          text: 'Entretien (⟦D1⟧/⟦D2⟧/⟦D3⟧).',
+          role: 'body',
+          verbatim: { D1: '08', D2: '04', D3: '22' },
+        },
+        { id: 'b', text: '3 Vœux ⟦D1⟧.', role: 'footnote', verbatim: { D1: 'n°18.2003.150' } },
+      ],
+      ctx,
+      new AbortController().signal,
+    );
+    expect(cited!.notes).toBeUndefined();
+    expect(sent[1]).toBe('Vœux n°18.2003.150.');
+    expect(note!.text).toBe('3 Karar ⟦D1⟧.');
+    expect(respacePlaceholders('⟦N1⟧ Vœux n°⟦D2⟧', '⟦N1⟧⟦D2⟧ sayılı')).toBe('⟦N1⟧ ⟦D2⟧ sayılı');
+  });
+
   it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {
     const engine = createBrowserPageEngine({
       availability: () => Promise.resolve('available'),

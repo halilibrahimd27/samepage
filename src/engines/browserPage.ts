@@ -24,6 +24,19 @@ function inlineIdentifiers(
   return { text, inlined };
 }
 
+/**
+ * A frozen number sent as a span in running text, where Google may move it out of its sentence;
+ * one in brackets ("(entretien, 08/04/22)") or a note stays where it was.
+ */
+function heldInProse(req: SegmentRequest, sent: string): boolean {
+  if (req.role === 'footnote') return false;
+  return [...sent.matchAll(/⟦D\d+⟧/gu)].some((m) => {
+    const before = sent.slice(0, m.index);
+    const depth = (o: string, c: string) => before.split(o).length - before.split(c).length;
+    return depth('(', ')') <= 0 && depth('[', ']') <= 0;
+  });
+}
+
 /** The inlined identifiers missing from a translation, taken in source order like restoreInline. */
 function lostInline(t: string, inlined: InnerTag[]): Set<string> {
   const kept: InnerTag[] = [];
@@ -48,10 +61,13 @@ function pinSectionNumber(req: SegmentRequest): {
   number: string;
   tag: string;
 } {
+  // A note's own number too ("3 Vœux n°18.2003.150" → "318.2003.150 sayılı Karar").
   const m =
     req.role === 'heading'
       ? /^\s*(?:\d{1,2}(?:\.\d{1,2})*|⟦D\d+⟧)\.?\s+(?=\S)/u.exec(req.text)
-      : null;
+      : req.role === 'footnote'
+        ? /^\s*\d{1,3}\s+(?=\p{L})/u.exec(req.text)
+        : null;
   if (m) return { req: { ...req, text: req.text.slice(m[0].length) }, number: m[0], tag: '' };
   // The label may be an identifier set aside as a whole ("⟦U1⟧: How accurate …").
   const label =
@@ -98,7 +114,7 @@ export function respacePlaceholders(source: string, target: string): string {
     if (
       /^(?:\s|[,;:.)\]]{1,3}\s)/u.test(src.slice(i + ph.length)) &&
       after &&
-      /[\p{L}\p{N}([{“]/u.test(after)
+      /[\p{L}\p{N}([{“⟦]/u.test(after)
     )
       out = out.replace(ph, `${ph} `);
     // A mark on its word ends a sentence ("incelenmiştir⟦N1⟧. Ayrıntılar"): Google returns
@@ -312,8 +328,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged).
-    model: 'browser-page-18',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned).
+    model: 'browser-page-19',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -354,7 +370,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         partly.forEach((i, k) => {
           const restored = restoreInline(texts[k] ?? '', retry[k]!.inlined);
           if (restored !== null) out[i] = respacePlaceholders(batch[i]!.text, restored);
-          if (restored !== null && /⟦D\d+⟧/u.test(retry[k]!.text)) held.add(i);
+          if (restored !== null && heldInProse(batch[i]!, retry[k]!.text)) held.add(i);
         });
       }
       // Changed again: every identifier as a span.
@@ -367,7 +383,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         signal.throwIfAborted();
         again.forEach((i, k) => {
           out[i] = respacePlaceholders(batch[i]!.text, texts[k] ?? '');
-          if (/⟦D\d+⟧/u.test(batch[i]!.text)) held.add(i);
+          if (heldInProse(batch[i]!, batch[i]!.text)) held.add(i);
         });
       }
       // Turkish puts the percent sign before the number; Google glues it to the word before
