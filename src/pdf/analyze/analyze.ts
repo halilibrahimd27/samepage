@@ -684,6 +684,35 @@ function markReferences(pages: PageIR[]): BlockIR[] {
   return section;
 }
 
+/** A page locator at the end of a citation ("s. 365.", "pp. 12–15", "S. 780-781", "с. 42"). */
+const LOCATOR_END =
+  /(?:\b(?:s|S|ss|p|pp|str|S|с|стр|ç|sf)\.\s*\d+(?:\s*[-–]\s*\d+)?|\b\d+\s*[-–]\s*\d+)\s*\.?\s*$/u;
+/** The work cited: an author's initials ("K. Kautsky"), a title in quotes, a year or a volume. */
+const CITED =
+  /^(?:\p{Lu}\.\s*){1,3}\p{Lu}[\p{L}’'-]+|[„“"«][^„“”"«»]{3,}[“”"»]|\b(?:1[5-9]|20)\d\d\b|\b(?:vol|Vol|bd|Bd|Jahrg|Jahgr|Jg|t|nr|Nr|no|No|cilt|sayı|т|вып)\.?\s+(?:\d+|[IVXLC]+)\b/u;
+
+/**
+ * A footnote that is only a citation ("1 K. Kautsky, Eine neue Strategie, „Die Neue Zeit“,
+ * Jahrg. XXVIII, bd. II, s. 365.") is kept as published, like a reference entry: its parts
+ * are names, titles and abbreviations an engine mistranslates ("bd. II" → "no. II"). A note
+ * that says something besides ("Tamże, s. 370." is too short to tell; a sentence has no list of
+ * parts) is translated.
+ */
+function keepCitationNotes(pages: PageIR[]): void {
+  for (const page of pages)
+    for (const b of page.blocks) {
+      if (b.role !== 'footnote' || !b.translatable || b.chain) continue;
+      const text = blockText(b)
+        .trim()
+        .replace(/^(?:\d{1,3}|[*∗†‡§¶]{1,3})\s*/u, '');
+      const parts = text.split(/,\s+/u);
+      if (text.length > 300 || parts.length < 3 || !LOCATOR_END.test(text)) continue;
+      // Every part short: a list of a citation's pieces, not a sentence with a page at its end.
+      if (parts.some((p) => p.split(/\s+/u).length > 8) || !CITED.test(text)) continue;
+      b.translatable = false;
+    }
+}
+
 /**
  * A footnote is small text at the foot of a page that starts with its mark ("1 Instituto …",
  * "* Artículo …") and goes on in the lines right below. Small text low on the page that is
@@ -1242,6 +1271,7 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
   });
   const section = markReferences(result);
   const footLinks = refineFootnotes(result);
+  keepCitationNotes(result);
   const entries = splitReferenceEntries(result, section);
   linkChains(
     result.map((p) => p.blocks),

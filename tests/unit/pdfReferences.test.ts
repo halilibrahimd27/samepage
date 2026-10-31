@@ -226,6 +226,33 @@ describe('footnotes', () => {
   });
 });
 
+describe('citation notes', () => {
+  it('keeps a footnote that is only a citation as published, and translates one that says more', () => {
+    const [p] = analyzeDocument([
+      page(0, [
+        ...body(60),
+        ...body(110),
+        [
+          72,
+          690,
+          '1 K. Kautsky, Eine neue Strategie, „Die Neue Zeit“, Jahrg. XXVIII, bd. II, s. 365.',
+          7,
+        ],
+        [
+          72,
+          710,
+          '2 W kwietniu 1893 roku doszło w Belgii do pierwszego strajku masowego, s. 12.',
+          7,
+        ],
+      ]),
+    ]);
+    const note = (t: string) => p!.blocks.find((b) => blockText(b).startsWith(t))!;
+    expect(note('1 K.').role).toBe('footnote');
+    expect(note('1 K.').translatable).toBe(false);
+    expect(note('2 W').translatable).toBe(true);
+  });
+});
+
 describe('hyphenation at line ends', () => {
   const line1 = (text: string) => ({
     bbox: { x0: 0, y0: 0, x1: 1, y1: 1 },
