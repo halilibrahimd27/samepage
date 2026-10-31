@@ -587,10 +587,20 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
   // A group that ends up inside a figure once its labels are in (the little table drawn in a
   // workflow diagram) is part of that figure, not a picture of its own.
   const figures = pictures.filter((p) => !p.formula);
+  // A bar with a running head in it ("Leitthema" on the journal's colour) and no image is the
+  // page's decoration.
+  const decoration = (p: Picture) => {
+    const inside = page.blocks.filter((b) => coverage(b.bbox, p.rect) > 0.5);
+    return (
+      inside.length > 0 &&
+      inside.every((b) => FURNITURE.includes(b.role)) &&
+      !page.images.some((i) => coverage(i.bbox, p.rect) > 0)
+    );
+  };
   return pictures.filter((p) => {
     const host = p.formula && figures.find((f) => coverage(p.rect, f.rect) > 0.5);
     if (host) host.absorbed.push(...p.absorbed);
-    return !host && p.rect.x1 - p.rect.x0 > 4 && p.rect.y1 - p.rect.y0 > 4;
+    return !host && !decoration(p) && p.rect.x1 - p.rect.x0 > 4 && p.rect.y1 - p.rect.y0 > 4;
   });
 }
 
