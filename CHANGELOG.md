@@ -43,6 +43,18 @@ All notable changes to samepage are documented here. The format follows
   and the math asterisk read as marks; a plural in brackets ("package(s)") no longer reported
   as a lost bracket.
 - LaTeX files saved with Windows line ends.
+- Real papers in more languages: a ruled grid whose borders vary in weight stays one table,
+  cells the PDF set as one line are cut at the column edge, a bold bulleted item is no heading,
+  a line split at its sub- and superscripts is one line again ("p_u be Pᵀvᵁᵤ and item …") and a
+  lone subscript joins its formula; a footnote that is only a citation ("K. Kautsky, …, bd. II,
+  s. 365.") is kept as published.
+- Word output of PDFs: code listings in Consolas, indented as on the page and fitted to their
+  lines; inline formulas with real sub- and superscripts.
+- Translation with Google: lines a hair apart in type size no longer cut the sentence into
+  formatted pieces, no space before punctuation or inside quotes, a paragraph whose only fault is
+  a spelled-out number written in digits ("osiemnastego wieku" → "18. yüzyıl") translated and
+  flagged instead of kept in the source language; an NGO or a non-profit is no negation for the
+  meaning check.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
