@@ -204,6 +204,17 @@ describe('editable Word output keeps the layout of the PDF', () => {
     ]);
     const [author, abstract] = paragraphs(result.items);
     expect(author).toMatchObject({ align: 'center' });
+    const right = plan([
+      page(
+        0,
+        [
+          block('p0-a', 'body', 60, ['Chiara Marchetti'], { x0: 470, x1: 558, align: 'left' }),
+          block('p0-c', 'body', 160, [words, words, words], { x0: 54, x1: 558 }),
+        ],
+        { columns: [] },
+      ),
+    ]);
+    expect(paragraphs(right.items)[0]).toMatchObject({ align: 'right' });
     expect(abstract).toMatchObject({ align: 'justify', indent: { left: 30, right: 30 } });
   });
 

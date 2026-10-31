@@ -397,7 +397,10 @@ function acrossColumns(page: PageIR, r: Rect, layout?: WordLayout): boolean {
  * How the PDF sets a paragraph in its column: the first line indented (or hanging, for a list
  * item), the whole paragraph indented (a list, a quotation), or centred.
  */
-function placement(page: PageIR, b: BlockIR): { indent?: Indent; centred: boolean; full: boolean } {
+function placement(
+  page: PageIR,
+  b: BlockIR,
+): { indent?: Indent; centred: boolean; full: boolean; flushRight?: boolean } {
   // A page of one column: the width its running text takes.
   const text = page.blocks.filter((x) => x.role === 'body' && x.lines.length >= 2);
   const page1 = text.length
@@ -419,6 +422,13 @@ function placement(page: PageIR, b: BlockIR): { indent?: Indent; centred: boolea
   const firstBox = b.lines[0]?.bbox;
   const full = !!firstBox && (b.lines.length < 2 || firstBox.x1 - area.x0 > 0.9 * areaWidth);
   if (centred) return { centred, full };
+  // One short line at the column's right edge (an author's name set right).
+  if (
+    b.lines.length === 1 &&
+    Math.abs(b.bbox.x1 - area.x1) < 3 &&
+    b.bbox.x0 - area.x0 > 0.3 * areaWidth
+  )
+    return { centred, full, flushRight: true };
   // A listing's lines keep their own indentation; the block is set in from its leftmost line.
   const first =
     b.role === 'code'
@@ -1012,7 +1022,7 @@ export function planEditable(
         const role = slots.get(b.id)?.role ?? b.role;
         const kind = kindOf(role, part, heading);
         const lines = slots.get(b.id)?.lines ?? part.lines.length;
-        const { indent, centred, full } = placement(page, part);
+        const { indent, centred, full, flushRight } = placement(page, part);
         const inFront = !!front && part.bbox.y1 <= front.end;
         let align = alignOf(part, kind, lines);
         if (kind === 'body')
@@ -1030,6 +1040,7 @@ export function planEditable(
         // A heading or caption of one line centred in its column (an author's name under the
         // title): its own box cannot tell, the column can.
         else if (kind !== 'body' && kind !== 'code' && centred) align = 'center';
+        if (flushRight && kind !== 'code') align = 'right';
         const size = half(mainSize(part));
         const wide =
           !!layout &&
