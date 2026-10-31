@@ -178,6 +178,13 @@ export function unglue(source: string, target: string): string {
 export function closeBrackets(source: string, target: string): string {
   const count = (t: string, c: string) => t.split(c).length - 1;
   let out = target;
+  // A comma Google made a closing bracket ("(Conseil de Paris, 09/2006)" → "(Paris Şehir
+  // Meclisi) 09/2006)"): the comma comes back.
+  out = out.replace(/\(([^()]*?)\)\s+([^\s()]+)\)/gu, (m, inner: string, token: string) =>
+    count(out, ')') > count(out, '(') && untagged(source).includes(`, ${token})`)
+      ? `(${inner}, ${token})`
+      : m,
+  );
   for (const m of untagged(source).matchAll(/(\S*\d\S*?)\)([.,;:]?)(?=\s|$)/gu)) {
     if (count(out, '(') <= count(out, ')')) break;
     const token = m[1]!.replace(/^\(/u, '');
@@ -245,8 +252,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets).
-    model: 'browser-page-13',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket).
+    model: 'browser-page-14',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

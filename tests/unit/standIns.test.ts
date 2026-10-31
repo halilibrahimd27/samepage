@@ -229,6 +229,12 @@ describe('headings with machine engines', () => {
         'Weber, Sirah kitabında (Sir. 11,20-21 Luther, rahiplerden nefret ediyordu.',
       ),
     ).toBe('Weber, Sirah kitabında (Sir. 11,20-21). Luther, rahiplerden nefret ediyordu.');
+    expect(
+      closeBrackets(
+        'quelques questions. » (Conseil de Paris, 09/2006)12',
+        'bazı soruları gündeme getiriyor.” (Paris Şehir Meclisi) 09/2006)12',
+      ),
+    ).toBe('bazı soruları gündeme getiriyor.” (Paris Şehir Meclisi, 09/2006)12');
     // Closed in the translation: left alone.
     expect(closeBrackets('(viz Weber, 1996). Dále', '(bkz. Weber, 1996). Ayrıca')).toBe(
       '(bkz. Weber, 1996). Ayrıca',
