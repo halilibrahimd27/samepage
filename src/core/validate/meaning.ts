@@ -157,6 +157,8 @@ const CUES: Record<string, Cues> = {
       'yet to',
       // "were excluded" ↔ "were not included".
       'exclu(?:de|ded|des|ding|sion)',
+      // "it is omitted in Figure 4" ↔ "it is not included".
+      'omi(?:t|ts|tted|tting|ssion)',
       'instead',
       'rather than',
       // un- adjectives ("not popular" ↔ "unpopular"), not under-, uni-, until, unless.
@@ -169,6 +171,9 @@ const CUES: Record<string, Cues> = {
       'can',
       'possible',
       'possibility',
+      // "how likely i is relevant" ↔ "the probability of i being related".
+      'probabilit(?:y|ies)',
+      'likelihood',
       'probable',
       'maybe',
       'seemingly',
@@ -179,7 +184,15 @@ const CUES: Record<string, Cues> = {
       'as though',
       'almost',
     ]),
-    ignore: words(['(?:whether )?or not', 'not only', 'above all', 'after all']),
+    ignore: words([
+      '(?:whether )?or not',
+      'not only',
+      'above all',
+      'after all',
+      // "with and without pre-training" compares, it negates nothing.
+      'with(?: and| or) without',
+      'without (?:and|or) with',
+    ]),
     quantifiers: {
       'all/every': words(['all', 'every', 'each', 'always', 'entire(?:ly)?', 'whole']),
       most: words(['most', 'majority', 'mostly', 'largely']),
@@ -373,6 +386,8 @@ const CUES: Record<string, Cues> = {
     ],
     soft: [
       'exclu\\p{L}*',
+      // "no se conoce" (is not known) ↔ "se desconoce" (is unknown).
+      'desconoc\\p{L}*',
       'prohibid\\p{L}*',
       'falta\\p{L}*',
       'ausen\\p{L}*',

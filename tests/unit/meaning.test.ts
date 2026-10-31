@@ -169,6 +169,37 @@ describe('back-translation meaning check', () => {
     ).toEqual(['major: negation lost']);
   });
 
+  it('English and Spanish: omitted, with and without, probability, desconoce', () => {
+    expect(
+      issues(
+        'Due to the weak performance of ItemPop, it is omitted in Figure 4 to better highlight the difference.',
+        'Due to the low performance of ItemPop, it is not included in Figure 4 to better highlight the difference.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'We compared the performance of two versions of NeuMF — with and without pre-training.',
+        'We compared the performance of two versions of NeuMF: pre-trained and unpre-trained.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'The prediction score then represents how likely i is relevant to u.',
+        'The prediction score then represents the probability of i being related to u.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Otra característica es que el tamaño de la muestra no se conoce al inicio del estudio.',
+        'Otra característica es que el tamaño de la muestra se desconoce al inicio del estudio.',
+        'es',
+      ),
+    ).toEqual([]);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(
