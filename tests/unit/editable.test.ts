@@ -141,6 +141,30 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
   });
 
+  it('links the mark set apart after a section number, and a note going on to the next page', () => {
+    const result = plan([
+      page(0, [
+        block('p0-b0', 'body', 100, [[span('The text of the section before this one.', 50)]]),
+        block('p0-b1', 'body', 130, [[span('IV **', 50)]]),
+        block('p0-b2', 'body', 160, [[span('Text with a mark', 50), { sup: '9', x: 130 }]]),
+        block('p0-b3', 'footnote', 700, [[span('** A note on the whole section.', 50)]]),
+        block('p0-b4', 'footnote', 720, [[span('9 A note that goes on', 50)]]),
+      ]),
+      page(1, [
+        block('p1-b0', 'body', 100, [[span('More text on the next page.', 50)]]),
+        block('p1-b1', 'footnote', 700, [[span('into the next page.', 50)]]),
+      ]),
+    ]);
+    expect(result.items.some((i) => i.kind === 'picture')).toBe(false);
+    expect(result.items.filter((i) => i.kind === 'paragraph' && i.style === 'footnote')).toEqual(
+      [],
+    );
+    expect(result.footnotes.map((n) => n.map((r) => r.text).join(''))).toEqual([
+      'A note on the whole section.',
+      'A note that goes on into the next page.',
+    ]);
+  });
+
   it('keeps a footnote without a matching mark where it is', () => {
     const body = block('p0-b0', 'body', 100, [[span('Veriler derlemden alınmıştır.', 50)]]);
     const note = block('p0-b1', 'footnote', 780, [[span('Bu belge kurgusaldır.', 50, 8)]]);

@@ -461,6 +461,8 @@ function formulaPiece(text: string): boolean {
   const t = text.trim();
   // Equation numbers go with the formula on their line (below), whatever the distance.
   if (!t || t.length > 80 || EQUATION_NUMBER.test(t)) return false;
+  // A section's number on its own line ("IV", "IV **" with its note mark) is a heading.
+  if (/^(?:[IVXL]{1,6}|\d{1,2}(?:\.\d{1,2})*)\.?\s*[*∗†‡§¶]{0,3}$/u.test(t)) return false;
   // Short words, but not an identifier ("ACM 978-1-4503-4913-0/17/04.") or a lone full stop.
   const short =
     (t.match(/\p{L}+/gu) ?? []).every((run) => run.length <= 3) &&
@@ -702,16 +704,25 @@ function inlineMark(
   mark: string,
 ): EditableRun | undefined {
   if (!/^[*∗†‡§¶]{1,2}$/u.test(mark)) return undefined;
-  const at = new RegExp(`(?<=\\S)${mark.replace(/\*/g, '\\*')}(?![*∗†‡§¶])`, 'gu');
+  const escaped = mark.replace(/\*/g, '\\*');
+  // Not the last star of another mark ("**").
+  const at = new RegExp(`(?<=[^\\s*∗†‡§¶])${escaped}(?![*∗†‡§¶])`, 'gu');
+  // Set apart at the end of the paragraph: a short heading's mark ("IV **").
+  const end = new RegExp(`(?:(?<=\\S)|^)\\s+${escaped}\\s*$`, 'u');
   for (let k = item.runs.length - 1; k >= 0; k--) {
     const run = item.runs[k]!;
     if (run.superscript || run.footnote !== undefined || run.link) continue;
-    const found = [...run.text.matchAll(at)].pop();
-    if (found?.index === undefined) continue;
+    const glued = [...run.text.matchAll(at)].pop()?.index;
+    const apart =
+      k === item.runs.length - 1 && end.test(run.text)
+        ? run.text.trimEnd().length - mark.length
+        : undefined;
+    const index = glued ?? apart;
+    if (index === undefined) continue;
     const target = { ...run, text: mark };
-    item.runs.splice(k, 1, { ...run, text: run.text.slice(0, found.index) }, target, {
+    item.runs.splice(k, 1, { ...run, text: run.text.slice(0, index).trimEnd() }, target, {
       ...run,
-      text: run.text.slice(found.index + mark.length),
+      text: run.text.slice(index + mark.length),
     });
     return target;
   }
@@ -726,6 +737,9 @@ function inlineMark(
 function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun[][] {
   const footnotes: EditableRun[][] = [];
   const removed = new Set<number>();
+  // The item and page of the last note linked.
+  let lastNote = -1;
+  let notePage = -1;
   for (let i = 0; i < items.length; i++) {
     const note = items[i]!;
     if (note.kind !== 'paragraph' || note.style !== 'footnote' || !note.runs.length) continue;
@@ -743,8 +757,29 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
         rest = [{ ...first, text: first.text.slice(m[0].length) }, ...note.runs.slice(1)];
       }
     }
-    if (!mark) continue;
     const page = pageStarts.filter((s) => s <= i).length - 1;
+    if (!mark) {
+      // A note going on from the page before ("głosów z 3 milionów …"): the first note of its
+      // page, without a mark, right after a note linked on that page that did not end, joins it.
+      const between = items
+        .slice(lastNote + 1, i)
+        .some((it) => it.kind === 'paragraph' && it.style === 'footnote');
+      const last = footnotes[footnotes.length - 1];
+      const ended = /[.!?…)\]”»"]$/u.test(
+        (last ?? [])
+          .map((r) => r.text)
+          .join('')
+          .trimEnd(),
+      );
+      const lower = /^\p{Ll}/u.test(first.text.trimStart());
+      if (last && lastNote >= 0 && !between && notePage === page - 1 && (!ended || lower)) {
+        last.push({ text: ' ' }, { ...first, text: first.text.trimStart() }, ...note.runs.slice(1));
+        removed.add(i);
+        lastNote = i;
+        notePage = page;
+      }
+      continue;
+    }
     const from = pageStarts[Math.max(0, page - 1)] ?? 0;
     let target: EditableRun | undefined;
     for (let j = i - 1; j >= from && !target; j--) {
@@ -763,6 +798,8 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
     rest[0] = { ...rest[0]!, text: rest[0]!.text.trimStart() };
     footnotes.push(rest.filter((r) => r.text || r.lineBreak));
     removed.add(i);
+    lastNote = i;
+    notePage = page;
   }
   const kept = items.filter((_, i) => !removed.has(i));
   items.splice(0, items.length, ...kept);
