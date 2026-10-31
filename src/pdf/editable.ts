@@ -398,15 +398,22 @@ function acrossColumns(page: PageIR, r: Rect, layout?: WordLayout): boolean {
  * item), the whole paragraph indented (a list, a quotation), or centred.
  */
 function placement(page: PageIR, b: BlockIR): { indent?: Indent; centred: boolean; full: boolean } {
+  // A page of one column: the width its running text takes.
+  const text = page.blocks.filter((x) => x.role === 'body' && x.lines.length >= 2);
+  const page1 = text.length
+    ? { x0: Math.min(...text.map((x) => x.bbox.x0)), x1: Math.max(...text.map((x) => x.bbox.x1)) }
+    : { x0: b.bbox.x0, x1: b.bbox.x1 };
   const area = acrossColumns(page, b.bbox)
     ? { x0: page.columns[0]!.x0, x1: page.columns[page.columns.length - 1]!.x1 }
-    : (page.columns[b.columnIndex] ?? { x0: b.bbox.x0, x1: b.bbox.x1 });
+    : (page.columns[b.columnIndex] ?? page1);
   const areaWidth = area.x1 - area.x0;
   const blockWidth = b.bbox.x1 - b.bbox.x0;
+  // A line, or lines centred one by one; a justified paragraph set in from both sides is none.
   const centred =
     blockWidth < 0.85 * areaWidth &&
     Math.abs((b.bbox.x0 + b.bbox.x1) / 2 - (area.x0 + area.x1) / 2) < 4 &&
-    b.bbox.x0 - area.x0 > 12;
+    b.bbox.x0 - area.x0 > 12 &&
+    (b.lines.length === 1 || b.align === 'center');
   // A first line across the column: the paragraph's lines are filled (justified, when the
   // running text is), not a short line set on its own ("ACM ISBN …").
   const firstBox = b.lines[0]?.bbox;
@@ -425,6 +432,10 @@ function placement(page: PageIR, b: BlockIR): { indent?: Indent; centred: boolea
   const firstLine = first - rest;
   const indent: Indent = {};
   if (left > 4 && left < 0.4 * areaWidth) indent.left = half(left);
+  // A justified block set in from both sides (an abstract, a quotation).
+  const right = area.x1 - b.bbox.x1;
+  if (indent.left && b.align === 'justify' && right > 4 && right < 0.4 * areaWidth)
+    indent.right = half(right);
   if (Math.abs(firstLine) > 1.5 && Math.abs(firstLine) < 0.15 * areaWidth)
     indent.firstLine = half(firstLine);
   return indent.left || indent.firstLine ? { indent, centred, full } : { centred, full };
@@ -1013,6 +1024,9 @@ export function planEditable(
         // hanging lines end at the column's edge).
         if (kind === 'reference' || kind === 'footnote')
           align = part.align === 'justify' && full ? 'justify' : 'left';
+        // A heading or caption of one line centred in its column (an author's name under the
+        // title): its own box cannot tell, the column can.
+        else if (kind !== 'body' && kind !== 'code' && centred) align = 'center';
         const size = half(mainSize(part));
         const wide =
           !!layout &&
@@ -1037,7 +1051,9 @@ export function planEditable(
             ...(kind === 'body' && indent && !(n && indent.firstLine)
               ? { indent }
               : kind === 'body' && indent?.left
-                ? { indent: { left: indent.left } }
+                ? {
+                    indent: { left: indent.left, ...(indent.right ? { right: indent.right } : {}) },
+                  }
                 : {}),
             ...(kind === 'body' && layout && Math.abs(size - (layout.sizes.body ?? size)) > 0.6
               ? { size }

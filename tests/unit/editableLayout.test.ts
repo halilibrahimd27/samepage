@@ -184,6 +184,29 @@ describe('editable Word output keeps the layout of the PDF', () => {
     expect(await zip.file('word/settings.xml')!.async('string')).toContain('<w:autoHyphenation/>');
   });
 
+  it('centres an author line on a page of one column, and sets an abstract in from both sides', () => {
+    const result = plan([
+      page(
+        0,
+        [
+          block('p0-a', 'heading', 60, ['Ali BALTACI'], {
+            x0: 280,
+            x1: 330,
+            size: 10,
+            align: 'left',
+          }),
+          block('p0-b', 'body', 100, [words, words, words], { x0: 84, x1: 528 }),
+          block('p0-c', 'body', 160, [words, words, words], { x0: 54, x1: 558 }),
+          block('p0-d', 'body', 220, [words, words, words], { x0: 54, x1: 558 }),
+        ],
+        { columns: [] },
+      ),
+    ]);
+    const [author, abstract] = paragraphs(result.items);
+    expect(author).toMatchObject({ align: 'center' });
+    expect(abstract).toMatchObject({ align: 'justify', indent: { left: 30, right: 30 } });
+  });
+
   it('keeps three columns, and a title across the second and third as wide', () => {
     const three = [
       { x0: 40, x1: 200, y0: 0, y1: 792 },

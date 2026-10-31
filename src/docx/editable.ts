@@ -46,6 +46,8 @@ export interface TableCell {
 /** Left and first-line indents in points, as the PDF sets the paragraph. */
 export interface Indent {
   left?: number;
+  /** Set in from the right too (an abstract, a quotation). */
+  right?: number;
   firstLine?: number;
 }
 
@@ -209,11 +211,11 @@ class Package {
 
   paragraph(item: Extract<EditableItem, { kind: 'paragraph' }>): string {
     const pStyle = item.style === 'body' ? '' : `<w:pStyle w:val="${STYLE_IDS[item.style]}"/>`;
-    const { left, firstLine } = item.indent ?? {};
+    const { left, right, firstLine } = item.indent ?? {};
     // A negative first line hangs (a list item's bullet before the lines under it).
     const ind =
-      left || firstLine
-        ? `<w:ind${left ? ` w:left="${twips(left)}"` : ''}${
+      left || right || firstLine
+        ? `<w:ind${left ? ` w:left="${twips(left)}"` : ''}${right ? ` w:right="${twips(right)}"` : ''}${
             firstLine
               ? firstLine > 0
                 ? ` w:firstLine="${twips(firstLine)}"`
