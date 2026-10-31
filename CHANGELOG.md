@@ -56,12 +56,14 @@ All notable changes to samepage are documented here. The format follows
   columns, justified columns hyphenated; a table's interval line ("(19,9–23,0)") in its cell;
   a caption set white on a coloured bar shown, and as wide as its table; a section number
   ("IV") stays text and its note mark is linked; a footnote going on to the next page is one
-  note.
+  note, an address line set under its note stays in it, a table's note links to its mark in a
+  cell; a bar holding only the running head or the page number is no picture.
 - Translation with Google: lines a hair apart in type size no longer cut the sentence into
   formatted pieces, no space before punctuation or inside quotes, a paragraph whose only fault is
   a spelled-out number written in digits ("osiemnastego wieku" → "18. yüzyıl") translated and
-  flagged instead of kept in the source language; an NGO or a non-profit is no negation for the
-  meaning check.
+  flagged instead of kept in the source language, a closing bracket Google dropped with the
+  sentence end put back; decades in words in more languages ("los noventa" → 1990s); an NGO, a
+  non-profit, "sin embargo" or "sans doute" is no negation for the meaning check.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
