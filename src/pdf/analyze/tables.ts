@@ -311,11 +311,14 @@ function tableFromRows(
       }
       break;
     }
-    // Lines of both columns of a two-column page: text, not a table.
+    // Lines of both columns of a two-column page: text, not a table. A column's line runs
+    // nearly its column's width; a long cell of a two-column table does not.
+    const columnLine = (l: TextLine) =>
+      l.text.length > 35 && l.bbox.x1 - l.bbox.x0 > 0.35 * 2 * mid;
     if (
       wide &&
-      row.some((l) => l.bbox.x1 < mid - 3 && l.text.length > 35) &&
-      row.some((l) => l.bbox.x0 > mid + 3 && l.text.length > 35)
+      row.some((l) => l.bbox.x1 < mid - 3 && columnLine(l)) &&
+      row.some((l) => l.bbox.x0 > mid + 3 && columnLine(l))
     )
       break;
     rows.push(row);

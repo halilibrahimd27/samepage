@@ -331,6 +331,30 @@ describe('tables found from their caption', () => {
     expect(t!.rect.y1).toBeGreaterThan(140);
   });
 
+  it('keeps two columns of long cells, which are no two-column text', () => {
+    const cap: Cell = [
+      54,
+      100,
+      330,
+      109,
+      'Table 1 List of Primary and Secondary Design Dimensions',
+    ];
+    const pairs = [
+      ['Primary Dimensions', 'Primäre Dimensionen'],
+      ['1. Purpose', 'Untersuchungsziel'],
+      ['2. Theoretical drive', 'Rolle von Theorie im Forschungsprozess'],
+      ['3. Timing (simultaneity and dependence)', 'Timing (Simultanität und Abhängigkeit)'],
+      ['4. Point of integration', 'Schnittstellen, an denen Integration stattfindet'],
+      ['5. Typological vs. interactive design approach', 'Typologisches vs. interaktives Design'],
+    ];
+    const cells = pairs.flatMap(([a, b], i): Cell[] => [
+      [54, 118 + 12 * i, 54 + Math.min(200, 3.4 * a!.length), 127 + 12 * i, a!],
+      [320, 118 + 12 * i, 320 + Math.min(200, 3.4 * b!.length), 127 + 12 * i, b!],
+    ]);
+    const [t] = detectTables(cellPage([cap, ...cells], []));
+    expect(t!.rect.y1).toBeGreaterThan(118 + 12 * 5);
+  });
+
   it('stops at a paragraph line', () => {
     const rows = [
       ['Method', 'Acc', 'F1'],
