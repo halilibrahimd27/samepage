@@ -249,7 +249,7 @@ describe('headings with machine engines', () => {
       translate: (_pair, texts) => {
         sent.push(...texts);
         return Promise.resolve(
-          texts.map(() => 'Lojistik yayılma (⟦Z1⟧) ve yaşayan laboratuvarlar (⟦Z2⟧).'),
+          texts.map(() => 'Lojistik yayılma⟦Z1⟧ve yaşayan laboratuvarlar ⟦Z2⟧.'),
         );
       },
     });
@@ -264,7 +264,7 @@ describe('headings with machine engines', () => {
       { pair: { source: 'bg', target: 'tr' }, glossary: [], numberLocalization: false },
       signal,
     );
-    expect(sent[0]).toContain('(⟦Z1⟧)');
+    expect(sent[0]).toContain('разпръскване ⟦Z1⟧ и');
     expect(out!.text).toBe(
       'Lojistik yayılma (logistics sprawl) ve yaşayan laboratuvarlar (Living Labs).',
     );

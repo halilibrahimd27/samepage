@@ -178,18 +178,29 @@ export function unglue(source: string, target: string): string {
 export function shieldGlosses(text: string, lang: string): { text: string; glosses: string[] } {
   const glosses: string[] = [];
   if (!['bg', 'uk', 'ru', 'el'].includes(lang)) return { text, glosses };
+  // The brackets go with it: Google drops brackets around a span it must not translate.
   const out = text.replace(
-    /\((\p{Script=Latin}[\p{Script=Latin} '’-]{1,60}\p{Script=Latin})\)/gu,
-    (_m, g: string) => {
+    /\(\p{Script=Latin}[\p{Script=Latin} '’-]{1,60}\p{Script=Latin}\)/gu,
+    (g: string) => {
       glosses.push(g);
-      return `(⟦Z${glosses.length}⟧)`;
+      return `⟦Z${glosses.length}⟧`;
     },
   );
   return { text: out, glosses };
 }
 
+/** The glosses back in place, a space on each side unless punctuation follows or precedes. */
 const unshield = (text: string, glosses: string[]) =>
-  glosses.reduce((t, g, i) => t.replace(`⟦Z${i + 1}⟧`, g), text);
+  glosses.reduce((t, g, i) => {
+    const ph = `⟦Z${i + 1}⟧`;
+    const at = t.indexOf(ph);
+    if (at < 0) return t;
+    const head = t.slice(0, at).replace(/\s+$/u, '');
+    const tail = t.slice(at + ph.length).replace(/^\s+/u, '');
+    const lead = head && !/[([„“"«]$/u.test(head) ? ' ' : '';
+    const trail = tail && !/^[.,;:!?)\]”"»]/u.test(tail) ? ' ' : '';
+    return `${head}${lead}${g}${trail}${tail}`;
+  }, text);
 
 /**
  * The year after a date written short ("№ 241 від 09.03.2016 р.", "в 2015 г."): Google read
