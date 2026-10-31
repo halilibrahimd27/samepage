@@ -165,6 +165,39 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
   });
 
+  it('links a table’s note to its mark in a cell, and keeps an address line in its note', () => {
+    const cell = (id: string, row: number, col: number, spans: SpanIR[]) => {
+      const x0 = col ? 200 : 50;
+      const b = block(id, 'table-cell', 300 + 20 * row, [spans], { x0, x1: x0 + 100 });
+      b.tableCell = {
+        tableId: 't0',
+        row,
+        col,
+        cellRect: { x0, y0: 300 + 20 * row, x1: col ? 300 : 200, y1: 320 + 20 * row },
+      };
+      return b;
+    };
+    const result = plan([
+      page(0, [
+        block('p0-b0', 'body', 100, [[span('Instituto', 50), { sup: '1', x: 95 }]]),
+        cell('p0-c0', 0, 0, [span('Estudos', 50)]),
+        cell('p0-c1', 0, 1, [span('38,39', 200), span('*', 230)]),
+        cell('p0-c2', 1, 0, [span('Outros', 50)]),
+        cell('p0-c3', 1, 1, [span('12', 200)]),
+        block('p0-n0', 'footnote', 690, [[span('1 Universidade Federal da Bahia, Canela.', 50)]]),
+        block('p0-n1', 'footnote', 700, [[span('Salvador BA Brasil.', 50)]]),
+        block('p0-n2', 'footnote', 720, [[span('*Estudos brasileiros.', 50)]]),
+      ]),
+    ]);
+    expect(result.items.filter((i) => i.kind === 'paragraph' && i.style === 'footnote')).toEqual(
+      [],
+    );
+    expect(result.footnotes.map((n) => n.map((r) => r.text).join(''))).toEqual([
+      'Universidade Federal da Bahia, Canela. Salvador BA Brasil.',
+      'Estudos brasileiros.',
+    ]);
+  });
+
   it('keeps a footnote without a matching mark where it is', () => {
     const body = block('p0-b0', 'body', 100, [[span('Veriler derlemden alınmıştır.', 50)]]);
     const note = block('p0-b1', 'footnote', 780, [[span('Bu belge kurgusaldır.', 50, 8)]]);

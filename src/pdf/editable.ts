@@ -755,7 +755,12 @@ function inlineMark(
       k === item.runs.length - 1 && end.test(run.text)
         ? run.text.trimEnd().length - mark.length
         : undefined;
-    const index = glued ?? apart;
+    // A run of its own glued to the run before ("38,39" then "*").
+    const alone =
+      run.text.trim() === mark && k > 0 && /\S$/u.test(item.runs[k - 1]!.text)
+        ? run.text.indexOf(mark)
+        : undefined;
+    const index = glued ?? apart ?? alone;
     if (index === undefined) continue;
     const target = { ...run, text: mark };
     item.runs.splice(k, 1, { ...run, text: run.text.slice(0, index).trimEnd() }, target, {
@@ -810,7 +815,11 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
           .trimEnd(),
       );
       const lower = /^\p{Ll}/u.test(first.text.trimStart());
-      if (last && lastNote >= 0 && !between && notePage === page - 1 && (!ended || lower)) {
+      // Or a line of it set apart right under it on the same page (an address: "Salvador BA
+      // Brasil.").
+      const under = lastNote === i - 1 && notePage === page;
+      const turned = !between && notePage === page - 1 && (!ended || lower);
+      if (last && lastNote >= 0 && (under || turned)) {
         last.push({ text: ' ' }, { ...first, text: first.text.trimStart() }, ...note.runs.slice(1));
         removed.add(i);
         lastNote = i;
@@ -820,15 +829,26 @@ function linkFootnotes(items: EditableItem[], pageStarts: number[]): EditableRun
     }
     const from = pageStarts[Math.max(0, page - 1)] ?? 0;
     let target: EditableRun | undefined;
+    const find = (item: EditableItem & { kind: 'paragraph' }) =>
+      [...item.runs]
+        .reverse()
+        .find(
+          (r) => r.superscript && !r.math && r.footnote === undefined && r.text.trim() === mark,
+        ) ?? inlineMark(item, mark);
     for (let j = i - 1; j >= from && !target; j--) {
       const item = items[j]!;
-      if (item.kind !== 'paragraph' || item.style === 'footnote' || removed.has(j)) continue;
-      target =
-        [...item.runs]
-          .reverse()
-          .find(
-            (r) => r.superscript && !r.math && r.footnote === undefined && r.text.trim() === mark,
-          ) ?? inlineMark(item, mark);
+      if (removed.has(j)) continue;
+      // A table's note ("38,39*" in a cell, "*Estudos brasileiros." under the table).
+      if (item.kind === 'table')
+        for (const runs of item.rows
+          .flat()
+          .flatMap((c) => c.paragraphs)
+          .reverse()) {
+          target = find({ kind: 'paragraph', style: 'body', align: 'left', runs });
+          if (target) break;
+        }
+      if (item.kind !== 'paragraph' || item.style === 'footnote') continue;
+      target = find(item);
     }
     if (!target) continue;
     target.text = '';
