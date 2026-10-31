@@ -214,6 +214,8 @@ describe('translateSegments', () => {
     expect(sent[1]).toEqual(['passe de %4,4 en 2001 à %8,6 en 2024, mais %61,5 en ⟦D6⟧']);
     expect(sent).toHaveLength(2);
     expect(r!.text).toBe("⟦D2⟧'de ⟦D1⟧'ten ⟦D4⟧'te ⟦D3⟧'ya çıkar, erkeklerde ise ⟦D5⟧ ⟦D6⟧");
+    // The number held in place may read out of place: the paragraph is flagged for review.
+    expect(r!.notes).toEqual(['numbers-held']);
   });
 
   it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {

@@ -312,8 +312,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span).
-    model: 'browser-page-17',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged).
+    model: 'browser-page-18',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -340,6 +340,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       // Only that one: Google translates the text between spans apart ("passe de 4,4 % en 2001
       // à 8,6 %" with every number a span → "%4,4 içinde 2001 sahip olmak %8,6").
       const partly = out.flatMap((t, i) => (t === null ? [i] : []));
+      // A number held in place may read out of place ("… kaldı. 2024. Belediye"): flagged.
+      const held = new Set<number>();
       if (partly.length) {
         const retry = partly.map((i) =>
           inlineIdentifiers(batch[i]!, lostInline(first[i] ?? '', prepared[i]!.inlined)),
@@ -352,6 +354,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         partly.forEach((i, k) => {
           const restored = restoreInline(texts[k] ?? '', retry[k]!.inlined);
           if (restored !== null) out[i] = respacePlaceholders(batch[i]!.text, restored);
+          if (restored !== null && /⟦D\d+⟧/u.test(retry[k]!.text)) held.add(i);
         });
       }
       // Changed again: every identifier as a span.
@@ -362,7 +365,10 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
           again.map((i) => batch[i]!.text),
         );
         signal.throwIfAborted();
-        again.forEach((i, k) => (out[i] = respacePlaceholders(batch[i]!.text, texts[k] ?? '')));
+        again.forEach((i, k) => {
+          out[i] = respacePlaceholders(batch[i]!.text, texts[k] ?? '');
+          if (/⟦D\d+⟧/u.test(batch[i]!.text)) held.add(i);
+        });
       }
       // Turkish puts the percent sign before the number; Google glues it to the word before
       // ("F1 skoru%94,2'lik").
@@ -381,6 +387,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
           dropAddedFullStop(s.text, confineTags(s.text, fix(out[i]!, s.text))),
           pinned[i]!,
         ),
+        ...(held.has(i) ? { notes: ['numbers-held'] } : {}),
       }));
     },
   };

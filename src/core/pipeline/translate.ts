@@ -254,6 +254,14 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
           'translated sentence by sentence: given the whole paragraph, the engine changed numbers or citations',
       });
     }
+    if (notes.includes('numbers-held')) {
+      issues.push({
+        code: 'REVIEW_SUGGESTED',
+        severity: 'warning',
+        detail:
+          'the engine kept changing a number, so it was held in place; please check the wording around it',
+      });
+    }
     if (notes.includes('kept-verbatim')) {
       issues.push({
         code: 'PARTLY_UNTRANSLATED',
