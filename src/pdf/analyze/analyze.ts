@@ -136,10 +136,14 @@ function figureRegions(page: RawPage, tables: TableRegion[]): FigureRegion[] {
         Math.abs(o.y0 - r.y0) < 1.5 &&
         (Math.abs(o.x0 - r.x1) < 3 || Math.abs(r.x0 - o.x1) < 3),
     );
+  // The journal's logo and the rule under its running head, small in the page's top or bottom
+  // margin, are no part of a figure set just below them.
+  const band = page.height * 0.07;
+  const furniture = (r: Rect) => r.y1 - r.y0 < 30 && (r.y1 < band || r.y0 > page.height - band);
   const shapes = [
     ...page.images.map((i) => ({ rect: i.bbox, bar: false, solid: true })),
     ...vectors.map((v) => ({ rect: v, bar: bar(v), solid: solid.has(v) })),
-  ];
+  ].filter((s) => !furniture(s.rect));
   const regions: (FigureRegion & { solid: boolean })[] = [];
   for (const s of shapes) {
     let r = { ...expand(s.rect, 12), bars: s.bar, content: s.rect, solid: s.solid };

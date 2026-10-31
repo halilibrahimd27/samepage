@@ -534,7 +534,17 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
   const pictures: Picture[] = [];
   for (const f of page.figures ?? []) {
     if (f.formula || running(f.bbox) > 200) continue;
-    pictures.push({ rect: f.bbox, formula: false, absorbed: [] });
+    // A caption is written as text: a rule under it (PLOS) must not draw it into the picture.
+    const rect = { ...f.bbox };
+    for (const c of page.blocks.filter(
+      (b) => b.role === 'caption' && coverage(b.bbox, f.bbox) > 0.5,
+    )) {
+      if ((c.bbox.y0 + c.bbox.y1) / 2 > (rect.y0 + rect.y1) / 2)
+        rect.y1 = Math.min(rect.y1, c.bbox.y0 - 1);
+      else rect.y0 = Math.max(rect.y0, c.bbox.y1 + 1);
+    }
+    if (rect.y1 - rect.y0 < 4) continue;
+    pictures.push({ rect, formula: false, absorbed: [] });
   }
   // Display formulas: formula blocks and the pieces of a formula set as text ("∂ . (2)", "i T",
   // "Txt Tx ht h"), joined when they touch, with their fraction bars. Text in a figure (a chart's

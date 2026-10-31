@@ -105,7 +105,8 @@ const CAPTION_START = new RegExp(
     'resim',
     'grafik',
     'figure',
-    'fig\\.',
+    // "Fig. 2", and PLOS's "Fig 2".
+    'fig\\.?',
     'table',
     'tab\\.',
     'listing',
