@@ -242,6 +242,34 @@ describe('headings with machine engines', () => {
     );
   });
 
+  it('keeps an English term the Bulgarian source gives in brackets', async () => {
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(
+          texts.map(() => 'Lojistik yayılma (⟦Z1⟧) ve yaşayan laboratuvarlar (⟦Z2⟧).'),
+        );
+      },
+    });
+    const [out] = await engine.translate(
+      [
+        {
+          id: 's',
+          text: 'Логистично разпръскване (logistics sprawl) и живи лаборатории (Living Labs).',
+          role: 'body',
+        },
+      ],
+      { pair: { source: 'bg', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(sent[0]).toContain('(⟦Z1⟧)');
+    expect(out!.text).toBe(
+      'Lojistik yayılma (logistics sprawl) ve yaşayan laboratuvarlar (Living Labs).',
+    );
+  });
+
   it('spells out the short year after a date for Google', () => {
     expect(spellYears('наказом № 241 від 09.03.2016 р. та у 2007 р., свідоцтво', 'uk')).toBe(
       'наказом № 241 від 09.03.2016 року та у 2007 року, свідоцтво',

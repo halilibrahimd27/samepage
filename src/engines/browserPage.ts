@@ -171,6 +171,27 @@ export function unglue(source: string, target: string): string {
 }
 
 /**
+ * A term in Latin letters the source gives in brackets ("(logistics sprawl)", "(Living Labs)")
+ * stays as written: Google drops it when translating a Cyrillic or Greek text. It travels as a
+ * no-translate span and comes back after.
+ */
+export function shieldGlosses(text: string, lang: string): { text: string; glosses: string[] } {
+  const glosses: string[] = [];
+  if (!['bg', 'uk', 'ru', 'el'].includes(lang)) return { text, glosses };
+  const out = text.replace(
+    /\((\p{Script=Latin}[\p{Script=Latin} '’-]{1,60}\p{Script=Latin})\)/gu,
+    (_m, g: string) => {
+      glosses.push(g);
+      return `(⟦Z${glosses.length}⟧)`;
+    },
+  );
+  return { text: out, glosses };
+}
+
+const unshield = (text: string, glosses: string[]) =>
+  glosses.reduce((t, g, i) => t.replace(`⟦Z${i + 1}⟧`, g), text);
+
+/**
  * The year after a date written short ("№ 241 від 09.03.2016 р.", "в 2015 г."): Google read
  * "р." as "river" ("09.03.2016 nehir"); the word itself it translates.
  */
@@ -266,8 +287,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out).
-    model: 'browser-page-15',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept).
+    model: 'browser-page-16',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -276,10 +297,13 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       const pinned = whole.map(pinSectionNumber);
       const batch = pinned.map((p) => p.req);
       const prepared = batch.map(inlineIdentifiers);
-      const first = await bridge.translate(
-        ctx.pair,
-        prepared.map((p) => spellYears(p.text, ctx.pair.source)),
-      );
+      const shielded = prepared.map((p) => shieldGlosses(p.text, ctx.pair.source));
+      const first = (
+        await bridge.translate(
+          ctx.pair,
+          shielded.map((p) => spellYears(p.text, ctx.pair.source)),
+        )
+      ).map((t, i) => unshield(t, shielded[i]!.glosses));
       signal.throwIfAborted();
       const out = batch.map((s, i): string | null => {
         const { inlined } = prepared[i]!;
