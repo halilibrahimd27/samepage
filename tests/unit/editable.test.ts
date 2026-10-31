@@ -281,6 +281,39 @@ describe('editable Word output of a PDF (P9.4)', () => {
     expect(item!.runs.find((r) => r.text === 'v')?.subscript).toBeUndefined();
   });
 
+  it('sets a whole column the way its narrower cells show', () => {
+    const cell = (id: string, row: number, col: number, t: string, x0: number, x1: number) => {
+      const b = block(id, 'table-cell', 300 + 12 * row, [[span(t, x0)]], { x0, x1 });
+      b.tableCell = {
+        tableId: 't0',
+        row,
+        col,
+        cellRect: {
+          x0: col ? 150 : 50,
+          y0: 300 + 12 * row,
+          x1: col ? 250 : 150,
+          y1: 312 + 12 * row,
+        },
+      };
+      return b;
+    };
+    const result = plan([
+      page(0, [
+        cell('p0-b0', 0, 0, 'Lisans', 50, 90),
+        cell('p0-b1', 0, 1, '80,5', 190, 210),
+        cell('p0-b2', 1, 0, 'Ön Lisans', 50, 100),
+        cell('p0-b3', 1, 1, '9', 197, 203),
+        cell('p0-b4', 2, 0, 'Yüksek Lisans', 50, 110),
+        cell('p0-b5', 2, 1, '12', 195, 205),
+      ]),
+    ]);
+    const table = result.items.find((i) => i.kind === 'table') as Extract<
+      EditableItem,
+      { kind: 'table' }
+    >;
+    expect(table.rows.map((r) => r[1]!.align)).toEqual(['center', 'center', 'center']);
+  });
+
   it('lets a source note under a table take all its columns', async () => {
     const cell = (id: string, row: number, col: number, t: string, x0: number, x1: number) => {
       const b = block(id, 'table-cell', 300 + 12 * row, [[span(t, x0)]], { x0, x1 });

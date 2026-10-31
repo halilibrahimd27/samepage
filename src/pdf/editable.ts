@@ -713,6 +713,16 @@ function tableItem(
       para.push(...runs);
     }
   }
+  // A column is set one way: a cell as wide as the column ("80,5") cannot tell, the narrower
+  // ones ("9", "12") can, and it follows them.
+  for (let c = 0; c < cols; c++) {
+    const set = grid.map((r) => r[c]!).filter((cell) => cell.paragraphs.length && !cell.span);
+    const told = set.filter((cell) => cell.align);
+    const centre = told.filter((cell) => cell.align === 'center').length;
+    const right = told.filter((cell) => cell.align === 'right').length;
+    const way = centre > told.length / 2 ? 'center' : right > told.length / 2 ? 'right' : undefined;
+    if (way) for (const cell of set) if (!cell.align) cell.align = way;
+  }
   // A cell's next line is a row of its own in the PDF ("… Shannon entropy of strings in" | "all
   // source code files"): a row without a first cell, all in lower case, continues the row above.
   const rowsOut: TableCell[][] = [];
