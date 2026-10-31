@@ -200,6 +200,51 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Russian, Italian, English: bounds, "somewhat", "not least" and "No 17" are no change', () => {
+    expect(
+      issues(
+        'У женщин со средним образованием минимальное среднее число рожденных детей составляет 1,69.',
+        'Среднее число детей, рожденных женщинами со средним образованием, составляет не менее 1,69.',
+        'ru',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'У женщин 1975 г. рождения оно несколько меньше, но итоговая величина будет больше.',
+        'Для женщин, родившихся в 1975 году, это число немного ниже, но итоговое значение выше.',
+        'ru',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'У более молодых женщин оно еще немного ниже, чем в поколениях 1952–1957 гг. рождения.',
+        'Это соотношение все еще несколько ниже для молодых женщин, чем в поколениях 1952–1957 годов.',
+        'ru',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Esperienza giudicata problematica sotto diversi aspetti, non ultimo il suo protrarsi nel tempo.',
+        'Esperienza vista come problematica sotto molti aspetti, in particolare per la sua durata nel tempo.',
+        'it',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Diversi osservatori – istituzionali e non – riferiscono che molte persone rifiutano il rilevamento.',
+        'Sia le istituzioni che molti altri osservatori segnalano che molte persone rifiutano il rilevamento.',
+        'it',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'The article was prepared with the financial support of the Russian Science Foundation, project No 17–78–20096.',
+        'The article was prepared with financial support from the Russian Science Foundation under project 17–78–20096.',
+        'en',
+      ),
+    ).toEqual([]);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(

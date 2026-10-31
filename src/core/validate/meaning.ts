@@ -127,7 +127,8 @@ const CUES: Record<string, Cues> = {
   en: {
     negation: words([
       'not',
-      'no(?!\\.\\s*\\d)',
+      // Not the number sign ("No. 3", "project No 17–78").
+      'no(?!\\.?\\s*\\d)',
       'never',
       'none',
       'nor',
@@ -427,6 +428,9 @@ const CUES: Record<string, Cues> = {
       'non[ -]profit',
       'senza scopo di lucro',
       'senza dubbio',
+      // "non ultimo" is "not least"; "istituzionali e non" is "institutional and others".
+      'non ultim\\p{L}*',
+      '(?<=\\p{L}\\s)e non(?=\\s*[–—,;)])',
     ],
     negation: ['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né'],
     soft: [
@@ -692,7 +696,15 @@ const CUES: Record<string, Cues> = {
   }),
   ru: cyrillicNe(
     cues({
-      ignore: ['или нет', 'не только'],
+      ignore: [
+        'или нет',
+        'не только',
+        // A bound, not a negation: "не менее 1,69" is "at least 1.69".
+        'не (?:менее|более)',
+        // "несколько меньше" is "somewhat less", "все еще" "still": no quantity.
+        'н(?:ескольк|емног)о(?=\\s+(?:ещ[её]\\s+)?\\p{L}+(?:ее|ей|ше|же)(?![\\p{L}\\p{M}]))',
+        'вс[её] ещ[её]',
+      ],
       negation: ['нет', 'ни', 'никогда', 'ничего', 'никто', 'без', 'нельзя'],
       soft: [
         'не(?!котор|скольк|мног|обходим|давн)\\p{L}{4,}',
@@ -742,7 +754,7 @@ const CUES: Record<string, Cues> = {
   ),
   uk: cyrillicNe(
     cues({
-      ignore: ['чи ні', 'не тільки', 'не лише'],
+      ignore: ['чи ні', 'не тільки', 'не лише', 'не (?:менше|більше)'],
       negation: ['немає', 'ні', 'ніколи', 'нічого', 'ніхто', 'без'],
       soft: [
         'не(?!обхідн|давн|зважаюч)\\p{L}{4,}',
