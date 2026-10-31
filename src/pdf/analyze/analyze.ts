@@ -931,8 +931,12 @@ function splitReferenceEntries(
       numbered++;
     } else isStart.set(l, false);
   }
+  // Numbered when the numbers open a good share of the blocks: lines of an author-year list
+  // that start with a number ("2. vyd.", "1. 4 2017.]") can run in sequence by chance.
   let finalMode: 'number' | 'hanging' | 'first-line' | 'blocks' =
-    numbered >= 3 ? 'number' : 'blocks';
+    numbered >= 3 && (numbered >= 0.4 * section.length || numbered >= 0.2 * lines.length)
+      ? 'number'
+      : 'blocks';
   if (finalMode === 'blocks') {
     // Where the lines of a column start: the outer edge of the text there.
     const groups = new Map<string, typeof lines>();
@@ -983,6 +987,17 @@ function splitReferenceEntries(
     const firstInBlock = l.i === 0;
     if (firstInBlock && /^\p{Ll}/u.test(text) && !TERMINAL.test(before) && !/\d$/.test(before))
       isStart.set(l, false);
+    // A link or "[Online]" never opens an entry; digits go on a number cut in two ("…2013.
+    // 978" / "80-7400-414-8.") or an unfinished line, unless they number the entry.
+    const link = /^(?:https?:|www\.|doi[:.])/iu.test(text) || /^\[(?!\s*\d)/u.test(text);
+    const digits =
+      /^\d/u.test(text) &&
+      !ENTRY_HEAD.test(text) &&
+      entryNumber(text) === undefined &&
+      // A number set apart in its own block ("1.", "[12]") is the entry's.
+      !/^\[?\s*\d{1,3}\s*[.)\]]$/u.test(text) &&
+      (/\d$/u.test(before) || !TERMINAL.test(before));
+    if (firstInBlock && (link || digits)) isStart.set(l, false);
   });
   // Cut the blocks at their entry starts.
   for (const page of pages) {

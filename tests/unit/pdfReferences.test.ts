@@ -77,6 +77,38 @@ describe('reference lists', () => {
     expect(refs[5]!.chain).toBeUndefined();
   });
 
+  it('keeps the entries of a flush-left list apart, with their links and cut numbers', () => {
+    // Double-spaced, every line its own block; lines that start with a number by chance.
+    const list = analyzeDocument([
+      page(0, [...body(100), ...body(160), ...body(220)]),
+      page(1, [
+        [72, 80, 'Citovaná literatura', 12],
+        [72, 110, 'ČERVENÝ, Radim et al. 2013. Strategie nákupu. Praha : Beck, 2013. 978-'],
+        [72, 130, '80-7400-414-8.'],
+        [72, 150, 'DHL.com. Smartsenzor GSM. [Online] [Citace: 10. 10 2016.]'],
+        [72, 170, 'http://www.dhl.com/content/dam/downloads/smartsensor.pdf'],
+        [72, 190, 'E15.cz. Kontejnerový obr Hanjin žádá o nucenou správu. E15.cz'],
+        [72, 210, '[Online] [Citace: 1. 4 2017.] http://zpravy.e15.cz/byznys'],
+        [72, 230, 'ERLACH, Klaus. 2013. Value stream design. Berlin : Springer,'],
+        [72, 250, '2013. 978-3-642-12568-3.'],
+        [72, 270, 'FIALA, Petr. 2005. Modelování dodavatelských řetězců. Praha, 2005.'],
+        [72, 290, '2. vyd. Praha : Grada, 2010.'],
+        [72, 310, 'GORECKI, Pawel. 2011. Lean Management. München : Hanser, 2011.'],
+      ]),
+    ]);
+    const refs = list[1]!.blocks.filter((b) => b.role === 'reference');
+    const head = (i: number) => refs[i]!.chain?.paragraphId ?? refs[i]!.id;
+    expect(refs).toHaveLength(11);
+    expect([1, 3, 5, 7].map((i) => head(i) === head(i - 1))).toEqual([true, true, true, true]);
+    expect([2, 4, 6, 8, 10].map((i) => head(i) === head(i - 1))).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
   it('knows the heading in more languages', () => {
     for (const t of [
       '7. REFERENCES',
