@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { verbatimOf } from '../../src/core/segment/codec';
 import type { PlaceholderDef } from '../../src/core/segment/types';
-import { confineTags, createBrowserPageEngine, unglue } from '../../src/engines/browserPage';
+import {
+  confineTags,
+  createBrowserPageEngine,
+  unglue,
+  unspace,
+} from '../../src/engines/browserPage';
 import { createPseudoEngine } from '../../src/engines/pseudo';
 import type { SegmentRequest, TranslationEngine } from '../../src/engines/types';
 import { translateLatex } from '../../src/latex/pipeline';
@@ -198,6 +203,22 @@ describe('headings with machine engines', () => {
     expect(out!.text).toBe(
       '<t1>⟦U1⟧: Ne kadar doğru?</t1> Denetimli öğrenme ⟦D1⟧ Ancak büyük kayıtlar.',
     );
+  });
+
+  it('takes out the spaces Google puts before punctuation and inside quotes', () => {
+    expect(
+      unspace(
+        'W swojej <t1>Rewolucji socjalnej</t1>, w <t2>Der Weg zur Macht</t2>, udało się, czy to (tak).',
+        'Kautsky, "<t1>Sosyal Devrim </t1>", "<t2>İktidara Giden Yol </t2>" eserlerinde , grevleri ( evet ) .',
+        'tr',
+      ),
+    ).toBe(
+      'Kautsky, "<t1>Sosyal Devrim</t1>", "<t2>İktidara Giden Yol</t2>" eserlerinde, grevleri (evet).',
+    );
+    expect(unspace('" Alman" ve', '" Alman Sendikalar" ve', 'tr')).toBe('"Alman Sendikalar" ve');
+    // French sets a space before a colon; a source that spaces its full stops keeps them.
+    expect(unspace('He said: yes', 'Il a dit : oui', 'fr')).toBe('Il a dit : oui');
+    expect(unspace('a . b', 'a . b', 'en')).toBe('a . b');
   });
 
   it('puts the space back around citations Google glued to a word', () => {

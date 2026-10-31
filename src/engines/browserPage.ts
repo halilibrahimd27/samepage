@@ -171,6 +171,38 @@ export function unglue(source: string, target: string): string {
 }
 
 /**
+ * Spaces Google puts inside punctuation, mostly at the edge of a formatted span ("grevleri ,",
+ * "eserlerinde ,", "( yani", "\"Sosyal Devrim \"") — unless the source spaces it so, or French
+ * typography wants a space before ; : ! ?.
+ */
+export function unspace(source: string, target: string, lang: string): string {
+  const src = untagged(source);
+  const tags = '((?:</?t\\d+>)*)';
+  const class_ = (cs: string[]) => `[${cs.map(escapeRe).join('')}]`;
+  const before = [...(lang === 'fr' ? ',.)]”' : ',.;:!?)]”')].filter(
+    (c) => !new RegExp(`\\s${escapeRe(c)}`, 'u').test(src),
+  );
+  const after = [...'([“'].filter((c) => !new RegExp(`${escapeRe(c)}\\s`, 'u').test(src));
+  let out = target;
+  if (before.length)
+    out = out.replace(new RegExp(`[ \\t]+${tags}(?=${class_(before)})`, 'gu'), '$1');
+  if (after.length) out = out.replace(new RegExp(`(${class_(after)})${tags}[ \\t]+`, 'gu'), '$1$2');
+  // Straight quotes, as Google writes „…“ and «…»: no space after an opening one, none before a
+  // closing one (they alternate).
+  if ((out.match(/"/g)?.length ?? 0) % 2 === 0)
+    out = out.replace(
+      new RegExp(`"${tags}[ \\t]+|[ \\t]+${tags}"`, 'gu'),
+      (m, open: string | undefined, close: string | undefined, at: number) => {
+        const quote = open !== undefined ? at : at + m.length - 1;
+        const opening = (out.slice(0, quote).match(/"/g)?.length ?? 0) % 2 === 0;
+        if (open !== undefined) return opening ? `"${open}` : m;
+        return opening ? m : `${close ?? ''}"`;
+      },
+    );
+  return out;
+}
+
+/**
  * `browser` engine (ADR-015, ADR-021): Google's website translator in a helper frame, or the
  * browser's own page translation, driven through a main-thread bridge. Tags and placeholders
  * travel as DOM spans, so the returned text is tagged text.
@@ -191,8 +223,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued).
-    model: 'browser-page-11',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation).
+    model: 'browser-page-12',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -224,11 +256,18 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       }
       // Turkish puts the percent sign before the number; Google glues it to the word before
       // ("F1 skoru%94,2'lik").
-      const fix = (t: string) =>
-        ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t;
+      const fix = (t: string, source: string) =>
+        unspace(
+          source,
+          ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t,
+          ctx.pair.target,
+        );
       return batch.map((s, i) => ({
         id: s.id,
-        text: unpin(dropAddedFullStop(s.text, confineTags(s.text, fix(out[i]!))), pinned[i]!),
+        text: unpin(
+          dropAddedFullStop(s.text, confineTags(s.text, fix(out[i]!, s.text))),
+          pinned[i]!,
+        ),
       }));
     },
   };
