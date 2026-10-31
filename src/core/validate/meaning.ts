@@ -521,7 +521,14 @@ const CUES: Record<string, Cues> = {
     few: ['pouc[oa]s', 'raramente', 'minoria'],
   }),
   nl: cues({
-    ignore: ['al dan niet', 'of niet', 'niet alleen'],
+    ignore: [
+      'al dan niet',
+      'of niet',
+      'niet alleen',
+      // "niet zomaar … maar" is "not only … but"; "niet meer dan één uur" is "at most an hour".
+      'niet (?:enkel|slechts|zomaar)(?=[^.;]*maar)',
+      'niet (?:meer|minder|langer|vaker) dan',
+    ],
     negation: ['niet(?!-)', 'niét', 'g[eé][eé]n', 'nooit', 'niets', 'niemand', 'zonder', 'noch'],
     soft: [
       'uitgesloten',
@@ -533,6 +540,10 @@ const CUES: Record<string, Cues> = {
       'onmogelijk\\p{L}*',
       'onvoldoende',
       'ongeschikt\\p{L}*',
+      // "het is af te raden" (inadvisable) ↔ "het is niet aan te raden".
+      'af te raden',
+      'afgeraden',
+      'ontraden',
     ],
     hedge: [
       'mogelijk',
@@ -548,7 +559,7 @@ const CUES: Record<string, Cues> = {
     weak: ['kan', 'kunnen', 'mogelijk\\p{L}*', 'potentiële', 'bijna'],
     all: ['alle', 'elk\\p{L}*', 'ieder\\p{L}*', 'altijd', 'geheel'],
     most: ['meeste', 'meerderheid', 'grotendeels', 'overwegend'],
-    some: ['sommige', 'enkele', 'verscheidene', 'gedeeltelijk', 'soms'],
+    some: ['sommige', 'enkele', 'verscheidene', 'verschillende', 'gedeeltelijk', 'soms'],
     few: ['weinig\\p{L}*', 'zelden', 'minderheid'],
   }),
   pl: cues({

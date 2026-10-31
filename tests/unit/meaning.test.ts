@@ -276,6 +276,37 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Dutch: bounds, "af te raden", "niet zomaar … maar" and "verschillende"', () => {
+    expect(
+      issues(
+        'Per foneem wordt achtereenvolgens niet meer dan één uur therapie besteed aan de geselecteerde fonemen.',
+        'Per foneem wordt er maximaal één uur therapie toegewezen aan de geselecteerde fonemen.',
+        'nl',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Het is af te raden om het kind de doelwoorden te laten nazeggen tijdens de sessie.',
+        'Het is niet aan te raden dat het kind de doelwoorden herhaalt tijdens de sessie.',
+        'nl',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'PROMPT is niet zomaar een techniek, maar een filosofie die kijkt naar de gehele communicatie.',
+        'PROMPT is meer dan een techniek; het is een filosofie die naar de communicatie als geheel kijkt.',
+        'nl',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Per sessie worden enkele doelwoorden aangeboden aan het kind en de ouders.',
+        'In elke sessie worden verschillende doelwoorden aangeboden aan het kind en de ouders.',
+        'nl',
+      ),
+    ).toEqual([]);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(
