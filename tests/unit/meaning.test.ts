@@ -104,6 +104,45 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Turkish: a negated verbal noun is a negation, "allows" keeps a possibility', () => {
+    expect(
+      issues(
+        'Katılımcının yeterli düzeyde bilgi vermemesi durumunda alternatif sorular hazırlanmalıdır.',
+        'Katılımcı yeterli bilgi vermezse alternatif sorular hazırlanmalıdır.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Bu aşamada araştırmacı kendi görüşlerine yer vermez.',
+        'Bu aşama, araştırmacının kendi görüşlerini dahil etmemesini içerir.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Çoklu bakış açısıyla daha keskin ölçümler yapılabileceğini bildirmektedir.',
+        'Çoklu bakış açılarının daha hassas ölçümlere olanak sağladığını belirtmektedir.',
+        'tr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Küçük gruplardan genelleme yapılması doğru değildir.',
+        'Küçük gruplardan genelleme yapmak yanlıştır.',
+        'tr',
+      ),
+    ).toEqual([]);
+    // "tamamen" (completely) is no negation.
+    expect(
+      issues(
+        'Bu çalışmanın bulguları önceki araştırmalarla tamamen tutarlıdır.',
+        'Bu çalışmanın bulguları önceki araştırmalarla tamamen tutarlı değildir.',
+        'tr',
+      ),
+    ).toEqual(['major: negation added']);
+  });
+
   it('Turkish: "-ebilmesi için" (in order to) and "-ebilecek" before a noun are no hedges', () => {
     expect(
       issues(

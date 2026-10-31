@@ -71,6 +71,9 @@ const TR_WEAK_HEDGE = [
   'potansiyel\\p{L}*',
   'mümkün\\p{L}*',
   'olasılık\\p{L}*',
+  // "yapılabileceğini" (that … can be made) often comes back as "olanak sağladığını" (allows).
+  'olanak\\p{L}*',
+  'imk[âa]n\\p{L}*',
 ];
 
 /**
@@ -180,7 +183,7 @@ const CUES: Record<string, Cues> = {
   tr: {
     // Verb negation is a suffix. "-maz/-mez" only in lower-case words: names ("Yılmaz", "Dönmez").
     negation: new RegExp(
-      `(?<!\\p{L})(?:[Dd]eğil\\p{L}*|[Yy]ok(?:tur|tu)?|[Hh]iç\\p{L}*|[Aa]sla|\\p{Ll}{2,}m[ae]z\\p{L}*|\\p{L}\\p{Ll}+(?:m[ae]d[ıi]|m[ae]m[ıi]ş|m[ae]y[ae]n|m[ae]m[ae]k|m[ıiuü]yor|m[ae]m[ae]l[ıi]|m[ae]y[ae]c[ae]k|m[ae]y[ae]bil|m[ae]s[ae]|m[ae]y[ıi]p|m[ae]ks[ıi]z[ıi]n)\\p{L}*)(?!\\p{L})`,
+      `(?<!\\p{L})(?:[Dd]eğil\\p{L}*|[Yy]ok(?:tur|tu)?|[Hh]iç\\p{L}*|[Aa]sla|\\p{Ll}{2,}m[ae]z\\p{L}*|\\p{L}\\p{Ll}+(?:m[ae]d[ıi]|m[ae]m[ıi]ş|m[ae]y[ae]n|m[ae]m[ae](?:k|s[ıi])|m[ıiuü]yor|m[ae]m[ae]l[ıi]|m[ae]y[ae]c[ae]k|m[ae]y[ae]bil|m[ae]s[ae]|m[ae]y[ıi]p|m[ae]ks[ıi]z[ıi]n)\\p{L}*)(?!\\p{L})`,
       'gu',
     ),
     softNegation: words([
@@ -191,6 +194,9 @@ const CUES: Record<string, Cues> = {
       '\\p{Ll}{2,}s[ıiuü]z\\p{L}*',
       'imkânsız\\p{L}*',
       'olanaksız\\p{L}*',
+      // "doğru değildir" (is not right) often comes back as "yanlıştır" (is wrong).
+      'yanlış\\p{L}*',
+      'hatalı\\p{L}*',
     ]),
     hedge: words(TR_HEDGE),
     // "olup olmadığı" is "whether or not"; "yok etmek" is "to destroy". Litotes say something
