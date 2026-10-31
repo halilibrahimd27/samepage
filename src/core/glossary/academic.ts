@@ -467,7 +467,7 @@ const NAME_WORD =
   /^(?:\p{Lu}[\p{L}'’-]*\.?|\p{Lu}\.(?:-?\p{Lu}\.)*|de|da|do|dos|van|von|der|den|del|della|di|du|la|le|bin|ibn|al|el|y)$/u;
 /** Words of an affiliation ("Örnek Üniversitesi, Bilgisayar Mühendisliği Bölümü"), not a name. */
 const INSTITUTION_WORD =
-  /^(?:univ|üniversite|universit|universidad|universidade|uniwersytet|univerzit|университет|instit|istitut|enstitü|институт|depart|dipartiment|bölüm|fakülte|facult|fakult|school|college|hochschule|academ|akademi|laborat|hospital|hastane|klini|clinic|centre|center|centro|zentrum|merkez|ministry|bakanlı|politecn|polytechn|escola|escuela|école)/iu;
+  /^(?:univ|üniversite|universit|universidad|universidade|uniwersytet|univerzit|университет|instit|istitut|enstitü|институт|depart|dipartiment|bölüm|fakülte|facul|fakult|instytut|ústav|funda[çc]|foundation|stiftung|vakf|school|college|hochschule|academ|akademi|laborat|hospital|hastane|klini|clinic|centre|center|centro|zentrum|merkez|ministry|bakanlı|politecn|polytechn|escola|escuela|école)/iu;
 const JOINER =
   /\s*(?:[,;&]|(?<![\p{L}\p{N}])(?:and|ve|und|et|y|e|i|и|і|та|και)(?![\p{L}\p{N}]))\s*/u;
 

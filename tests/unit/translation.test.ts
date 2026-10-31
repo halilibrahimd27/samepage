@@ -562,6 +562,7 @@ describe('helpers', () => {
     expect(isNameList('Results and Discussion')).toBe(false);
     expect(isNameList('Örnek Üniversitesi, Bilgisayar Mühendisliği Bölümü')).toBe(false);
     expect(isNameList('Stanford University, Computer Science Department')).toBe(false);
+    expect(isNameList('Faculdade de Economia, UFBA. Salvador BA Brasil.')).toBe(false);
     // Title-case keyword lists look alike: the pipeline also requires affiliation marks.
     expect(isNameList('Machine Learning, Deep Learning and Data Mining')).toBe(true);
     // Authors each with an ORCID link stay names ("Greice" is no "Grécia").
