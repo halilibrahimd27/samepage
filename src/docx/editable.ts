@@ -496,15 +496,19 @@ export async function buildEditableDocx(
     `</w:footnotes>`;
   const settings =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="${W}">` +
-    `<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr></w:settings>`;
+    // Laid out like the PDF: justified columns hyphenated as the paper's are, in its language.
+    (layout ? '<w:autoHyphenation/>' : '') +
+    (notes.length
+      ? `<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>`
+      : '') +
+    `</w:settings>`;
+  const withSettings = notes.length > 0 || !!layout;
   const rels =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
     `<Relationship Id="rId1" Type="${R}/styles" Target="styles.xml"/>` +
-    (notes.length
-      ? `<Relationship Id="rId2" Type="${R}/footnotes" Target="footnotes.xml"/>` +
-        `<Relationship Id="rId3" Type="${R}/settings" Target="settings.xml"/>`
-      : '') +
+    (notes.length ? `<Relationship Id="rId2" Type="${R}/footnotes" Target="footnotes.xml"/>` : '') +
+    (withSettings ? `<Relationship Id="rId3" Type="${R}/settings" Target="settings.xml"/>` : '') +
     pictures
       .map(
         (_, i) =>
@@ -530,8 +534,10 @@ export async function buildEditableDocx(
       `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
       `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
       (notes.length
-        ? `<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>` +
-          `<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>`
+        ? `<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>`
+        : '') +
+      (withSettings
+        ? `<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>`
         : '') +
       `<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`,
   );
@@ -545,10 +551,8 @@ export async function buildEditableDocx(
   add('word/document.xml', document);
   add('word/styles.xml', stylesXml(opts.locale, layout));
   add('word/_rels/document.xml.rels', rels);
-  if (notes.length) {
-    add('word/footnotes.xml', footnotesXml);
-    add('word/settings.xml', settings);
-  }
+  if (notes.length) add('word/footnotes.xml', footnotesXml);
+  if (withSettings) add('word/settings.xml', settings);
   pictures.forEach((png, i) => add(`word/media/image${i + 1}.png`, png));
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 }

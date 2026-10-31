@@ -323,12 +323,21 @@ function wordLayout(
   const bottom = pages.map((p) =>
     Math.max(...p.blocks.filter((b) => !FURNITURE.includes(b.role)).map((b) => b.bbox.y1)),
   );
-  const twoColumns = pages.filter((p) => p.columns.length >= 2);
+  // Two or three text columns, as most pages have them.
+  const multi = pages.filter((p) => p.columns.length >= 2);
   const gap = quantile(
-    twoColumns.map((p) => p.columns[1]!.x0 - p.columns[0]!.x1),
+    multi.flatMap((p) => p.columns.slice(1).map((c, i) => c.x0 - p.columns[i]!.x1)),
     0.5,
   );
-  const columns = twoColumns.length >= 0.5 * pages.length && gap > 4 ? 2 : 1;
+  const columns =
+    multi.length >= 0.5 * pages.length && gap > 4
+      ? Math.round(
+          quantile(
+            multi.map((p) => Math.min(3, p.columns.length)),
+            0.5,
+          ),
+        )
+      : 1;
   const sizes: WordLayout['sizes'] = { body: bodySize };
   const byKind = new Map<ParagraphKind | 'table', number[]>();
   for (const b of blocks) {
@@ -370,13 +379,18 @@ function wordLayout(
 
 /** Across the gap between the page's two text columns. */
 function acrossColumns(page: PageIR, r: Rect, layout?: WordLayout): boolean {
-  const [left, right] = page.columns;
-  if (left && right) return r.x0 < left.x1 - 10 && r.x1 > right.x0 + 10;
+  const cols = page.columns;
+  if (cols.length >= 2)
+    return cols.slice(1).some((c, i) => r.x0 < cols[i]!.x1 - 10 && r.x1 > c.x0 + 10);
   // A page whose columns were not found (a wide table over its top half): the paper's columns.
   if (!layout || layout.columns < 2) return false;
-  const column = (page.width - layout.margins.left - layout.margins.right - layout.gap) / 2;
-  const gap = layout.margins.left + column;
-  return r.x0 < gap - 10 && r.x1 > gap + layout.gap + 10;
+  const n = layout.columns;
+  const column =
+    (page.width - layout.margins.left - layout.margins.right - (n - 1) * layout.gap) / n;
+  return Array.from(
+    { length: n - 1 },
+    (_, i) => layout.margins.left + (i + 1) * column + i * layout.gap,
+  ).some((gap) => r.x0 < gap - 10 && r.x1 > gap + layout.gap + 10);
 }
 
 /**
@@ -385,7 +399,7 @@ function acrossColumns(page: PageIR, r: Rect, layout?: WordLayout): boolean {
  */
 function placement(page: PageIR, b: BlockIR): { indent?: Indent; centred: boolean; full: boolean } {
   const area = acrossColumns(page, b.bbox)
-    ? { x0: page.columns[0]!.x0, x1: page.columns[1]!.x1 }
+    ? { x0: page.columns[0]!.x0, x1: page.columns[page.columns.length - 1]!.x1 }
     : (page.columns[b.columnIndex] ?? { x0: b.bbox.x0, x1: b.bbox.x1 });
   const areaWidth = area.x1 - area.x0;
   const blockWidth = b.bbox.x1 - b.bbox.x0;

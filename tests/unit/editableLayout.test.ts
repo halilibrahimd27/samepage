@@ -180,5 +180,41 @@ describe('editable Word output keeps the layout of the PDF', () => {
     expect(styles).toContain('w:ascii="Times New Roman"');
     expect(styles).toContain('<w:sz w:val="18"/>');
     expect(styles).toContain('w:line="220" w:lineRule="atLeast"');
+    // Justified columns hyphenate, as the paper's do.
+    expect(await zip.file('word/settings.xml')!.async('string')).toContain('<w:autoHyphenation/>');
+  });
+
+  it('keeps three columns, and a title across the second and third as wide', () => {
+    const three = [
+      { x0: 40, x1: 200, y0: 0, y1: 792 },
+      { x0: 216, x1: 376, y0: 0, y1: 792 },
+      { x0: 392, x1: 552, y0: 0, y1: 792 },
+    ];
+    const col = (id: string, y: number, x0: number) =>
+      block(id, 'body', y, [words, words, words], { x0, x1: x0 + 160 });
+    const pages = [0, 1].map((n) =>
+      page(
+        n,
+        [
+          ...(n === 0
+            ? [
+                block('p0-t', 'heading', 40, ['A Title Over Two Columns'], {
+                  x0: 216,
+                  x1: 552,
+                  size: 18,
+                  align: 'left',
+                }),
+              ]
+            : []),
+          col(`p${n}-a`, 120, 40),
+          col(`p${n}-b`, 120, 216),
+          col(`p${n}-c`, 120, 392),
+        ],
+        { columns: three },
+      ),
+    );
+    const result = plan(pages);
+    expect(result.layout?.columns).toBe(3);
+    expect(paragraphs(result.items)[0]).toMatchObject({ wide: true });
   });
 });
