@@ -77,10 +77,13 @@ All notable changes to samepage are documented here. The format follows
   out; the check reads a quotation in its own language and knows the fixed phrases that only look
   like a negation or a hedge in Turkish, French, German, Spanish, Portuguese, Italian and Russian
   ("olabilmesi için", "ne explétif", "nicht allein … sondern", "não obstante", "не менее").
+  In Turkish, a "suggests" Google wrote as "shows" and a "seems" it left out are put back when
+  the meaning check confirms the repair.
 - Translation with Google: a number Google keeps changing is held in place alone, so the rest of
   the sentence is translated whole, and the paragraph is flagged for review when that number sits
   in running text; a note keeps its own number in front; a source year written once more is
-  taken, flagged, instead of leaving the paragraph in the source language.
+  taken, flagged, instead of leaving the paragraph in the source language; an English term in
+  brackets after a quoted term of a Cyrillic or Greek text goes back after that term.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
