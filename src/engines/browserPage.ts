@@ -37,6 +37,24 @@ function heldInProse(req: SegmentRequest, sent: string): boolean {
   });
 }
 
+/**
+ * Google writes an inlined number in the target's style ("standard deviation of 0.01" →
+ * "standart sapma 0,01"): written either way, it is found, and the source's spelling comes back.
+ */
+export function relocalize(t: string, inlined: InnerTag[]): string {
+  let out = t;
+  const wanted = new Map<string, number>();
+  const free = (n: string) => new RegExp(`(?<![\\d.,])${escapeRe(n)}(?![\\d])`, 'gu');
+  for (const { text } of inlined) {
+    if (!/^[%‰]?\d+(?:[.,]\d+)+[%‰]?$/u.test(text)) continue;
+    wanted.set(text, (wanted.get(text) ?? 0) + 1);
+    const swapped = text.replace(/[.,]/gu, (c) => (c === '.' ? ',' : '.'));
+    if ((out.match(free(text)) ?? []).length >= wanted.get(text)!) continue;
+    out = out.replace(new RegExp(free(swapped).source, 'u'), text);
+  }
+  return out;
+}
+
 /** The inlined identifiers missing from a translation, taken in source order like restoreInline. */
 function lostInline(t: string, inlined: InnerTag[]): Set<string> {
   const kept: InnerTag[] = [];
@@ -363,8 +381,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term).
-    model: 'browser-page-20',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way).
+    model: 'browser-page-21',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -381,7 +399,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         )
       ).map((t, i) => {
         const { text, glosses } = shielded[i]!;
-        return unshield(besideQuotedTerms(text, t, glosses.length), glosses);
+        const placed = unshield(besideQuotedTerms(text, t, glosses.length), glosses);
+        return relocalize(placed, prepared[i]!.inlined);
       });
       signal.throwIfAborted();
       const out = batch.map((s, i): string | null => {
@@ -406,7 +425,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
         );
         signal.throwIfAborted();
         partly.forEach((i, k) => {
-          const restored = restoreInline(texts[k] ?? '', retry[k]!.inlined);
+          const { inlined } = retry[k]!;
+          const restored = restoreInline(relocalize(texts[k] ?? '', inlined), inlined);
           if (restored !== null) out[i] = respacePlaceholders(batch[i]!.text, restored);
           if (restored !== null && heldInProse(batch[i]!, retry[k]!.text)) held.add(i);
         });

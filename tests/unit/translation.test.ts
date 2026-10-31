@@ -3,7 +3,11 @@ import { MemoryCache } from '../../src/core/cache/cache';
 import { glossaryToCsv, mergeGlossaries, parseGlossaryCsv } from '../../src/core/glossary/glossary';
 import { translateSegments } from '../../src/core/pipeline/translate';
 import { createDehyphenator } from '../../src/core/segment/dehyphenate';
-import { createBrowserPageEngine, respacePlaceholders } from '../../src/engines/browserPage';
+import {
+  createBrowserPageEngine,
+  relocalize,
+  respacePlaceholders,
+} from '../../src/engines/browserPage';
 import { createChromeEngine } from '../../src/engines/chromeBuiltin';
 import { parseJsonLoose } from '../../src/engines/openaiCompatible';
 import {
@@ -252,6 +256,40 @@ describe('translateSegments', () => {
     expect(sent[1]).toBe('Vœux n°18.2003.150.');
     expect(note!.text).toBe('3 Karar ⟦D1⟧.');
     expect(respacePlaceholders('⟦N1⟧ Vœux n°⟦D2⟧', '⟦N1⟧⟦D2⟧ sayılı')).toBe('⟦N1⟧ ⟦D2⟧ sayılı');
+  });
+
+  it('Google engine: a frozen decimal written in the Turkish style is still found', async () => {
+    const inlined = [
+      { id: 'D1', text: '0.01' },
+      { id: 'D2', text: '0.001' },
+      { id: 'D3', text: '0.001' },
+    ];
+    expect(relocalize('sapma 0,01 ile; 0,001 ve 0,001; 10,01', inlined)).toBe(
+      'sapma 0.01 ile; 0.001 ve 0.001; 10,01',
+    );
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(texts.map(() => 'standart sapma 0,01 ile (ortalama 0)'));
+      },
+    });
+    const [r] = await engine.translate(
+      [
+        {
+          id: 'a',
+          text: 'standard deviation of ⟦D1⟧ (mean ⟦D2⟧)',
+          role: 'body',
+          verbatim: { D1: '0.01', D2: '0' },
+        },
+      ],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      new AbortController().signal,
+    );
+    // No span retry: one call, the numbers back as placeholders.
+    expect(sent).toHaveLength(1);
+    expect(r!.text).toBe('standart sapma ⟦D1⟧ ile (ortalama ⟦D2⟧)');
   });
 
   it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {
