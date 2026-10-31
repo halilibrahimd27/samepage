@@ -29,7 +29,7 @@ All notable changes to samepage are documented here. The format follows
 - Front matter in page order (a title over its author line is no author grid), affiliations
   translated (no longer taken for a list of names), journal page borders no longer read as a
   figure, a note without a mark above the footnotes kept with them.
-- Structure benchmark on 19 open-access papers in 10 languages (`npm run bench`).
+- Structure benchmark on 21 open-access papers in 12 languages, a scanned one among them (`npm run bench`).
 - Word output of PDFs laid out like the PDF: margins, text columns (Word sections, the title
   block, wide tables and figures across both), fonts, type sizes and leading measured from the
   paper; first-line and list indents, justification and centring per paragraph; numbered
@@ -62,7 +62,8 @@ All notable changes to samepage are documented here. The format follows
   table cell across columns spans them, a column is aligned one way; a short line at the
   column's right edge is set right, lines centred on a one-column page stay centred and an
   abstract set in from both sides is; a reference list without a heading is found from its
-  entries; a two-column table of long cells is recognised whole.
+  entries; a two-column table of long cells is recognised whole; a running line a scan reads a
+  little differently on each page is still one, and the author on page 1 no running head.
 - Translation with Google: lines a hair apart in type size no longer cut the sentence into
   formatted pieces, no space before punctuation or inside quotes, a paragraph whose only fault is
   a spelled-out number written in digits ("osiemnastego wieku" → "18. yüzyıl") translated and
