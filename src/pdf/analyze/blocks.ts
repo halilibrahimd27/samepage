@@ -69,8 +69,38 @@ export function collapseLetterSpacing(chars: RawChar[]): RawChar[] {
   return out;
 }
 
+/** Spacing accents a font without "ż", "č", "ą" draws over or under the bare letter. */
+const COMBINING: Record<string, { mark: string; above: boolean }> = {
+  '.': { mark: '\u0307', above: true },
+  '˙': { mark: '\u0307', above: true },
+  '´': { mark: '\u0301', above: true },
+  '`': { mark: '\u0300', above: true },
+  ˇ: { mark: '\u030C', above: true },
+  '¨': { mark: '\u0308', above: true },
+  '˚': { mark: '\u030A', above: true },
+  '˝': { mark: '\u030B', above: true },
+  '˛': { mark: '\u0328', above: false },
+  '¸': { mark: '\u0327', above: false },
+};
+
+/**
+ * An accent drawn as a glyph of its own over the letter before it ("z" + a raised "." for "ż"):
+ * it becomes the combining mark, composed with its letter when the span's text is normalised.
+ */
+export function composeAccents(chars: RawChar[]): RawChar[] {
+  return chars.map((c, i) => {
+    const accent = COMBINING[c.c];
+    const prev = chars[i - 1];
+    if (!accent || !prev || !/\p{L}/u.test(prev.c)) return c;
+    const centre = (c.bbox.x0 + c.bbox.x1) / 2;
+    const over = centre > prev.bbox.x0 && centre < prev.bbox.x1;
+    const placed = accent.above ? c.y < prev.y - 0.3 * prev.size : true;
+    return over && placed ? { ...prev, c: accent.mark, bbox: prev.bbox } : c;
+  });
+}
+
 function toLine(rawChars: RawChar[], page: RawPage): LineIR {
-  const chars = collapseLetterSpacing(rawChars);
+  const chars = composeAccents(collapseLetterSpacing(rawChars));
   const spans: SpanIR[] = [];
   let cur: RawChar[] = [];
   const flush = () => {
