@@ -266,6 +266,8 @@ const CUES: Record<string, Cues> = {
   }),
   fr: cues({
     ignore: [
+      'non[ -]gouvernemental\\p{L}*',
+      'sans but lucratif',
       'avant tout',
       'ou non',
       'non seulement',
@@ -314,7 +316,14 @@ const CUES: Record<string, Cues> = {
     few: ['peu de', 'rarement', 'minorité'],
   }),
   es: cues({
-    ignore: ['sobre todo', 'o no', 'no s[oó]lo'],
+    // A non-governmental or non-profit organisation negates nothing.
+    ignore: [
+      'sobre todo',
+      'o no',
+      'no s[oó]lo',
+      'no gubernamental\\p{L}*',
+      'sin (?:fines|ánimo) de lucro',
+    ],
     negation: [
       'no',
       'nunca',
@@ -361,7 +370,13 @@ const CUES: Record<string, Cues> = {
     few: ['poc[oa]s', 'raramente', 'rara vez', 'minoría'],
   }),
   it: cues({
-    ignore: ['o meno', 'non solo'],
+    ignore: [
+      'o meno',
+      'non solo',
+      'non[ -]governativ\\p{L}*',
+      'non[ -]profit',
+      'senza scopo di lucro',
+    ],
     negation: ['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né'],
     soft: [
       'esclu\\p{L}*',
@@ -398,7 +413,14 @@ const CUES: Record<string, Cues> = {
     few: ['poch[ie]', 'raramente', 'minoranza'],
   }),
   pt: cues({
-    ignore: ['acima de tudo', 'ou não', 'não só', 'não apenas'],
+    ignore: [
+      'acima de tudo',
+      'ou não',
+      'não só',
+      'não apenas',
+      'não[ -]governamenta\\p{L}*',
+      'sem fins lucrativos',
+    ],
     negation: ['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais'],
     soft: [
       'exclu\\p{L}*',

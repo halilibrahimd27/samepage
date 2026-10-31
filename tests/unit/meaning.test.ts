@@ -327,6 +327,21 @@ describe('back-translation meaning check', () => {
         'nl',
       ),
     ).toEqual([]);
+    // Non-governmental organisations, as a back-translation calls them civil society.
+    expect(
+      issues(
+        'Vennero avviate le prime consultazioni con le organizzazioni non governative.',
+        'Sono state avviate le prime consultazioni con le organizzazioni della società civile.',
+        'it',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Trabajamos con organizaciones no gubernamentales de la región.',
+        'Trabajamos con organizaciones de la sociedad civil de la región.',
+        'es',
+      ),
+    ).toEqual([]);
   });
 
   it('skips passages of the source that are already in the target language', () => {
