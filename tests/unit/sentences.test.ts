@@ -61,6 +61,23 @@ describe('sentence-by-sentence retry', () => {
     expect(engine.sent).toContain('Sonuçlar tutarlıdır.');
   });
 
+  it('keeps the source when an engine makes up years, even if no number is lost', async () => {
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(batch.map((b) => ({ id: b.id, text: `${b.text} 2018 2019 2023` }))),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [
+        { id: 'y', text: 'Засновано у 2007 році. Журнал включено до переліку.', role: 'body' },
+      ],
+      ctx: { pair: { source: 'uk', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(out!.untranslated).toBe(true);
+  });
+
   it('keeps an author line with math-asterisk marks as it is', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),

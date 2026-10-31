@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { verbatimOf } from '../../src/core/segment/codec';
 import type { PlaceholderDef } from '../../src/core/segment/types';
 import {
+  spellYears,
   closeBrackets,
   confineTags,
   createBrowserPageEngine,
@@ -239,6 +240,14 @@ describe('headings with machine engines', () => {
     expect(closeBrackets('(viz Weber, 1996). Dále', '(bkz. Weber, 1996). Ayrıca')).toBe(
       '(bkz. Weber, 1996). Ayrıca',
     );
+  });
+
+  it('spells out the short year after a date for Google', () => {
+    expect(spellYears('наказом № 241 від 09.03.2016 р. та у 2007 р., свідоцтво', 'uk')).toBe(
+      'наказом № 241 від 09.03.2016 року та у 2007 року, свідоцтво',
+    );
+    expect(spellYears('в 2015 г. и далее', 'ru')).toBe('в 2015 года и далее');
+    expect(spellYears('Dans 2015 g. rien', 'fr')).toBe('Dans 2015 g. rien');
   });
 
   it('puts the space back around citations Google glued to a word', () => {

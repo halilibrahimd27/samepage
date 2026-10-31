@@ -413,9 +413,17 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     const onlyAddedNumbers = new Map<string, { r: SegmentResult; issues: ValidationIssue[] }>();
     const remember = (req: SegmentRequest, r: SegmentResult, issues: ValidationIssue[]) => {
       const errors = issues.filter((i) => i.severity === 'error');
+      // One or two small numbers only ("18" for "osiemnastego"): years an engine made up
+      // ("2018, 2019, 2023" in a decree's dates) are no spelled-out number.
+      const small = (i: ValidationIssue) => {
+        const values = i.detail.replace(/^unexpected /u, '').split(/,\s*/u);
+        return values.length <= 2 && values.every((v) => /^\d{1,2}$/u.test(v.trim()));
+      };
       if (
         errors.length &&
-        errors.every((i) => i.code === 'NUMBER_MISMATCH' && /^unexpected /u.test(i.detail))
+        errors.every(
+          (i) => i.code === 'NUMBER_MISMATCH' && /^unexpected /u.test(i.detail) && small(i),
+        )
       )
         onlyAddedNumbers.set(req.id, {
           r,

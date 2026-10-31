@@ -171,6 +171,20 @@ export function unglue(source: string, target: string): string {
 }
 
 /**
+ * The year after a date written short ("№ 241 від 09.03.2016 р.", "в 2015 г."): Google read
+ * "р." as "river" ("09.03.2016 nehir"); the word itself it translates.
+ */
+export function spellYears(text: string, lang: string): string {
+  const short: Record<string, [RegExp, string]> = {
+    uk: [/(\d)\s?р\.(?=[\s,;:)]|$)/gu, '$1 року'],
+    ru: [/(\d)\s?г\.(?=[\s,;:)]|$)/gu, '$1 года'],
+    bg: [/(\d)\s?г\.(?=[\s,;:)]|$)/gu, '$1 година'],
+  };
+  const rule = short[lang];
+  return rule ? text.replace(rule[0], rule[1]) : text;
+}
+
+/**
  * A closing bracket Google dropped with the sentence end after it ("(Sír. 11,20-21). Luther …"
  * → "(Sir. 11,20-21 Luther …"): where the translation leaves a bracket open, it closes after
  * the token the source closes it after, when that token is a number the translation keeps.
@@ -252,8 +266,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket).
-    model: 'browser-page-14',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out).
+    model: 'browser-page-15',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -264,7 +278,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       const prepared = batch.map(inlineIdentifiers);
       const first = await bridge.translate(
         ctx.pair,
-        prepared.map((p) => p.text),
+        prepared.map((p) => spellYears(p.text, ctx.pair.source)),
       );
       signal.throwIfAborted();
       const out = batch.map((s, i): string | null => {
