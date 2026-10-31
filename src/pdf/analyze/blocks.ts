@@ -672,7 +672,8 @@ function mergeSplitParagraphs(
         !cells.has(a) &&
         !cells.has(b) &&
         layout.justified &&
-        layout.edgeFor(a.bbox) - aLast.bbox.x1 < 3 &&
+        // Justified lines end a few points apart (tracking, a hanging comma).
+        layout.edgeFor(a.bbox) - aLast.bbox.x1 < Math.max(3, 0.6 * size) &&
         leftOk &&
         fontA.name === fontB.name;
       const continuesCentred =

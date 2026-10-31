@@ -274,18 +274,31 @@ function classify(
   // Running headers/footers: the same text (digits normalised) in the top/bottom 20 % of the
   // page (books have wide margins) on enough pages.
   const bandCounts = new Map<string, number>();
+  const bandSizes = new Map<string, number[]>();
   for (const { raw, blocks } of pages) {
     const seen = new Set<string>();
     for (const b of blocks) {
-      if (b.bbox.y1 < raw.height * BAND || b.bbox.y0 > raw.height * (1 - BAND))
-        seen.add(normalizeRepeat(blockText(b)));
+      if (b.bbox.y1 < raw.height * BAND || b.bbox.y0 > raw.height * (1 - BAND)) {
+        const k = normalizeRepeat(blockText(b));
+        seen.add(k);
+        bandSizes.set(k, [...(bandSizes.get(k) ?? []), avgSize(b)]);
+      }
     }
     seen.delete('');
     seen.forEach((k) => bandCounts.set(k, (bandCounts.get(k) ?? 0) + 1));
   }
-  const repeated = (k: string) =>
-    // Books alternate running heads/feet between left and right pages: 30 % is enough.
-    pages.length >= 2 && (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3);
+  const repeated = (k: string, b: BlockIR) => {
+    // The paper's title and author on its first page, set large, repeat as its running heads:
+    // they are not running heads themselves.
+    const sizes = [...(bandSizes.get(k) ?? [])].sort((x, y) => x - y);
+    const usual = sizes[Math.floor(sizes.length / 2)] ?? 0;
+    return (
+      // Books alternate running heads/feet between left and right pages: 30 % is enough.
+      pages.length >= 2 &&
+      (bandCounts.get(k) ?? 0) >= Math.max(2, pages.length * 0.3) &&
+      !(avgSize(b) > 1.3 * usual)
+    );
+  };
   // A short mark at the same height on many pages, outside the bands: a thumb index ("K") or
   // a section tab in the margin.
   const place = (b: BlockIR) => `${normalizeRepeat(blockText(b))}@${Math.round(b.bbox.y0 / 3)}`;
@@ -327,22 +340,33 @@ function classify(
           )
           .join(' '),
       );
+      // Set larger than the text, and short: a heading. A paragraph set a little larger (an
+      // abstract, in lines of running prose) is none.
+      const largeHeading =
+        size >= stats.bodySize * 1.12 &&
+        ((b.lines.length <= 3 &&
+          (size >= stats.bodySize * 1.25 || b.lines.length === 1 || text.length < 80)) ||
+          // A long title in display type.
+          (size >= stats.bodySize * 1.5 && text.length < 300));
       // Sentences around a display formula are text, not labels of the fractions in it.
       const figuresNear = figures.filter((f) => !(f.bars && worded));
       let role: Role = 'body';
       // A number in a math font is part of a formula (a fraction's denominator), not the page's.
       if ((inTopBand || inBottomBand) && PAGE_NUMBER.test(text) && mathRatio(b) < 0.5)
         role = 'page-number';
-      else if ((inTopBand || inBottomBand) && repeated(normalizeRepeat(text)))
+      else if ((inTopBand || inBottomBand) && repeated(normalizeRepeat(text), b))
         role = inTopBand ? 'header' : 'footer';
       else if (marked(b)) role = 'header';
       else if (mathRatio(b) >= 0.3 && !worded) role = 'formula';
       else if (allMono(b)) role = 'code';
+      // A large ornament (a brace beside the title) is the page's decoration, not its title.
+      else if (!/[\p{L}\p{N}]/u.test(text) && text.trim().length <= 2 && size >= 2 * stats.bodySize)
+        role = 'header';
       else if (CAPTION.test(text)) role = 'caption';
       // Rotated text: an axis title, or a stamp in the margin ("arXiv:2310.09571v1 [cs.CR]"),
       // which is the page's furniture: never translated ("[CS.Cr]"), not part of the text.
       else if (b.direction[1] !== 0) role = inMargin(b, blocks, figuresNear) ? 'header' : 'label';
-      else if (size >= stats.bodySize * 1.12 && b.lines.length <= 3) role = 'heading';
+      else if (largeHeading) role = 'heading';
       else if (
         b.direction[1] !== 0 ||
         (figuresNear.some((f) => coverage(b.bbox, f) > 0.5) && text.length < 80) ||
@@ -359,7 +383,7 @@ function classify(
       )
         role = 'label';
       else if (
-        size >= stats.bodySize * 1.12 ||
+        largeHeading ||
         (allBold(b) &&
           b.lines.length <= 2 &&
           text.length < 120 &&

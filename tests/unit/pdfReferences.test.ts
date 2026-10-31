@@ -226,6 +226,27 @@ describe('footnotes', () => {
   });
 });
 
+describe('first page', () => {
+  it('reads the title as a title though it repeats as the running head, and an abstract as text', () => {
+    const pages = analyzeDocument([
+      page(0, [
+        [72, 80, 'Teoria i praktyka', 30],
+        [72, 150, 'Niniejszy artykuł jest elementem polemiki toczonej wokół koncepcji', 11.5],
+        [72, 164, 'strajku masowego i możliwości wykorzystania tej broni w walce przeciwko', 11.5],
+        [72, 178, 'rządom cesarskim w Niemczech, które Luksemburg opisuje szczegółowo.', 11.5],
+        ...body(300),
+      ]),
+      page(1, [[72, 20, 'Teoria i praktyka', 8], ...body(100), ...body(300)]),
+      page(2, [[72, 20, 'Teoria i praktyka', 8], ...body(100), ...body(300)]),
+    ]);
+    const role = (i: number, t: string) =>
+      pages[i]!.blocks.find((b) => blockText(b).startsWith(t))!.role;
+    expect(role(0, 'Teoria')).toBe('heading');
+    expect(role(1, 'Teoria')).toBe('header');
+    expect(role(0, 'Niniejszy')).toBe('body');
+  });
+});
+
 describe('citation notes', () => {
   it('keeps a footnote that is only a citation as published, and translates one that says more', () => {
     const [p] = analyzeDocument([
