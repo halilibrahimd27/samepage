@@ -17,7 +17,12 @@ import {
   splitClauses,
   splitSentences,
 } from '../../src/engines/plainText';
-import { academicHeading, isNameList, usesMetrics } from '../../src/core/glossary/academic';
+import {
+  academicHeading,
+  isNameList,
+  isOrcidAuthorLine,
+  usesMetrics,
+} from '../../src/core/glossary/academic';
 import { validateTranslation } from '../../src/core/validate/validate';
 import { createPseudoEngine } from '../../src/engines/pseudo';
 import {
@@ -557,6 +562,21 @@ describe('helpers', () => {
     expect(isNameList('Stanford University, Computer Science Department')).toBe(false);
     // Title-case keyword lists look alike: the pipeline also requires affiliation marks.
     expect(isNameList('Machine Learning, Deep Learning and Data Mining')).toBe(true);
+    // Authors each with an ORCID link stay names ("Greice" is no "Grécia").
+    expect(
+      isOrcidAuthorLine(
+        'Greice Menezes (https://orcid.org/0000-0002-8393-2545) 4 Ligia Gabrielli (https://orcid.org/0000-0002-5195-1979) 4',
+      ),
+    ).toBe(true);
+    expect(
+      isOrcidAuthorLine(
+        'Maria da Conceição Chagas de Almeida (https://orcid.org/0000-0002-4760-4157) 4',
+      ),
+    ).toBe(true);
+    expect(
+      isOrcidAuthorLine('Os dados estão disponíveis (https://orcid.org/0000-0002-4760-4157).'),
+    ).toBe(false);
+    expect(isOrcidAuthorLine('Greice Menezes, Ligia Gabrielli')).toBe(false);
     expect(academicHeading('Overall', 'en', 'tr')).toBe('Genel');
     // Section names that are everyday words: headings only, numbered or not.
     expect(academicHeading('Giriş', 'tr', 'en', false, true)).toBe('Introduction');

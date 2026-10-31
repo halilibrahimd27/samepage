@@ -470,6 +470,27 @@ export function isNameList(text: string): boolean {
   });
 }
 
+const ORCID = /\(?\s*(?:https?:\/\/)?orcid\.org\/[\dX-]+\s*\)?[\s\d,*∗†‡§¶]*/giu;
+
+/**
+ * Authors each followed by an ORCID link ("Greice Menezes (https://orcid.org/0000-…) 4 Ligia
+ * Gabrielli (https://orcid.org/…) 4"): names that Google would translate ("Greice" → "Yunanistan").
+ */
+export function isOrcidAuthorLine(text: string): boolean {
+  if (!/orcid\.org\//iu.test(text)) return false;
+  const names = text
+    .split(ORCID)
+    .map((p) => p.replace(/^[\s,;]+|[\s,;]+$/gu, ''))
+    .filter(Boolean);
+  return (
+    names.length > 0 &&
+    names.every((n) => {
+      const words = n.split(/\s+/);
+      return words.length >= 2 && words.length <= 7 && words.every((w) => NAME_WORD.test(w));
+    })
+  );
+}
+
 /** Words of Title Case headings that are not names ("Related Work", "Materials And Methods"). */
 const HEADING_WORD =
   /^(?:and|work|works|review|methods?|materials?|results?|discussion|background|analysis|study|conclusions?|theory|models?|data|related|literature|problem|statement|overview|preliminaries|motivation|approach|design|experiments?|evaluation|summary|notation|definitions?)$/iu;

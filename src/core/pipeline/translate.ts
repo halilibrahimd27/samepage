@@ -18,6 +18,7 @@ import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache
 import {
   academicHeading,
   isNameList,
+  isOrcidAuthorLine,
   metricGlossary,
   runInLabels,
   usesMetrics,
@@ -280,10 +281,14 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics, s.role === 'heading')
       : null;
     // Author lines with affiliation marks stay as they are (marks: superscripts, *, ∗, †).
+    // So do authors each with an ORCID link, the link set aside or not.
+    const linked = plainText(
+      s.text.replace(/⟦([A-Z]\d+)⟧/g, (m, id: string) => s.verbatim?.[id] ?? m),
+    );
     const authors =
       heading === null &&
-      /⟦N\d+⟧|[*∗†‡§¶]/.test(s.text) &&
-      isNameList(plainText(s.text).replace(/[*∗†‡§¶]/g, ''));
+      ((/⟦N\d+⟧|[*∗†‡§¶]/.test(s.text) && isNameList(plainText(s.text).replace(/[*∗†‡§¶]/g, ''))) ||
+        isOrcidAuthorLine(linked));
     if (authors) {
       outcomes.set(s.id, {
         id: s.id,
