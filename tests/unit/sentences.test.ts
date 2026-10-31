@@ -61,6 +61,22 @@ describe('sentence-by-sentence retry', () => {
     expect(engine.sent).toContain('Sonuçlar tutarlıdır.');
   });
 
+  it('keeps an author line with math-asterisk marks as it is', async () => {
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(batch.map((b) => ({ id: b.id, text: b.text.toLowerCase() }))),
+    };
+    const text = 'Wenbo Guo∗, Zhengzi Xu†‡, Chengwei Liu†, Yong Pi∗‡';
+    const [out] = await translateSegments({
+      engine,
+      segments: [{ id: 'a', text, role: 'body' }],
+      ctx: { pair: { source: 'tr', target: 'en' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(out!.text).toBe(text);
+  });
+
   it('takes a translation that writes a number the source spells out, flagged', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),

@@ -270,11 +270,11 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     const heading = headings
       ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics, s.role === 'heading')
       : null;
-    // Author lines with affiliation marks stay as they are (marks: superscripts, *, †).
+    // Author lines with affiliation marks stay as they are (marks: superscripts, *, ∗, †).
     const authors =
       heading === null &&
-      /⟦N\d+⟧|[*†‡]/.test(s.text) &&
-      isNameList(plainText(s.text).replace(/[*†‡]/g, ''));
+      /⟦N\d+⟧|[*∗†‡§¶]/.test(s.text) &&
+      isNameList(plainText(s.text).replace(/[*∗†‡§¶]/g, ''));
     if (authors) {
       outcomes.set(s.id, {
         id: s.id,
