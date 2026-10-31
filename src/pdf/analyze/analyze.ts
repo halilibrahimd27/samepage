@@ -360,7 +360,12 @@ function classify(
         role = 'label';
       else if (
         size >= stats.bodySize * 1.12 ||
-        (allBold(b) && b.lines.length <= 2 && text.length < 120 && !TERMINAL.test(text))
+        (allBold(b) &&
+          b.lines.length <= 2 &&
+          text.length < 120 &&
+          !TERMINAL.test(text) &&
+          // A bold item of a bulleted list ("• počtu výrobků, …") is not a heading.
+          !/^\s*[•◦▪▫‣●○■□➢✓]|[,;]\s*$/u.test(text))
       )
         role = 'heading';
       else if (size <= stats.bodySize * 0.92 && b.bbox.y0 > raw.height * 0.6) role = 'footnote';

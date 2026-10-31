@@ -98,6 +98,9 @@ describe('a paper citing itself', () => {
       'Cite this article:',
       'Pour citer cet article :',
       'Для цитирования:',
+      'Cytowanie:',
+      'Cómo citar este artículo:',
+      'Jak citovat tento článek:',
     ])
       expect(SELF_CITATION_LABEL.test(t), t).toBe(true);
     expect(SELF_CITATION_LABEL.test('Citation analysis shows that')).toBe(false);
@@ -121,6 +124,25 @@ describe('a paper citing itself', () => {
     expect(cite.role).toBe('reference');
     expect(cite.translatable).toBe(false);
     expect(label.translatable).toBe(true);
+  });
+});
+
+describe('bold lines', () => {
+  it('reads a bold heading as one, a bold item of a bulleted list as text', () => {
+    const bold = (y: number, text: string) => {
+      const c = page(0, [[72, y, text]]).blocks[0]!;
+      for (const ch of c.lines[0]!.chars) ch.font = 'Serif-Bold';
+      return c;
+    };
+    const raw = page(0, [...body(60), ...body(200)]);
+    raw.blocks.push(bold(120, 'Material flow'), bold(140, '• the stock and its value,'));
+    raw.fonts = {
+      'Serif-Bold': { name: 'Serif-Bold', bold: true, italic: false, serif: true, mono: false },
+    };
+    const [p] = analyzeDocument([raw]);
+    const role = (t: string) => p!.blocks.find((b) => blockText(b).startsWith(t))!.role;
+    expect(role('Material')).toBe('heading');
+    expect(role('•')).toBe('body');
   });
 });
 
