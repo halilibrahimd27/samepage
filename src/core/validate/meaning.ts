@@ -268,6 +268,7 @@ const CUES: Record<string, Cues> = {
     ignore: [
       'non[ -]gouvernemental\\p{L}*',
       'sans but lucratif',
+      'sans doute',
       'avant tout',
       'ou non',
       'non seulement',
@@ -323,6 +324,9 @@ const CUES: Record<string, Cues> = {
       'no s[oó]lo',
       'no gubernamental\\p{L}*',
       'sin (?:fines|ánimo) de lucro',
+      // "However", "no doubt": nothing negated.
+      'sin embargo',
+      'sin duda',
     ],
     negation: [
       'no',
@@ -376,6 +380,7 @@ const CUES: Record<string, Cues> = {
       'non[ -]governativ\\p{L}*',
       'non[ -]profit',
       'senza scopo di lucro',
+      'senza dubbio',
     ],
     negation: ['non', 'mai', 'nessun\\p{L}*', 'niente', 'nulla', 'senza', 'né'],
     soft: [
@@ -420,6 +425,7 @@ const CUES: Record<string, Cues> = {
       'não apenas',
       'não[ -]governamenta\\p{L}*',
       'sem fins lucrativos',
+      'sem dúvida',
     ],
     negation: ['não', 'nunca', 'nenhum\\p{L}*', 'nada', 'ninguém', 'sem', 'nem', 'jamais'],
     soft: [

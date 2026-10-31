@@ -234,6 +234,13 @@ describe('validateTranslation', () => {
         'hu',
       ),
     ).toEqual([]);
+    expect(
+      codes(
+        'La segunda transcurrió entre la década de los noventa y el siglo XXI.',
+        'The second ran from the 1990s to the 21st century.',
+        'es',
+      ),
+    ).toEqual([]);
     // A stray number is still reported ("on" is not a number word in English).
     expect(
       codes(

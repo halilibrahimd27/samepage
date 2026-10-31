@@ -107,10 +107,43 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'achtziger',
     'neunziger',
   ],
-  fr: ['deux', 'trois', 'quatre', 'cinq', 'dix', 'cents?', 'milles?', '', '', ''],
-  es: ['dos', 'tres', 'cuatro', 'cinco', 'diez', 'cien(?:to)?s?', 'mil', '', '', ''],
-  it: ['due', 'tre', 'quattro', 'cinque', 'dieci', 'cento', 'mille', '', '', ''],
-  pt: ['dois', 'três', 'quatro', 'cinco', 'dez', 'cem', 'mil', '', '', ''],
+  fr: [
+    'deux',
+    'trois',
+    'quatre',
+    'cinq',
+    'dix',
+    'cents?',
+    'milles?',
+    'soixante',
+    'quatre-vingts?',
+    'quatre-vingt-dix',
+  ],
+  es: [
+    'dos',
+    'tres',
+    'cuatro',
+    'cinco',
+    'diez',
+    'cien(?:to)?s?',
+    'mil',
+    'sesenta',
+    'ochenta',
+    'noventa',
+  ],
+  it: [
+    'due',
+    'tre',
+    'quattro',
+    'cinque',
+    'dieci',
+    'cento',
+    'mille',
+    'sessanta',
+    'ottanta',
+    'novanta',
+  ],
+  pt: ['dois', 'três', 'quatro', 'cinco', 'dez', 'cem', 'mil', 'sessenta', 'oitenta', 'noventa'],
   nl: ['twee', 'drie', 'vier', 'vijf', 'tien', 'honderd', 'duizend', '', '', ''],
   pl: [
     'dwa',
@@ -164,7 +197,7 @@ const NUMBER_WORDS: Record<string, string[]> = {
   ro: ['doi|două', 'trei', 'patru', 'cinci', 'zece', 'sută', 'mii|mie', '', '', ''],
   sv: ['två', 'tre', 'fyra', 'fem', 'tio', 'hundra', 'tusen', '', '', ''],
   el: ['δύο', 'τρ(?:ία|εις)', 'τέσσερ\\p{L}*', 'πέντε', 'δέκα', 'εκατό', 'χίλι\\p{L}*', '', '', ''],
-  tr: ['iki', 'üç', 'dört', 'beş', 'on', 'yüz', 'bin', '', '', ''],
+  tr: ['iki', 'üç', 'dört', 'beş', 'on', 'yüz', 'bin', 'altmışlı', 'seksenli', 'doksanlı'],
   bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', ''],
 };
 const WORD_VALUES = [2, 3, 4, 5, 10, 100, 1000, 1960, 1980, 1990];
@@ -173,15 +206,23 @@ const WORD_VALUES = [2, 3, 4, 5, 10, 100, 1000, 1960, 1980, 1990];
 function wordNumbers(text: string, lang: string): { t: string; v: number[]; optional: true }[] {
   const words = NUMBER_WORDS[lang];
   if (!words) return [];
-  return text
-    .split(/[^\p{L}']+/u)
-    .flatMap((w) =>
-      words.flatMap((pattern, k) =>
-        pattern && new RegExp(`^(?:${pattern})$`, 'iu').test(w)
-          ? [{ t: w, v: [WORD_VALUES[k]!], optional: true as const }]
-          : [],
-      ),
-    );
+  return text.split(/[^\p{L}']+/u).flatMap((w) =>
+    words.flatMap((pattern, k) =>
+      pattern && new RegExp(`^(?:${pattern})$`, 'iu').test(w)
+        ? [
+            {
+              t: w,
+              // A decade's word is also the number ("noventa" → 90, "los noventa" → 1990s).
+              v:
+                WORD_VALUES[k]! > 1900
+                  ? [WORD_VALUES[k]!, WORD_VALUES[k]! - 1900]
+                  : [WORD_VALUES[k]!],
+              optional: true as const,
+            },
+          ]
+        : [],
+    ),
+  );
 }
 
 /** Returns source tokens that have no matching target token, and vice versa. */

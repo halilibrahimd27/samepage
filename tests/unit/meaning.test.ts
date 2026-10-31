@@ -342,6 +342,14 @@ describe('back-translation meaning check', () => {
         'es',
       ),
     ).toEqual([]);
+    // "Sin embargo" is "however".
+    expect(
+      issues(
+        'Pero, debido a sus fundamentos distintos, a menudo surgen confusiones.',
+        'Sin embargo, debido a sus fundamentos distintos, a menudo surgen confusiones.',
+        'es',
+      ),
+    ).toEqual([]);
   });
 
   it('skips passages of the source that are already in the target language', () => {
