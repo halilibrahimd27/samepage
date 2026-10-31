@@ -84,6 +84,8 @@ describe('reference lists', () => {
       'Referências',
       '6.2 Bibliografía',
       'Zdroje',
+      'Използвана литература',
+      'Використана література',
     ])
       expect(REFERENCES_HEADING.test(t), t).toBe(true);
     for (const t of ['Literature review', '2. Related work'])

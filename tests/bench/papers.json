@@ -1,5 +1,11 @@
 [
   {
+    "slug": "bg-unwe-rp",
+    "source": "bg",
+    "layout": "single column, tables (Научни трудове на УНСС 3/2026)",
+    "url": "https://rp.unwe.bg/index.php/rp/en/article/download/22/14"
+  },
+  {
     "slug": "cs-polek",
     "source": "cs",
     "layout": "single column, Politická ekonomie",
@@ -100,6 +106,12 @@
     "source": "pt",
     "layout": "SciELO, many tables",
     "url": "https://www.scielo.br/j/csc/a/4BHTCFF4bDqq4qT7WtPhvYr/?lang=pt&format=pdf"
+  },
+  {
+    "slug": "ro-unibuc-rst",
+    "source": "ro",
+    "layout": "single column, examples and footnotes (Romanian Studies Today IX, 2025)",
+    "url": "https://journals.unibuc.ro/index.php/romanian-studies-today/en/article/download/1490/1752"
   },
   {
     "slug": "ru-cyberleninka-1",
