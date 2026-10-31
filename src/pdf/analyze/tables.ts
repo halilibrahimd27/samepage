@@ -41,6 +41,15 @@ export function detectTables(page: RawPage): TableRegion[] {
   const vrules = page.vectors
     .filter((v) => v.bbox.x1 - v.bbox.x0 < 2 && v.bbox.y1 - v.bbox.y0 > 6)
     .map((v) => v.bbox);
+  // Two rules joined by vertical rules are rows of one fully ruled grid.
+  const ruled = (a: Rect, b: Rect) =>
+    vrules.some(
+      (v) =>
+        v.y0 <= a.y1 + 1.5 &&
+        v.y1 >= b.y0 - 1.5 &&
+        v.x0 >= Math.max(a.x0, b.x0) - 2 &&
+        v.x1 <= Math.min(a.x1, b.x1) + 2,
+    );
   const graphicsBetween = (a: Rect, b: Rect) => {
     const between = graphics.filter(
       (g) =>
@@ -115,7 +124,7 @@ export function detectTables(page: RawPage): TableRegion[] {
   const tables: Rect[][] = [];
   for (const g of groups) {
     if (g.length === 1) narrow.push(g[0]!);
-    else tables.push(...splitBooktabs(g, thickness));
+    else tables.push(...splitBooktabs(g, thickness, ruled));
   }
 
   let regions: TableRegion[] = [];
@@ -536,9 +545,14 @@ function stitchRules(rules: Rect[]): Rect[] {
 /**
  * booktabs draws top and bottom rules thicker than the rules in between; a thick rule that
  * follows a thick bottom rule is the top rule of the next table. Groups with uniform rules
- * (fully ruled tables) are returned unchanged.
+ * (fully ruled tables) are returned unchanged, and so are rules joined by vertical ones: booktabs
+ * has none, a grid whose borders vary in weight does.
  */
-function splitBooktabs(group: Rect[], thickness: (r: Rect) => number): Rect[][] {
+function splitBooktabs(
+  group: Rect[],
+  thickness: (r: Rect) => number,
+  ruled: (a: Rect, b: Rect) => boolean,
+): Rect[][] {
   const max = Math.max(...group.map(thickness));
   const min = Math.min(...group.map(thickness));
   if (max - min < 0.15) return [group];
@@ -547,7 +561,8 @@ function splitBooktabs(group: Rect[], thickness: (r: Rect) => number): Rect[][] 
   for (let i = 1; i < group.length; i++) {
     const cur = out[out.length - 1]!;
     const prev = group[i - 1]!;
-    if (cur.length > 1 && thick(prev) && thick(group[i]!)) out.push([group[i]!]);
+    if (cur.length > 1 && thick(prev) && thick(group[i]!) && !ruled(prev, group[i]!))
+      out.push([group[i]!]);
     else cur.push(group[i]!);
   }
   return out;

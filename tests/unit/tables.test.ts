@@ -221,6 +221,31 @@ describe('ruled grids drawn cell by cell', () => {
     );
     expect(t!.rect.y0).toBeGreaterThanOrEqual(99);
   });
+
+  it('a grid whose borders vary in weight stays one table', () => {
+    // A shaded first row edged with a hairline, 1 pt borders below, vertical rules per row.
+    const ys = [100, 125, 150, 175, 200, 225, 250];
+    const p = cellPage(
+      ys.slice(0, -1).flatMap((y, r): Cell[] => [
+        [60, y + 6, 90, y + 18, `a${r}`],
+        [160, y + 6, 190, y + 18, `b${r}`],
+      ]),
+      [],
+    );
+    const v = (x0: number, y0: number, x1: number, y1: number) => ({
+      bbox: { x0, y0, x1, y1 },
+      isRectangle: true,
+      isStroked: false,
+      color: [0, 0, 0] as [number, number, number],
+    });
+    p.vectors.push(
+      ...ys.map((y, i) => (i === 0 ? v(50, y, 250, y + 0.1) : v(50, y, 250, y + 1))),
+      ...ys.slice(0, -1).flatMap((y) => [50, 150, 249].map((x) => v(x, y + 1, x + 1, y + 25))),
+    );
+    const tables = detectTables(p);
+    expect(tables).toHaveLength(1);
+    expect(tables[0]!.rect.y1).toBeGreaterThanOrEqual(250);
+  });
 });
 
 describe('tables found from their caption', () => {
