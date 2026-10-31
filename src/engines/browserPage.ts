@@ -219,6 +219,39 @@ export function shieldGlosses(text: string, lang: string): { text: string; gloss
   return { text: out, glosses };
 }
 
+/** Double-quoted terms ("„логистично разрастване“", "“Lojistik yayılması”"), in order. */
+const QUOTED = /[„“"«][^„“”"«»]{1,80}?[“”"»]/gu;
+
+/**
+ * A gloss the source sets right after a quoted term („логистично разрастване“ (logistics
+ * sprawl)) goes back after the same quoted term of the translation: Google moves the span to a
+ * sentence end ("… analiz edilmiştir. (logistics sprawl) Kentsel …"). Only when both sides quote
+ * as many terms.
+ */
+export function besideQuotedTerms(source: string, target: string, count: number): string {
+  const src = [...source.matchAll(QUOTED)];
+  let out = target;
+  for (let n = 1; n <= count; n++) {
+    const ph = `⟦Z${n}⟧`;
+    const at = source.indexOf(ph);
+    const k = src.findIndex((m) => {
+      const end = m.index + m[0].length;
+      return end <= at && /^\s*$/u.test(source.slice(end, at));
+    });
+    if (k < 0 || !out.includes(ph)) continue;
+    const head = out.slice(0, out.indexOf(ph)).trimEnd();
+    const tail = out.slice(out.indexOf(ph) + ph.length).trimStart();
+    const without = head + (head && tail && !/^[.,;:!?)\]”"»]/u.test(tail) ? ' ' : '') + tail;
+    const tgt = [...without.matchAll(QUOTED)];
+    if (tgt.length !== src.length) continue;
+    // After a suffix on the quote ("\"lojistik yayılması\"dır", "”'nın").
+    const quoted = tgt[k]!.index + tgt[k]![0].length;
+    const end = quoted + (/^['’]?\p{L}*/u.exec(without.slice(quoted))?.[0].length ?? 0);
+    out = without.slice(0, end) + ph + without.slice(end);
+  }
+  return out;
+}
+
 /** The glosses back in place, a space on each side unless punctuation follows or precedes. */
 const unshield = (text: string, glosses: string[]) =>
   glosses.reduce((t, g, i) => {
@@ -227,7 +260,9 @@ const unshield = (text: string, glosses: string[]) =>
     if (at < 0) return t;
     const head = t.slice(0, at).replace(/\s+$/u, '');
     const tail = t.slice(at + ph.length).replace(/^\s+/u, '');
-    const lead = head && !/[([„“"«]$/u.test(head) ? ' ' : '';
+    // A straight quote that closes ("\"Lojistik yayılması\"") is spaced from the gloss.
+    const opens = /[([„“«]$/u.test(head) || (/"$/u.test(head) && head.split('"').length % 2 === 0);
+    const lead = head && !opens ? ' ' : '';
     const trail = tail && !/^[.,;:!?)\]”"»]/u.test(tail) ? ' ' : '';
     return `${head}${lead}${g}${trail}${tail}`;
   }, text);
@@ -328,8 +363,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned).
-    model: 'browser-page-19',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term).
+    model: 'browser-page-20',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -344,7 +379,10 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
           ctx.pair,
           shielded.map((p) => spellYears(p.text, ctx.pair.source)),
         )
-      ).map((t, i) => unshield(t, shielded[i]!.glosses));
+      ).map((t, i) => {
+        const { text, glosses } = shielded[i]!;
+        return unshield(besideQuotedTerms(text, t, glosses.length), glosses);
+      });
       signal.throwIfAborted();
       const out = batch.map((s, i): string | null => {
         const { inlined } = prepared[i]!;

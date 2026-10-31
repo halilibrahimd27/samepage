@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { verbatimOf } from '../../src/core/segment/codec';
 import type { PlaceholderDef } from '../../src/core/segment/types';
 import {
+  besideQuotedTerms,
   spellYears,
   closeBrackets,
   confineTags,
@@ -267,6 +268,57 @@ describe('headings with machine engines', () => {
     expect(sent[0]).toContain('разпръскване ⟦Z1⟧ и');
     expect(out!.text).toBe(
       'Lojistik yayılma (logistics sprawl) ve yaşayan laboratuvarlar (Living Labs).',
+    );
+    // Moved to a sentence end by Google: back after its quoted term, spaced from the quote.
+    const moved = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) =>
+        Promise.resolve(
+          texts.map(() => 'Metodoloji "Yaşayan Laboratuvarlar" kavramına dayanır.⟦Z1⟧'),
+        ),
+    });
+    const [back] = await moved.translate(
+      [
+        {
+          id: 'm',
+          text: 'Методологията разчита на „Живи лаборатории“ (Living Labs).',
+          role: 'body',
+        },
+      ],
+      { pair: { source: 'bg', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(back!.text).toBe('Metodoloji "Yaşayan Laboratuvarlar" (Living Labs) kavramına dayanır.');
+  });
+
+  it('puts a gloss Google moved back after its quoted term', () => {
+    expect(
+      besideQuotedTerms(
+        'Анализирани са концепции като „логистично разрастване“ ⟦Z1⟧, типологията на пространствата.',
+        '⟦Z1⟧ "Lojistik yayılması" ve mekânların tipolojisi gibi kavramlar analiz edilmiştir.',
+        1,
+      ),
+    ).toBe('"Lojistik yayılması"⟦Z1⟧ ve mekânların tipolojisi gibi kavramlar analiz edilmiştir.');
+    expect(
+      besideQuotedTerms(
+        'Методологията разчита на концепцията за „Живи лаборатории“ ⟦Z1⟧.',
+        'Metodoloji giderek "Yaşayan Laboratuvarlar" kavramına dayanmaktadır. ⟦Z1⟧',
+        1,
+      ),
+    ).toBe('Metodoloji giderek "Yaşayan Laboratuvarlar"⟦Z1⟧ kavramına dayanmaktadır.');
+    expect(
+      besideQuotedTerms(
+        'Понятието е „логистично разрастване“ ⟦Z1⟧. Л. Даблан го въвежда.',
+        'Kavram "lojistik yayılması"dır.⟦Z1⟧L. Dablanc bunu tanıttı.',
+        1,
+      ),
+    ).toBe('Kavram "lojistik yayılması"dır⟦Z1⟧. L. Dablanc bunu tanıttı.');
+    // Not after a quoted term in the source, or not as many quoted terms: left alone.
+    expect(
+      besideQuotedTerms('Едно понятие ⟦Z1⟧ и „друго“.', '⟦Z1⟧ Bir kavram ve "başka".', 1),
+    ).toBe('⟦Z1⟧ Bir kavram ve "başka".');
+    expect(besideQuotedTerms('„Едно“ ⟦Z1⟧ и „друго“.', '⟦Z1⟧ "Bir" ve başka.', 1)).toBe(
+      '⟦Z1⟧ "Bir" ve başka.',
     );
   });
 
