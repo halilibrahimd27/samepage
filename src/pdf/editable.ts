@@ -600,13 +600,16 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
   const figures = pictures.filter((p) => !p.formula);
   // A bar with a running head in it ("Leitthema" on the journal's colour) and no image is the
   // page's decoration.
+  // So is an empty shape at the page's edge (a coloured tab bled off the page) or a small one
+  // (the box behind a page number).
   const decoration = (p: Picture) => {
+    if (page.images.some((i) => coverage(i.bbox, p.rect) > 0)) return false;
     const inside = page.blocks.filter((b) => coverage(b.bbox, p.rect) > 0.5);
-    return (
-      inside.length > 0 &&
-      inside.every((b) => FURNITURE.includes(b.role)) &&
-      !page.images.some((i) => coverage(i.bbox, p.rect) > 0)
-    );
+    const { x0, y0, x1, y1 } = p.rect;
+    const edge = x0 < 2 || y0 < 2 || x1 > page.width - 2 || y1 > page.height - 2;
+    return inside.length
+      ? inside.every((b) => FURNITURE.includes(b.role))
+      : edge || (x1 - x0 < 40 && y1 - y0 < 40);
   };
   return pictures.filter((p) => {
     const host = p.formula && figures.find((f) => coverage(p.rect, f.rect) > 0.5);

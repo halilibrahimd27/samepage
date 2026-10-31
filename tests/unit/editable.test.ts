@@ -337,6 +337,16 @@ describe('editable Word output of a PDF (P9.4)', () => {
       ),
     ]);
     expect(result.items.some((i) => i.kind === 'picture')).toBe(false);
+    // An empty tab bled off the page's edge, a small empty box: decoration too.
+    const empty = plan([
+      page(0, [block('p0-b0', 'body', 100, [[span('The text of the paper.', 50)]])], {
+        figures: [
+          { bbox: { x0: 574, y0: 400, x1: 595, y1: 613 }, formula: false },
+          { bbox: { x0: 300, y0: 700, x1: 333, y1: 718 }, formula: false },
+        ],
+      }),
+    ]);
+    expect(empty.items.some((i) => i.kind === 'picture')).toBe(false);
   });
 
   it('places a figure before the first block below it and joins hyphenated kept text', () => {
