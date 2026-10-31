@@ -1,5 +1,16 @@
 export const en = {
   'app.tagline': 'Translate PDF, Word and PowerPoint documents while keeping their layout.',
+  'header.badge': 'Academic translation',
+  'header.quality': 'Quality',
+  'hero.title': 'Translate your paper. Keep every meaning.',
+  'hero.subtitle':
+    'Papers, theses and slides come back with their layout, tables, formulas and references intact, and every paragraph is checked against the source.',
+  'trust.meaning': 'Meaning checked paragraph by paragraph',
+  'trust.numbers': 'Numbers, citations and formulas verified',
+  'trust.private': 'Runs in your browser: files are never uploaded',
+  'result.ready': 'Your translation is ready',
+  'result.integrity':
+    '{translated} paragraphs translated and checked against the source · {review} to review · {untranslated} left in the original',
   'header.settings': 'Settings',
   'header.uiLanguage': 'Interface language',
 

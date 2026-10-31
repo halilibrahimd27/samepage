@@ -252,7 +252,7 @@ export function DocxTranslator({
                 sheetStore.cancel();
                 void pipelineClient.call((api) => api.cancel(running));
               }}
-              className="rounded-md border border-slate-300 px-4 py-2"
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
             >
               {t('playground.cancel')}
             </button>
@@ -297,7 +297,7 @@ export function DocxTranslator({
             </button>
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-4 py-2"
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
               onClick={() =>
                 downloadBlob(
                   new Blob([JSON.stringify(result.report, null, 2)], { type: 'application/json' }),
@@ -309,7 +309,7 @@ export function DocxTranslator({
             </button>
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-4 py-2"
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
               onClick={() => void downloadBilingual()}
               data-testid="download-bilingual"
             >
@@ -318,7 +318,7 @@ export function DocxTranslator({
             {projectFile.canSave && (
               <button
                 type="button"
-                className="rounded-md border border-slate-300 px-4 py-2"
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
                 onClick={() =>
                   void projectFile
                     .save(glossary.usable, edits)

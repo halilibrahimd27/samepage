@@ -2,6 +2,17 @@ import type { MessageKey } from './en';
 
 export const fr: Record<MessageKey, string> = {
   'app.tagline': 'Traduisez vos documents PDF, Word et PowerPoint en conservant leur mise en page.',
+  'header.badge': 'Traduction académique',
+  'header.quality': 'Qualité',
+  'hero.title': 'Traduisez votre article. Chaque sens est préservé.',
+  'hero.subtitle':
+    'Articles, thèses et diapositives reviennent avec leur mise en page, leurs tableaux, formules et références, et chaque paragraphe est vérifié par rapport à l’original.',
+  'trust.meaning': 'Sens vérifié paragraphe par paragraphe',
+  'trust.numbers': 'Nombres, citations et formules vérifiés',
+  'trust.private': 'Fonctionne dans votre navigateur : aucun fichier envoyé',
+  'result.ready': 'Votre traduction est prête',
+  'result.integrity':
+    '{translated} paragraphes traduits et vérifiés par rapport à l’original · {review} à revoir · {untranslated} laissés dans la langue d’origine',
   'header.settings': 'Paramètres',
   'header.uiLanguage': 'Langue de l’interface',
 

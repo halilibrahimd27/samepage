@@ -2,6 +2,17 @@ import type { MessageKey } from './en';
 
 export const tr: Record<MessageKey, string> = {
   'app.tagline': 'PDF, Word ve PowerPoint belgelerini düzenini koruyarak çevirin.',
+  'header.badge': 'Akademik çeviri',
+  'header.quality': 'Kalite',
+  'hero.title': 'Makalenizi çevirin. Her anlam korunur.',
+  'hero.subtitle':
+    'Makaleler, tezler ve sunumlar düzeni, tabloları, formülleri ve kaynaklarıyla birlikte çevrilir; her paragraf kaynakla karşılaştırılarak denetlenir.',
+  'trust.meaning': 'Anlam paragraf paragraf denetlenir',
+  'trust.numbers': 'Sayılar, atıflar ve formüller doğrulanır',
+  'trust.private': 'Tarayıcınızda çalışır: dosyalar asla yüklenmez',
+  'result.ready': 'Çeviriniz hazır',
+  'result.integrity':
+    '{translated} paragraf çevrildi ve kaynakla karşılaştırıldı · {review} gözden geçirilecek · {untranslated} orijinal dilde bırakıldı',
   'header.settings': 'Ayarlar',
   'header.uiLanguage': 'Arayüz dili',
 

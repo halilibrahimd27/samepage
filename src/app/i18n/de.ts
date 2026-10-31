@@ -3,6 +3,17 @@ import type { MessageKey } from './en';
 export const de: Record<MessageKey, string> = {
   'app.tagline':
     'Übersetzen Sie PDF-, Word- und PowerPoint-Dokumente und behalten Sie dabei das Layout bei.',
+  'header.badge': 'Wissenschaftliche Übersetzung',
+  'header.quality': 'Qualität',
+  'hero.title': 'Übersetzen Sie Ihre Arbeit. Jede Bedeutung bleibt.',
+  'hero.subtitle':
+    'Artikel, Abschlussarbeiten und Folien kommen mit Layout, Tabellen, Formeln und Literatur zurück, und jeder Absatz wird mit dem Original abgeglichen.',
+  'trust.meaning': 'Bedeutung Absatz für Absatz geprüft',
+  'trust.numbers': 'Zahlen, Zitate und Formeln verifiziert',
+  'trust.private': 'Läuft im Browser: Dateien werden nie hochgeladen',
+  'result.ready': 'Ihre Übersetzung ist fertig',
+  'result.integrity':
+    '{translated} Absätze übersetzt und mit dem Original abgeglichen · {review} zu prüfen · {untranslated} im Original belassen',
   'header.settings': 'Einstellungen',
   'header.uiLanguage': 'Oberflächensprache',
 
