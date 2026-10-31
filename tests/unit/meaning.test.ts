@@ -126,6 +126,14 @@ describe('back-translation meaning check', () => {
         'fr',
       ),
     ).toEqual([]);
+    // "publique ne se limite pas" after "plus" is a negation: no "que", "pas" three words on.
+    expect(
+      issues(
+        'Comme le soulignent de plus en plus de publications, la commémoration publique ne se limite pas au passé.',
+        'Comme le montrent de plus en plus de publications, la commémoration publique concerne le passé.',
+        'fr',
+      ),
+    ).toEqual(['major: negation lost']);
     // "ne … pas" after "avant que" is still a negation.
     expect(
       issues(

@@ -76,9 +76,12 @@ const TR_WEAK_HEDGE = [
   'imk[âa]n\\p{L}*',
 ];
 
-/** A French "ne" that "pas", "plus", "jamais" … follow is a negation, whatever comes before. */
+/**
+ * A French "ne" that "pas", "plus", "jamais" … follow within a few words is a negation, whatever
+ * comes before ("ne se limite pas").
+ */
 const NOT_PAS =
-  "(?!\\s+(?:\\p{L}+[’'\\s]+)?(?:pas|plus|jamais|rien|personne|guère|point|aucun\\p{L}*)(?!\\p{L}))";
+  "(?!\\s+(?:\\p{L}+[’'\\s]+){0,3}(?:pas|plus|jamais|rien|personne|guère|point|aucun\\p{L}*)(?!\\p{L}))";
 
 /**
  * Cyrillic negation "не" in lower case, or capitalised at a sentence start: "Не" alone is also
@@ -288,7 +291,7 @@ const CUES: Record<string, Cues> = {
       // An expletive "ne" negates nothing: "avant qu'un projet ne soit proposé", "plus
       // qu'elle ne l'est déjà".
       `(?<=(?:avant|à moins|de peur|de crainte) qu(?:e\\s|[’'])[^.;:!?]{0,80}?)ne(?=\\s)${NOT_PAS}`,
-      `(?<=(?:plus|moins|davantage|mieux|autrement)\\s[^.;:!?]{0,60}?qu(?:e\\s|[’'])\\s*(?:\\p{L}+\\s+)?)ne(?=\\s)${NOT_PAS}`,
+      `(?<=(?:plus|moins|davantage|mieux|autrement)\\s[^.;:!?]{0,60}?(?<!\\p{L})qu(?:e\\s|[’'])\\s*(?:\\p{L}+\\s+)?)ne(?=\\s)${NOT_PAS}`,
     ],
     // Written negation always has "ne"/"n'": "pas" alone is also a step, "rien" a trifle.
     negation: ['ne', "n[’']\\p{L}+", 'aucun\\p{L}*', 'sans', 'ni'],
