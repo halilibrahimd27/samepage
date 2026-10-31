@@ -90,6 +90,15 @@ describe('validateTranslation', () => {
         "Süre 81npm'de paketlerin yüzdesi kanca kullanır, yalnızca 5% ve 1sırasıyla %.",
       ),
     ).toContain('NUMBER_MISMATCH');
+    // Percentage points written as points are no lost percent sign.
+    expect(
+      validateTranslation({
+        source: 'Mit 55,8 % liegt dieser Anteil fast 15 Prozentpunkte über der Studie (40,4 %).',
+        target: '%55,8 ile bu oran, çalışmanın (%40,4) neredeyse 15 puan üzerindedir.',
+        sourceLang: 'de',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('NUMBER_MISMATCH');
     // Turkish order, a space or the word are all a percentage.
     expect(
       codes(source, 'Paketlerin %81’i kanca kullanırken yalnızca 5 % ve yüzde 1 bunu yapar.'),
@@ -182,6 +191,14 @@ describe('validateTranslation', () => {
         'Dalla fine del secolo XX sono state proposte formule.',
         'Since the end of the 20th century formulas have been proposed.',
       ),
+    ).toEqual([]);
+    expect(
+      validateTranslation({
+        source: 'Deux projets de délibération dans le XIe et le XVIIIe arrondissement.',
+        target: '11. ve 18. bölgedeki iki taslak karar.',
+        sourceLang: 'fr',
+        targetLang: 'tr',
+      }).map((i) => i.code),
     ).toEqual([]);
     expect(
       validateTranslation({

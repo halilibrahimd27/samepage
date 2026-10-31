@@ -82,7 +82,9 @@ const CITATION_RE = /\[\s*\d+(?:\s*[,–-]\s*\d+)*\s*\]/g;
 /** A sentence end glued to the next sentence, a number glued to the next word. */
 const GLUED = [/[\p{Ll}\d)][.!?;:]\p{Lu}\p{Ll}/u, /\d\p{Lu}\p{Ll}{3,}/u];
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
-const PERCENT_WORD = String.raw`(?:yüzde|percent|per cent|prozent|pour cent|por ciento|por cento|per cento|procent\p{L}*|процент\p{L}*|відсот\p{L}*|τοις εκατό)`;
+// Percentage points ("15 Prozentpunkte", "yüzde puan") are no percentage: a translation may
+// write them as points ("15 puan").
+const PERCENT_WORD = String.raw`(?:yüzde|percent|per cent|prozent|pour cent|por ciento|por cento|per cento|procent\p{L}*|процент\p{L}*|відсот\p{L}*|τοις εκατό)(?!\s?(?:punkt|age\s?point|puan|ní bod|owy\s?punkt|ных\s?пункт))`;
 /** A percentage, sign or word on either side: "81%", "%81", "81 %", "yüzde 81", "81 Prozent". */
 const PERCENT_RE = new RegExp(
   String.raw`[%‰]\s?${NUMBER}|${NUMBER}\s?[%‰]|${PERCENT_WORD}\s?${NUMBER}|${NUMBER}\s?${PERCENT_WORD}`,
