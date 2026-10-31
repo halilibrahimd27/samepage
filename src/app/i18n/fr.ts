@@ -283,6 +283,9 @@ export const fr: Record<MessageKey, string> = {
   'report.allSegments': 'Tous les paragraphes',
   'report.empty': 'Rien ne requiert votre attention.',
   'report.meaningFilter': 'Vérification du sens',
+  'report.repaired': 'Sens rétabli : {n}',
+  'report.repairedHint':
+    'Paragraphes signalés par le contrôle du sens : retraduits et retenus seulement une fois le contrôle réussi',
   'report.technical': 'Détails techniques',
   'meaning.title': 'Vérification du sens',
   'meaning.back': 'Rétrotraduction',

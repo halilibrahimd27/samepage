@@ -54,6 +54,10 @@ export function PdfReportPanel({
     .sort((a, b) => a.rank - b.rank || a.order - b.order)
     .map((x) => x.u);
   const meaning = report.units.filter((u) => u.issues.some((i) => i.code === 'MEANING_DRIFT'));
+  // Found off by the meaning check, translated again until it checked out.
+  const repaired = report.units.filter((u) =>
+    u.issues.some((i) => i.code === 'POST_EDITED'),
+  ).length;
   const list = view === 'all' ? report.units : view === 'meaning' ? meaning : attention;
   const { missingGlyphs, issues, repairs, score, status, overflowNotes, ocr, ...counts } =
     report.summary;
@@ -79,6 +83,15 @@ export function PdfReportPanel({
           {meaning.length > 0 && (
             <span className="rounded bg-violet-100 px-2 py-0.5 text-sm text-violet-900">
               {t('report.meaningFilter')}: {meaning.length}
+            </span>
+          )}
+          {repaired > 0 && (
+            <span
+              className="rounded bg-emerald-100 px-2 py-0.5 text-sm text-emerald-900"
+              title={t('report.repairedHint')}
+              data-testid="meaning-repaired"
+            >
+              {t('report.repaired', { n: repaired })}
             </span>
           )}
         </span>

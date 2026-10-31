@@ -284,6 +284,9 @@ export const de: Record<MessageKey, string> = {
   'report.allSegments': 'Alle Absätze',
   'report.empty': 'Nichts erfordert Aufmerksamkeit.',
   'report.meaningFilter': 'Bedeutungsprüfung',
+  'report.repaired': 'Bedeutung korrigiert: {n}',
+  'report.repairedHint':
+    'Absätze, die die Bedeutungsprüfung beanstandet hat: neu übersetzt und erst übernommen, als die Prüfung bestanden war',
   'report.technical': 'Technische Details',
   'meaning.title': 'Bedeutungsprüfung',
   'meaning.back': 'Rückübersetzung',

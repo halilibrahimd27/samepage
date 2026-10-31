@@ -273,6 +273,9 @@ export const en = {
   'report.allSegments': 'All paragraphs',
   'report.empty': 'Nothing needs attention.',
   'report.meaningFilter': 'Meaning check',
+  'report.repaired': 'Meaning repaired: {n}',
+  'report.repairedHint':
+    'Paragraphs the meaning check found off: translated again and kept only once the check passed',
   'report.technical': 'Technical details',
   'meaning.title': 'Meaning check',
   'meaning.back': 'Back-translation',

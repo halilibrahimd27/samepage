@@ -273,6 +273,9 @@ export const tr: Record<MessageKey, string> = {
   'report.allSegments': 'Tüm paragraflar',
   'report.empty': 'İlgilenmeniz gereken bir şey yok.',
   'report.meaningFilter': 'Anlam kontrolü',
+  'report.repaired': 'Anlamı onarılan: {n}',
+  'report.repairedHint':
+    'Anlam denetiminin sorun bulduğu paragraflar: yeniden çevrildi, denetimden geçtikten sonra benimsendi',
   'report.technical': 'Teknik ayrıntılar',
   'meaning.title': 'Anlam kontrolü',
   'meaning.back': 'Geri çeviri',

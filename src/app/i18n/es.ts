@@ -280,6 +280,9 @@ export const es: Record<MessageKey, string> = {
   'report.allSegments': 'Todos los párrafos',
   'report.empty': 'Nada requiere atención.',
   'report.meaningFilter': 'Comprobación del significado',
+  'report.repaired': 'Sentido corregido: {n}',
+  'report.repairedHint':
+    'Párrafos señalados por el control de sentido: traducidos de nuevo y aceptados solo tras superar el control',
   'report.technical': 'Detalles técnicos',
   'meaning.title': 'Comprobación del significado',
   'meaning.back': 'Retrotraducción',
