@@ -688,8 +688,12 @@ function tableItem(
   };
   // The lines of a cell are one paragraph.
   for (const b of [...cells].sort((p, q) => p.bbox.y0 - q.bbox.y0 || p.bbox.x0 - q.bbox.x0)) {
-    const { row, col } = b.tableCell!;
+    const { row, col, cellRect } = b.tableCell!;
     const cell = grid[row]![col]!;
+    // A cell across columns (a source note under the figures, a group header).
+    const span = x0.filter((x, c) => c > col && Number.isFinite(x) && x < cellRect.x1 - 2).length;
+    if (span && b.bbox.x1 > (x0[col + 1] ?? Infinity))
+      cell.span = Math.max(cell.span ?? 1, span + 1);
     const align = alignIn(b);
     if (align && !cell.paragraphs.length) cell.align = align;
     for (const runs of content(b)) {

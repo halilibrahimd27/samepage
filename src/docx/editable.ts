@@ -41,6 +41,8 @@ export type Align = 'left' | 'center' | 'right' | 'justify';
 export interface TableCell {
   paragraphs: EditableRun[][];
   align?: Align;
+  /** Columns this cell takes (a note under the table, a header over a group). */
+  span?: number;
 }
 
 /** Left and first-line indents in points, as the PDF sets the paragraph. */
@@ -273,13 +275,21 @@ class Package {
         (row, r) =>
           `<w:tr>${row
             .map((cell, c) => {
-              const paragraphs = cell.paragraphs.length ? cell.paragraphs : [[]];
+              // Cells under a span are part of it.
+              if (row.slice(0, c).some((o, k) => (o.span ?? 1) > c - k)) return '';
+              const span = Math.min(cell.span ?? 1, row.length - c);
+              const width = widths.slice(c, c + span).reduce((a, b) => a + b, 0) || 200;
+              const paragraphs = [
+                ...cell.paragraphs,
+                ...row.slice(c + 1, c + span).flatMap((o) => o.paragraphs),
+              ];
+              if (!paragraphs.length) paragraphs.push([]);
               const under =
                 r === header - 1 && rows.length > header
                   ? `<w:tcBorders>${line('bottom', 4, '000000')}</w:tcBorders>`
                   : '';
               const jc = cell.align ? `<w:jc w:val="${JC[cell.align]}"/>` : '';
-              return `<w:tc><w:tcPr><w:tcW w:w="${widths[c] ?? 200}" w:type="dxa"/>${under}</w:tcPr>${paragraphs
+              return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}${under}</w:tcPr>${paragraphs
                 .map(
                   (p) =>
                     `<w:p><w:pPr><w:pStyle w:val="TableText"/>${jc}</w:pPr>${this.runs(p)}</w:p>`,

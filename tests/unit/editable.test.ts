@@ -281,6 +281,43 @@ describe('editable Word output of a PDF (P9.4)', () => {
     expect(item!.runs.find((r) => r.text === 'v')?.subscript).toBeUndefined();
   });
 
+  it('lets a source note under a table take all its columns', async () => {
+    const cell = (id: string, row: number, col: number, t: string, x0: number, x1: number) => {
+      const b = block(id, 'table-cell', 300 + 12 * row, [[span(t, x0)]], { x0, x1 });
+      b.tableCell = {
+        tableId: 't0',
+        row,
+        col,
+        cellRect: { x0: [50, 150, 250][col]!, y0: 300 + 12 * row, x1, y1: 312 + 12 * row },
+      };
+      return b;
+    };
+    const result = plan([
+      page(0, [
+        cell('p0-b0', 0, 0, 'Level', 50, 100),
+        cell('p0-b1', 0, 1, '15-17', 150, 180),
+        cell('p0-b2', 0, 2, '18-19', 250, 280),
+        cell('p0-b3', 1, 0, 'Higher', 50, 100),
+        cell('p0-b4', 1, 1, '0,0', 150, 165),
+        cell('p0-b5', 1, 2, '2,6', 250, 265),
+        cell('p0-b6', 2, 0, 'Source: calculations by the census of 2015, table 2.1.', 50, 330),
+      ]),
+    ]);
+    const table = result.items.find((i) => i.kind === 'table') as Extract<
+      EditableItem,
+      { kind: 'table' }
+    >;
+    expect(table.rows[2]![0]!.span).toBe(3);
+    const { buildEditableDocx } = await import('../../src/docx/editable');
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(
+      await buildEditableDocx([table], [], { locale: 'en-US', page: { width: 595, height: 842 } }),
+    );
+    const xml = await zip.file('word/document.xml')!.async('string');
+    expect(xml).toContain('<w:gridSpan w:val="3"/>');
+    expect(xml.match(/<w:tc>/g)).toHaveLength(7);
+  });
+
   it('puts an interval set under its figure in that cell, and white caption text in black', () => {
     const cell = (id: string, row: number, col: number, t: string, x0: number) => {
       const b = block(id, 'table-cell', 300 + 12 * row, [[span(t, x0)]], {
