@@ -138,12 +138,17 @@ const JC: Record<Align, string> = {
 const halfPoints = (pt: number) => Math.round(pt * 2);
 const twips = (pt: number) => Math.round(pt * 20);
 
+/** Code's font: narrower than Courier New, nearer the PDFs' Inconsolata and Latin Modern Mono. */
+export const MONO = 'Consolas';
+/** Consolas's advance, in em. */
+export const MONO_WIDTH = 0.55;
+
 function runXml(r: EditableRun, hyperlink: boolean, size?: number): string {
   if (r.footnote !== undefined)
     return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${r.footnote + 1}"/></w:r>`;
   const props = [
     hyperlink ? '<w:rStyle w:val="Hyperlink"/>' : '',
-    r.mono ? '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>' : '',
+    r.mono ? `<w:rFonts w:ascii="${MONO}" w:hAnsi="${MONO}" w:cs="${MONO}"/>` : '',
     r.bold ? '<w:b/><w:bCs/>' : '',
     r.italic ? '<w:i/><w:iCs/>' : '',
     r.color && !hyperlink ? `<w:color w:val="${r.color}"/>` : '',
@@ -376,7 +381,7 @@ function stylesXml(locale: string, layout?: WordLayout): string {
       'Code',
       'Code',
       '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>',
-      `<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>${sz(size('code', 18))}`,
+      `<w:rFonts w:ascii="${MONO}" w:hAnsi="${MONO}" w:cs="${MONO}"/>${sz(size('code', 18))}`,
       '<w:basedOn w:val="Normal"/><w:qFormat/>',
     ) +
     style(

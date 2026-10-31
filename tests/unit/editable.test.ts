@@ -186,6 +186,29 @@ describe('editable Word output of a PDF (P9.4)', () => {
     ]);
   });
 
+  it('sets a listing framed by rules as code, indented as on the page and fitted to the line', () => {
+    const mono = (t: string, x: number) => ({
+      ...span(t, x),
+      font: { ...span(t, x).font, name: 'Inconsolata', family: 'mono' as const },
+    });
+    const long = `exec(${'x'.repeat(110)})`;
+    const b = block('p0-b0', 'code', 300, [[mono('def run(self):', 50)], [mono(long, 70)]], {
+      translatable: false,
+    });
+    b.lines.forEach((l, i) => {
+      l.bbox.x0 = i ? 70 : 50;
+      l.bbox.x1 = l.bbox.x0 + 5 * l.spans[0]!.text.length;
+    });
+    b.bbox.x1 = b.lines[1]!.bbox.x1;
+    b.tableCell = { tableId: 't0', row: 0, col: 0, cellRect: { ...b.bbox } };
+    const [item] = plan([page(0, [b])]).items as Extract<EditableItem, { kind: 'paragraph' }>[];
+    expect(item!.style).toBe('code');
+    expect(item!.runs.map((r) => r.text)).toEqual(['def run(self):', `    ${long}`]);
+    expect(item!.runs[1]!.lineBreak).toBe(true);
+    // 120 characters of Consolas in 451 pt.
+    expect(item!.size).toBe(6.5);
+  });
+
   it('places a figure before the first block below it and joins hyphenated kept text', () => {
     const above = block('p0-b0', 'body', 100, [[span('Şekil 1 sonuçları gösterir.', 50)]]);
     const caption = block('p0-b1', 'caption', 330, [[span('Şekil 1: Sonuçlar.', 50)]]);

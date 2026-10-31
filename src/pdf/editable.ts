@@ -11,6 +11,7 @@ import type {
   TableCell,
   WordLayout,
 } from '../docx/editable';
+import { MONO, MONO_WIDTH } from '../docx/editable';
 import {
   hyphenEvidence,
   joinHyphen,
@@ -112,7 +113,11 @@ function unitPieces(runs: DecodedRun<PdfStyle>[]): EditableRun[][] {
 /** Source text of a block outside the units (kept as it is), with its formatting. */
 function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): EditableRun[] {
   const runs: EditableRun[] = [];
+  // A listing's lines keep their indentation (Python's blocks), in spaces of its own width.
+  const left = Math.min(...b.lines.map((l) => l.bbox.x0));
+  const advance = code ? monoAdvance(b) : 0;
   b.lines.forEach((line, i) => {
+    const pad = advance ? ' '.repeat(Math.round((line.bbox.x0 - left) / advance)) : '';
     const last = runs[runs.length - 1];
     // Hyphenation at the line end is dropped ("Jo-" + "nes"), a word's own hyphen kept.
     if (i && !code && last && /\p{L}-$/u.test(last.text))
@@ -122,7 +127,7 @@ function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): Editab
       const raised = s.baseline !== undefined && s.baseline < line.baseline - s.size * 0.25;
       const color = hex(s.color);
       runs.push({
-        text: s.text,
+        text: k === 0 ? pad + s.text : s.text,
         ...(i && code && k === 0 ? { lineBreak: true } : {}),
         ...(s.font.bold ? { bold: true } : {}),
         ...(s.font.italic ? { italic: true } : {}),
@@ -134,6 +139,28 @@ function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): Editab
     });
   });
   return code ? runs : tidy(runs);
+}
+
+/** The width of one character of a listing, from its lines. */
+function monoAdvance(b: BlockIR): number {
+  const chars = b.lines.reduce((n, l) => n + l.spans.reduce((m, s) => m + s.text.length, 0), 0);
+  const width = b.lines.reduce((w, l) => w + l.bbox.x1 - l.bbox.x0, 0);
+  return chars ? width / chars : 0;
+}
+
+/** A listing's size in Word that keeps its longest line to the room it has (no wrapped code). */
+function codeSize(b: BlockIR, room: number, size: number): number | undefined {
+  const advance = monoAdvance(b);
+  const left = Math.min(...b.lines.map((l) => l.bbox.x0));
+  const longest = Math.max(
+    ...b.lines.map(
+      (l) =>
+        l.spans.reduce((n, s) => n + s.text.length, 0) +
+        (advance ? Math.round((l.bbox.x0 - left) / advance) : 0),
+    ),
+  );
+  const fit = Math.floor((2 * room) / (longest * MONO_WIDTH)) / 2;
+  return fit < size ? Math.max(6, fit) : undefined;
 }
 
 /** Collapses runs of spaces and trims the paragraph; merges neighbours of the same format. */
@@ -231,7 +258,7 @@ function wordFont(spans: SpanIR[]): string {
   ];
   const hit = known.find(([re]) => re.test(name));
   if (hit) return hit[1];
-  return family === 'sans' ? 'Arial' : family === 'mono' ? 'Courier New' : 'Times New Roman';
+  return family === 'sans' ? 'Arial' : family === 'mono' ? MONO : 'Times New Roman';
 }
 
 /**
@@ -355,8 +382,15 @@ function placement(page: PageIR, b: BlockIR): { indent?: Indent; centred: boolea
   const firstBox = b.lines[0]?.bbox;
   const full = !!firstBox && (b.lines.length < 2 || firstBox.x1 - area.x0 > 0.9 * areaWidth);
   if (centred) return { centred, full };
-  const first = b.lines[0]?.bbox.x0 ?? b.bbox.x0;
-  const rest = b.lines.length > 1 ? Math.min(...b.lines.slice(1).map((l) => l.bbox.x0)) : first;
+  // A listing's lines keep their own indentation; the block is set in from its leftmost line.
+  const first =
+    b.role === 'code'
+      ? Math.min(...b.lines.map((l) => l.bbox.x0))
+      : (b.lines[0]?.bbox.x0 ?? b.bbox.x0);
+  const rest =
+    b.lines.length > 1 && b.role !== 'code'
+      ? Math.min(...b.lines.slice(1).map((l) => l.bbox.x0))
+      : first;
   const left = rest - area.x0;
   const firstLine = first - rest;
   const indent: Indent = {};
@@ -876,6 +910,15 @@ export function planEditable(
           !!layout &&
           layout.columns > 1 &&
           (acrossColumns(page, part.bbox, layout) || (inFront && (centred || kind === 'title')));
+        const text = layout
+          ? page.width - layout.margins.left - layout.margins.right
+          : page.width - 144;
+        const room =
+          layout && !wide ? (text - (layout.columns - 1) * layout.gap) / layout.columns : text;
+        const fitted =
+          kind === 'code'
+            ? codeSize(part, room - (indent?.left ?? 0), layout?.sizes.code ?? size)
+            : undefined;
         for (const [n, runs] of content(part).entries()) {
           const item: Extract<EditableItem, { kind: 'paragraph' }> = {
             kind: 'paragraph',
@@ -891,6 +934,8 @@ export function planEditable(
             ...(kind === 'body' && layout && Math.abs(size - (layout.sizes.body ?? size)) > 0.6
               ? { size }
               : {}),
+            ...(kind === 'code' && indent?.left ? { indent: { left: indent.left } } : {}),
+            ...(kind === 'code' && fitted ? { size: fitted } : {}),
             ...(wide ? { wide } : {}),
           };
           items.push(item);
@@ -955,8 +1000,11 @@ export function planEditable(
               : {}),
           });
         } else
-          for (const runs of table.rows.flatMap((r) => r.flatMap((c) => c.paragraphs)))
-            items.push({ kind: 'paragraph', style: 'body', align: 'left', runs });
+          // …each in its own kind: a listing framed by rules stays code.
+          for (const c of cells) {
+            done.add(c.id);
+            emitBlock(c);
+          }
         continue;
       }
       done.add(b.id);
