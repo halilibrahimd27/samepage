@@ -420,9 +420,18 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       const errors = issues.filter((i) => i.severity === 'error');
       // One or two small numbers only ("18" for "osiemnastego"): years an engine made up
       // ("2018, 2019, 2023" in a decree's dates) are no spelled-out number.
+      // A source number written once more ("29 de março … de 2020" → "29 Mart 2020 … 2020") is
+      // no made-up one either.
+      const digits = (v: string) => v.replace(/[\s.,]/gu, '');
+      const inSource = new Set(
+        (plainText(req.text).match(/\d+(?:[\s.,]\d+)*/gu) ?? []).map(digits),
+      );
       const small = (i: ValidationIssue) => {
         const values = i.detail.replace(/^unexpected /u, '').split(/,\s*/u);
-        return values.length <= 2 && values.every((v) => /^\d{1,2}$/u.test(v.trim()));
+        return (
+          (values.length <= 2 && values.every((v) => /^\d{1,2}$/u.test(v.trim()))) ||
+          values.every((v) => inSource.has(digits(v)))
+        );
       };
       // Translated sentence by sentence, each piece came back: fewer sentences counted is the
       // engine joining two, nothing left out.

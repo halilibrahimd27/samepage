@@ -124,6 +124,38 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.text).toBe(text);
   });
 
+  it('takes a translation that writes a source year once more, flagged', async () => {
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text: b.text.replace(
+              'Mudanças de mobilidade em 29 de março em relação a 16 de fevereiro de 2020.',
+              "Mobilite, 16 Şubat 2020'ye göre 29 Mart 2020'de değişti.",
+            ),
+          })),
+        ),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [
+        {
+          id: 'p',
+          text: 'Mudanças de mobilidade em 29 de março em relação a 16 de fevereiro de 2020.',
+          role: 'body',
+        },
+      ],
+      ctx: { pair: { source: 'pt', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(out!.untranslated).toBe(false);
+    expect(out!.issues).toContainEqual(
+      expect.objectContaining({ code: 'NUMBER_MISMATCH', severity: 'warning' }),
+    );
+  });
+
   it('takes a translation that writes a number the source spells out, flagged', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),
