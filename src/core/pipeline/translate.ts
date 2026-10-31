@@ -411,7 +411,12 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
      * try does better, rather than leaving the paragraph in the source language.
      */
     const onlyAddedNumbers = new Map<string, { r: SegmentResult; issues: ValidationIssue[] }>();
-    const remember = (req: SegmentRequest, r: SegmentResult, issues: ValidationIssue[]) => {
+    const remember = (
+      req: SegmentRequest,
+      r: SegmentResult,
+      issues: ValidationIssue[],
+      bySentence = false,
+    ) => {
       const errors = issues.filter((i) => i.severity === 'error');
       // One or two small numbers only ("18" for "osiemnastego"): years an engine made up
       // ("2018, 2019, 2023" in a decree's dates) are no spelled-out number.
@@ -419,10 +424,15 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         const values = i.detail.replace(/^unexpected /u, '').split(/,\s*/u);
         return values.length <= 2 && values.every((v) => /^\d{1,2}$/u.test(v.trim()));
       };
+      // Translated sentence by sentence, each piece came back: fewer sentences counted is the
+      // engine joining two, nothing left out.
+      const joined = (i: ValidationIssue) => bySentence && i.code === 'SENTENCE_LOST';
       if (
         errors.length &&
         errors.every(
-          (i) => i.code === 'NUMBER_MISMATCH' && /^unexpected /u.test(i.detail) && small(i),
+          (i) =>
+            joined(i) ||
+            (i.code === 'NUMBER_MISMATCH' && /^unexpected /u.test(i.detail) && small(i)),
         )
       )
         onlyAddedNumbers.set(req.id, {
@@ -540,7 +550,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       const text = texts.map((t) => t.trim()).join(' ');
       const issues = validate(req, text, notes);
       if (issues.some((i) => i.severity === 'error')) {
-        remember(req, { id: req.id, text, notes }, issues);
+        remember(req, { id: req.id, text, notes }, issues, true);
         // Reported against the original text that is kept: not "translated sentence by sentence".
         lastIssues.set(
           req.id,

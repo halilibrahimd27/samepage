@@ -288,6 +288,17 @@ describe('validateTranslation', () => {
         'Smith ve ark. etkiyi 2019 yılında ölçtü ve sonuçlar anlamlıydı (p < 0,01). Ancak örneklem küçüktü. Daha fazla çalışma gerekiyor. Şekil 2 verileri gösteriyor.',
       ),
     ).not.toContain('SENTENCE_LOST');
+    // A note of short pieces the engine joins is no lost sentence.
+    expect(
+      validateTranslation({
+        source:
+          'Paris Data. Données : Linéaire de voies. Consulté et téléchargé le 21 novembre 2021. Paris Data. Données : Dénominations des voies.',
+        target:
+          'Paris Verileri: Yol uzunluğu. 21 Kasım 2021 tarihinde erişildi ve indirildi. Paris Verileri: Yol adları.',
+        sourceLang: 'fr',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('SENTENCE_LOST');
   });
 
   it('warns when a glossary term is not used', () => {

@@ -6,14 +6,20 @@ import { compareNumbers } from './numbers';
 const ABBREVIATION =
   /(?:(?<![\p{L}])(?:et al|vs|e\.g|i\.e|cf|ca|approx|Fig|Figs|Eq|Eqs|Tab|No|Nr|Vol|pp|p|S|s|vb|bkz|örn|Abb|bzw|z\.B|usw|ggf|Dr|Prof|Mr|Mrs|Ms|St|Jr|Inc|Ltd|Co|т|г|р|с|см|рис|табл|др)|(?<![\p{L}])\p{Lu})\.$/u;
 
-/** Sentences of a passage: an end mark, then a space and a capital, outside abbreviations. */
+/**
+ * Sentences of a passage: an end mark, then a space and a capital, outside abbreviations. Pieces
+ * of fewer than three words ("Paris Data.", "Données :") are no sentence an engine could drop.
+ */
 export function sentenceCount(text: string): number {
-  let count = 1;
+  const cuts = [0];
   for (const m of text.matchAll(/[.!?…](?=["”»’)\]]*\s+["“„«(]?\p{Lu})/gu)) {
-    if (ABBREVIATION.test(text.slice(Math.max(0, m.index - 12), m.index + 1))) continue;
-    count++;
+    if (!ABBREVIATION.test(text.slice(Math.max(0, m.index - 12), m.index + 1)))
+      cuts.push(m.index + 1);
   }
-  return text.trim() ? count : 0;
+  cuts.push(text.length);
+  return cuts
+    .slice(1)
+    .filter((end, i) => (text.slice(cuts[i], end).match(/\p{L}{2,}/gu)?.length ?? 0) >= 3).length;
 }
 
 export type ValidationCode =
