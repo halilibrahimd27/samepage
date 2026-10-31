@@ -271,6 +271,21 @@ export function buildPdfUnits(pages: PageIR[]): PdfUnit[] {
       });
       const last = runs[runs.length - 1];
       if (last?.type === 'text') last.text = last.text.trimEnd();
+      // Sizes a hair apart (10.2 and 10.3 pt, from justification or scaling) are one size: as
+      // two styles they cut the sentence into tags that engines space wrongly ("grevleri ,").
+      const sizes = new Map<number, number>();
+      for (const r of runs)
+        if (r.type === 'text')
+          sizes.set(r.style.size, (sizes.get(r.style.size) ?? 0) + r.text.length);
+      const main = [...sizes].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (main)
+        for (const r of runs)
+          if (
+            r.type === 'text' &&
+            r.style.size !== main &&
+            Math.abs(r.style.size - main) <= 0.04 * main
+          )
+            r.style = { ...r.style, size: main };
       // Units without letters (numbers, symbols, pure formulas) are left untouched.
       if (!runs.some((r) => r.type === 'text' && /\p{L}/u.test(r.text))) continue;
       units.push({

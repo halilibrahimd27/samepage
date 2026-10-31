@@ -65,6 +65,20 @@ describe('PDF translation units', () => {
     expect(unit!.encoded.source).toBe('Uyum katsayısı ⟦F1⟧ = 0,81 olarak hesaplanmıştır.');
   });
 
+  it('reads lines set a hair apart in size as one style, without tags', () => {
+    const at = (s: SpanIR, size: number) => ({ ...s, size });
+    const [unit] = buildPdfUnits([
+      page([
+        block('p0-b0', [
+          [at(span('Austriackie strajki przyczyniły się ', 50), 10.3)],
+          [at(span('do reformy wyborczej. Masowym strajkom ', 50), 10.2)],
+          [at(span('udało się wzmocnić organizację.', 50), 10.3)],
+        ]),
+      ]),
+    ]);
+    expect(unit!.encoded.source).not.toContain('<t');
+  });
+
   it('leaves the spaces around a formula to the text, also at a line end', () => {
     const [unit] = buildPdfUnits([
       page([
