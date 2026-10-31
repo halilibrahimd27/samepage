@@ -553,8 +553,7 @@ function cutAtColumns(page: RawPage, tables: TableRegion[]): Map<RawLine, RawLin
       // left-aligned column, no right edge.
       return (
         along.length >= 2 &&
-        (side === 'x0' ||
-          Math.max(...along.map(start)) - Math.min(...along.map(start)) > 1.5)
+        (side === 'x0' || Math.max(...along.map(start)) - Math.min(...along.map(start)) > 1.5)
       );
     };
     for (const x of lines) {
