@@ -552,6 +552,8 @@ describe('helpers', () => {
     // Metrics only in documents that name both precision and recall.
     expect(academicHeading('Recall (%)', 'en', 'tr', true)).toBe('Duyarlılık (%)');
     expect(academicHeading('№ з/п', 'uk', 'en')).toBe('No.');
+    expect(academicHeading('artigo   article', 'pt', 'tr')).toBe('Makale');
+    expect(academicHeading('ARTICLE', 'en', 'tr')).toBe('MAKALE');
     expect(isNameList('Haya Samaana, Diego Elias Costa, Emad Shihab and Ahmad Abdellatif')).toBe(
       true,
     );

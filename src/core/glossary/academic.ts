@@ -164,6 +164,28 @@ const TERMS: Langs[] = [
   },
   KEYWORDS,
   {
+    // The document type over the title; Google made "ARTICLE" a legal one ("madde").
+    en: 'Article',
+    tr: 'Makale',
+    de: 'Artikel',
+    fr: 'Article',
+    es: 'Artículo',
+    it: 'Articolo',
+    pt: 'Artigo',
+    ru: 'Статья',
+  },
+  {
+    // SciELO sets it in both languages ("artigo article").
+    pt: 'Artigo Article',
+    es: 'Artículo Article',
+    en: 'Article',
+    tr: 'Makale',
+    de: 'Artikel',
+    fr: 'Article',
+    it: 'Articolo',
+    ru: 'Статья',
+  },
+  {
     // The running-number column of Slavic tables ("№ з/п" became "No. of the company").
     en: 'No.',
     tr: 'Sıra No.',
