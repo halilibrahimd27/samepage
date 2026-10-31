@@ -2,6 +2,20 @@ import { functionWords, languageScore } from '../detectLanguage';
 import { plainText, tokenize } from '../segment/codec';
 import { compareNumbers } from './numbers';
 
+/** Common abbreviations that end with a full stop inside a sentence. */
+const ABBREVIATION =
+  /(?:(?<![\p{L}])(?:et al|vs|e\.g|i\.e|cf|ca|approx|Fig|Figs|Eq|Eqs|Tab|No|Nr|Vol|pp|p|S|s|vb|bkz|örn|Abb|bzw|z\.B|usw|ggf|Dr|Prof|Mr|Mrs|Ms|St|Jr|Inc|Ltd|Co|т|г|р|с|см|рис|табл|др)|(?<![\p{L}])\p{Lu})\.$/u;
+
+/** Sentences of a passage: an end mark, then a space and a capital, outside abbreviations. */
+export function sentenceCount(text: string): number {
+  let count = 1;
+  for (const m of text.matchAll(/[.!?…](?=["”»’)\]]*\s+["“„«(]?\p{Lu})/gu)) {
+    if (ABBREVIATION.test(text.slice(Math.max(0, m.index - 12), m.index + 1))) continue;
+    count++;
+  }
+  return text.trim() ? count : 0;
+}
+
 export type ValidationCode =
   | 'EMPTY'
   | 'TAG_MISMATCH'
@@ -20,6 +34,7 @@ export type ValidationCode =
   | 'REFUSED'
   | 'OCR_LOW_CONFIDENCE'
   | 'PUNCTUATION_CHANGED'
+  | 'SENTENCE_LOST'
   | 'TABLE_NOT_RECOGNISED'
   | 'POST_EDITED';
 
@@ -237,6 +252,21 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
 
   if (input.checkChatter !== false && CHATTER_RE.test(tgtPlain))
     err('CHATTER', 'translation starts with a comment instead of content');
+
+  // A sentence the engine left out (machine translators drop one from a long paragraph): fewer
+  // sentences, and less text. Merging two short sentences into one is no loss, so one fewer
+  // counts only with a clearly shorter translation.
+  const srcSentences = sentenceCount(srcPlain);
+  const tgtSentences = sentenceCount(tgtPlain);
+  const shorter = tgtPlain.length / Math.max(1, srcPlain.length);
+  if (
+    (srcSentences >= 3 && tgtSentences <= srcSentences - 2) ||
+    (srcSentences >= 2 && tgtSentences <= srcSentences - 1 && shorter < 0.6)
+  )
+    err(
+      'SENTENCE_LOST',
+      `${srcSentences} sentences in the source, ${tgtSentences} in the translation`,
+    );
 
   if (srcPlain.length >= 20) {
     const ratio = tgtPlain.length / srcPlain.length;

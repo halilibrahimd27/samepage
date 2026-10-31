@@ -268,6 +268,28 @@ describe('validateTranslation', () => {
     ).toEqual(['unexpected 10']);
   });
 
+  it('notices a sentence the engine left out, not two sentences made one', () => {
+    const codes = (source: string, target: string) =>
+      validateTranslation({ source, target, sourceLang: 'en', targetLang: 'tr' }).map(
+        (i) => i.code,
+      );
+    const source =
+      'Smith et al. measured the effect in 2019. The results were significant (p < 0,01). ' +
+      'However, the sample was small. Further work is needed. Fig. 2 shows the data.';
+    expect(
+      codes(
+        source,
+        'Smith ve ark. etkiyi 2019 yılında ölçtü. Sonuçlar anlamlıydı (p < 0,01). Şekil 2 verileri gösteriyor.',
+      ),
+    ).toContain('SENTENCE_LOST');
+    expect(
+      codes(
+        source,
+        'Smith ve ark. etkiyi 2019 yılında ölçtü ve sonuçlar anlamlıydı (p < 0,01). Ancak örneklem küçüktü. Daha fazla çalışma gerekiyor. Şekil 2 verileri gösteriyor.',
+      ),
+    ).not.toContain('SENTENCE_LOST');
+  });
+
   it('warns when a glossary term is not used', () => {
     const issues = validateTranslation({
       source: 'Derin öğrenme modelleri incelenmiştir.',
