@@ -381,6 +381,15 @@ describe('back-translation meaning check', () => {
         'uk',
       ),
     ).toEqual([]);
+    // A second opinion in English: "без опіки" (without care) is "neglected".
+    expect(
+      compareMeaning(
+        'Соціальні виклики: збільшення кількості залишених без опіки дітей та старіння населення.',
+        'Social challenges: an increase in the number of neglected children and population ageing.',
+        'uk',
+        'en',
+      ),
+    ).toEqual([]);
     // "No less important" came back as "the least important": the meaning is reversed.
     expect(
       issues(

@@ -145,6 +145,9 @@ const CUES: Record<string, Cues> = {
       'lack(?:s|ed|ing)?',
       'absen(?:ce|t)',
       'missing',
+      // "залишених без опіки" (left without care) ↔ "neglected".
+      'neglect\\p{L}*',
+      'depriv\\p{L}*',
       'unable',
       'impossible',
       'in(?:feasible|complete|correct|sufficient|valid|accurate|capable)',
