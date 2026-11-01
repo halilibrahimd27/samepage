@@ -63,6 +63,21 @@ describe('PDF translation units', () => {
       ]),
     ]);
     expect(unit!.encoded.source).toBe('Uyum katsayısı ⟦F1⟧ = 0,81 olarak hesaplanmıştır.');
+    // So do the commas of a list of numbers ("[8, 16, 32, 64]").
+    const [list] = buildPdfUnits([
+      page([
+        block('p0-b1', [
+          [
+            span('the factors of [8', 50),
+            span(',', 120, true),
+            span(' 16', 124),
+            span(',', 140, true),
+            span(' 32].', 144),
+          ],
+        ]),
+      ]),
+    ]);
+    expect(list!.encoded.source).toBe('the factors of [8, 16, 32].');
   });
 
   it('reads lines set a hair apart in size as one style, without tags', () => {

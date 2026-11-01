@@ -180,13 +180,14 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[], evidence?: Hyphe
       const before = runs[runs.length - 1];
       if (
         span.font.isMath &&
-        /^[.,]$/.test(text) &&
+        /^[.,;]\s?$/.test(text) &&
         before?.type === 'text' &&
         /\d$/.test(before.text) &&
-        /^\d/.test(line.spans[si + 1]?.text ?? '')
+        /^\s?\d/.test(line.spans[si + 1]?.text ?? '')
       ) {
         // A decimal separator set in a math font ("0{,}81") belongs to its number: as a formula
-        // piece it would split "0,81" in two, and an engine may tear the halves apart.
+        // piece it would split "0,81" in two, and an engine may tear the halves apart. So does
+        // the comma of a list of numbers ("[8, 16, 32, 64]" became "[8𝛩 16𝛬 32𝛱 64]").
         before.text += text;
         return;
       }
