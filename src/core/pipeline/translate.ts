@@ -29,6 +29,7 @@ import { splitSentences } from '../../engines/plainText';
 import { plainText, tokenize } from '../segment/codec';
 import { createDehyphenator } from '../segment/dehyphenate';
 import { keepNumberSpelling } from '../validate/numbers';
+import { compareMeaning, cueText } from '../validate/meaning';
 import { softenClaims } from './hedges';
 import { validateTranslation, type ValidationIssue } from '../validate/validate';
 
@@ -776,13 +777,52 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         ctx,
         signal,
       ).catch(() => null);
-      return !!again && !again.findings.length;
+      if (!again) return false;
+      return !again.findings.length || (await sameInEnglish(s, text));
+    };
+    /**
+     * A second opinion: the translation in English, read against the source with each one's own
+     * cues. A back-translation can go wrong itself ("bakımsız kalan çocuklar" came back as
+     * "children in care"); the source is not translated again, so an engine that drops a
+     * negation from it cannot drop it on both sides.
+     */
+    const sameInEnglish = async (s: SegmentRequest, text: string): Promise<boolean> => {
+      const { source, target } = ctx.pair;
+      if (source === 'en') return false;
+      const english =
+        target === 'en'
+          ? text
+          : (
+              await engine
+                .translate(
+                  [{ ...s, id: `${s.id}~en`, text }],
+                  { ...ctx, glossary: [], pair: { source: target, target: 'en' } },
+                  signal,
+                )
+                .catch(() => null)
+            )?.[0]?.text;
+      if (!english?.trim()) return false;
+      const findings = compareMeaning(
+        cueText(s.text, s.verbatim),
+        cueText(english, s.verbatim),
+        source,
+        'en',
+      );
+      return findings.length === 0;
     };
     const soften = (s: SegmentRequest, text: string) =>
       softenClaims(s.text, text, ctx.pair.source, ctx.pair.target);
     for (const { s, o } of flagged) {
       signal.throwIfAborted();
       const found = o.findings.map((f) => f.issue).join('; ');
+      // Sound in English: the flag came from the back-translation, nothing to repair.
+      if (await sameInEnglish(s, o.text)) {
+        o.findings = [];
+        delete o.back;
+        o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
+        fresh.push([keyOf.get(s.id)!, { text: o.text, notes: o.notes, findings: [] }]);
+        continue;
+      }
       const adopt = (text: string, note: string, detail: string) => {
         o.text = text;
         o.findings = [];

@@ -1018,8 +1018,14 @@ function overlapping(a: string, b: string): boolean {
  * each finding names its sentence. Otherwise the whole passage is compared, which in a long
  * paragraph only reports a cue class that is missing everywhere on one side.
  */
-export function compareMeaning(source: string, back: string, lang: string): Difference[] {
-  const cues = CUES[lang];
+export function compareMeaning(
+  source: string,
+  back: string,
+  lang: string,
+  /** The back-translation's language when it is not the source's (a second opinion in English). */
+  backLang = lang,
+): Difference[] {
+  const cues = CUES[backLang];
   // Headings and table cells are too short for a reliable comparison.
   if (!cues || !back.trim() || source.split(/\s+/).length < 5) return [];
   const sourceSentences = splitSentences(source);
@@ -1034,7 +1040,7 @@ export function compareMeaning(source: string, back: string, lang: string): Diff
       const r = words(backSentences[i]!) / words(t);
       return r > 0.5 && r < 2 && overlapping(t, backSentences[i]!);
     });
-  const own = CUES[writtenIn(source, lang)] ?? cues;
+  const own = CUES[writtenIn(source, lang)] ?? CUES[lang] ?? cues;
   if (!aligned) return differences(source, back, cues, own);
   const seen = new Set<string>();
   return sourceSentences.flatMap((sentence, i) =>

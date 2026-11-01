@@ -108,6 +108,45 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.findings).toEqual([]);
   });
 
+  it('clears a flag the back-translation raised when the translation reads right in English', async () => {
+    const source =
+      'Соціальні виклики: збільшення кількості залишених без опіки дітей та старіння населення.';
+    const turkish =
+      'Sosyal zorluklar: bakımsız kalan çocuk sayısındaki artış ve nüfusun yaşlanması.';
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch, ctx) =>
+        Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text:
+              ctx.pair.target === 'en'
+                ? 'Social challenges: an increase in children left without care and population ageing.'
+                : turkish,
+          })),
+        ),
+      // The back-translation went wrong ("children in care"): a negation looks lost.
+      checkFidelity: (pairs) =>
+        Promise.resolve({
+          findings: pairs.map((p) => ({
+            id: p.id,
+            issue: 'negation lost',
+            severity: 'major' as const,
+          })),
+        }),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [{ id: 'u', text: source, role: 'body' }],
+      ctx: { pair: { source: 'uk', target: 'tr' }, glossary: [], numberLocalization: false },
+      fidelityCheck: true,
+      signal: new AbortController().signal,
+    });
+    expect(out!.text).toBe(turkish);
+    expect(out!.findings).toEqual([]);
+    expect(out!.issues.map((i) => i.code)).not.toContain('MEANING_DRIFT');
+  });
+
   it('keeps an author line with math-asterisk marks as it is', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),
