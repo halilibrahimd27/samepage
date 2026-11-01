@@ -78,7 +78,9 @@ All notable changes to samepage are documented here. The format follows
   like a negation or a hedge in Turkish, French, German, Spanish, Portuguese, Italian and Russian
   ("olabilmesi için", "ne explétif", "nicht allein … sondern", "não obstante", "не менее").
   In Turkish, a "suggests" Google wrote as "shows" and a "seems" it left out are put back when
-  the meaning check confirms the repair.
+  the meaning check confirms the repair. A flag gets a second opinion: the translation in
+  English, read against the source itself, so a back-translation's own slip no longer flags a
+  sound paragraph; "no less important" must come back as "no less" or "at least as".
 - Translation with Google: a number Google keeps changing is held in place alone, so the rest of
   the sentence is translated whole, and the paragraph is flagged for review when that number sits
   in running text; a note keeps its own number in front; a source year written once more is
