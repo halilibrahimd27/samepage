@@ -133,6 +133,12 @@ describe('tag/placeholder codec', () => {
       F2: '≤',
       F3: '𝛷',
     });
+    // Punctuation set in a math font is itself too.
+    expect(verbatimOf([ph('F1', '•'), ph('F2', '['), ph('F3', ', . . . ,')], tr).verbatim).toEqual({
+      F1: '•',
+      F2: '[',
+      F3: ', . . . ,',
+    });
     // A display formula's marker reads as a formula symbol.
     expect(
       verbatimOf([{ id: 'I1', kind: 'I', text: '', ref: DISPLAY_FORMULA }], tr).verbatim,

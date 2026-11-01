@@ -154,6 +154,9 @@ export function readableText(tagged: string, placeholders: PlaceholderDef[] = []
 function inlineFormula(text: string, pair?: { source: string; target: string }): boolean {
   // A sign is itself: as a stand-in ("p 𝛷 0.01") Google wrote the usual "p < 0.05".
   if (/^[<>=≤≥≠±∓×÷≈≃∼~→←↔⇒∈∉⊂⊆∝∞°′″·∙−+*/|]{1,3}$/u.test(text)) return true;
+  // So is punctuation set in a math font: a bullet, a bracket, the commas of a list ("𝛷
+  // Economic losses …", "[8𝛩 16𝛬 32]" read as words to Google).
+  if (/^(?=.*\S)[()[\]{},;:.…•·\s]{1,12}$/u.test(text)) return true;
   if (!/^\S{1,12}$/u.test(text) || [...text].length > 12 || !/\p{L}/u.test(text)) return false;
   // eslint-disable-next-line no-control-regex
   if (/^[\x00-\x7f]+$/.test(text)) return /^(?:[B-HJ-NP-XZ]|[A-Za-z]{1,3}\d+)$/.test(text);
