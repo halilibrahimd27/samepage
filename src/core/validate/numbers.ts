@@ -306,7 +306,11 @@ export function compareNumbers(
 ): { missing: string[]; extra: string[] } {
   // A Roman numeral may become digits ("siglo XX" → "20th century"); one the target keeps as
   // is needs no match.
-  const romans = [...source.matchAll(ROMAN_RE)]
+  // Cyrillic papers set them in look-alike letters ("у ХХІ столітті" → "21. yüzyılda").
+  const latin = source.replace(/(?<!\p{L})[ХІСМXIVLCDM]{2,}(?!\p{L})/gu, (r) =>
+    r.replace(/[ХІСМ]/gu, (c) => ({ Х: 'X', І: 'I', С: 'C', М: 'M' })[c]!),
+  );
+  const romans = [...latin.matchAll(ROMAN_RE)]
     .map((m) => m[0])
     .filter((r) => r && !new RegExp(`\\b${r}\\b`).test(target));
   // A decade may gain its century ("90-es évek" → "the 1990s").

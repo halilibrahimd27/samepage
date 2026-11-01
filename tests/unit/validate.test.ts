@@ -216,6 +216,14 @@ describe('validateTranslation', () => {
       validateTranslation({ source, target, sourceLang, targetLang: 'en' })
         .filter((i) => i.code === 'NUMBER_MISMATCH')
         .map((i) => i.detail);
+    // A Roman numeral in Cyrillic look-alike letters.
+    expect(
+      codes(
+        'Міграційні кризи спіткали Європейський континент у ХХІ столітті.',
+        'Migration crises struck the European continent in the 21st century.',
+        'uk',
+      ),
+    ).toEqual([]);
     // A date with its month in words.
     expect(
       codes(
