@@ -262,6 +262,17 @@ describe('validateTranslation', () => {
         targetLang: 'de',
       }).filter((i) => i.code === 'NUMBER_MISMATCH'),
     ).toEqual([]);
+    // "c.f. Theorem 3.1" ends no sentence: one sentence in, one out.
+    expect(
+      validateTranslation({
+        source:
+          'We propose a new inequality (c.f. Theorem 3.1), which implies additivity for phase-covariant channels (c.f. Theorem 4.2) and all qubit channels (c.f. Theorem 5.2).',
+        target:
+          'Faz-kovaryant kanallar (bkz. Teorem 4.2) ve tüm kübit kanalları (bkz. Teorem 5.2) için toplamsallığı ima eden yeni bir eşitsizlik (bkz. Teorem 3.1) öneriyoruz.',
+        sourceLang: 'en',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('SENTENCE_LOST');
     // A Roman numeral in Cyrillic look-alike letters.
     expect(
       codes(

@@ -3,8 +3,9 @@ import { plainText, tokenize } from '../segment/codec';
 import { compareNumbers } from './numbers';
 
 /** Common abbreviations that end with a full stop inside a sentence. */
+// Any one letter ("c.f. Theorem 3.1", "legge n. 189") and the abbreviations of academic prose.
 const ABBREVIATION =
-  /(?:(?<![\p{L}])(?:et al|vs|e\.g|i\.e|cf|ca|approx|Fig|Figs|Eq|Eqs|Tab|No|Nr|Vol|pp|p|S|s|vb|bkz|örn|Abb|bzw|z\.B|usw|ggf|Dr|Prof|Mr|Mrs|Ms|St|Jr|Inc|Ltd|Co|т|г|р|с|см|рис|табл|др)|(?<![\p{L}])\p{Lu})\.$/u;
+  /(?:(?<![\p{L}])(?:et al|vs|e\.g|i\.e|cf|ca|approx|Fig|Figs|Eq|Eqs|Tab|No|Nr|Vol|pp|p|S|s|vb|bkz|örn|Abb|bzw|z\.B|usw|ggf|Dr|Prof|Mr|Mrs|Ms|St|Jr|Inc|Ltd|Co|т|г|р|с|см|рис|табл|др|c\.f|Sec|Sect|Ref|Refs|Ch|Chap|Thm|Def|[Aa]rt|cfr|ecc|cd|vd)|(?<![\p{L}\p{M}])\p{L})\.$/u;
 
 /**
  * Sentences of a passage: an end mark, then a space and a capital, outside abbreviations. Pieces
