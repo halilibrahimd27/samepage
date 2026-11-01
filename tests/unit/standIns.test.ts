@@ -298,7 +298,13 @@ describe('headings with machine engines', () => {
         'We evaluate the PASCAL VOC metric (mAP @ IoU = ⟦D1⟧) and the COCO metric.',
         'PASCAL VOC metriğini (mAP @ IoU =) değerlendiriyoruz. ⟦D1⟧) ve COCO metriğini.',
       ),
-    ).toBe('PASCAL VOC metriğini (mAP @ IoU = ⟦D1⟧) değerlendiriyoruz. ve COCO metriğini.');
+    ).toBe('PASCAL VOC metriğini (mAP @ IoU = ⟦D1⟧) değerlendiriyoruz ve COCO metriğini.');
+    expect(
+      backInBrackets(
+        'The metric (IoU = ⟦D1⟧) is used. Then we stop.',
+        'Metrik (IoU =) kullanılır. ⟦D1⟧) Sonra dururuz.',
+      ),
+    ).toBe('Metrik (IoU = ⟦D1⟧) kullanılır. Sonra dururuz.');
     // Balanced brackets, or no sign before it: left alone.
     expect(backInBrackets('(p < ⟦D1⟧)', '(p < ⟦D1⟧)')).toBe('(p < ⟦D1⟧)');
     expect(backInBrackets('(see ⟦D1⟧)', '(bkz.) ⟦D1⟧)')).toBe('(bkz.) ⟦D1⟧)');

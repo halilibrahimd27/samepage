@@ -313,9 +313,12 @@ export function backInBrackets(source: string, target: string): string {
   for (const [ph] of source.matchAll(/⟦D\d+⟧(?=\s*\))/gu)) {
     const sign = /([=<>≤≥±:~≈])\s*$/u.exec(source.slice(0, source.indexOf(ph)))?.[1];
     if (!sign || count(out, ')') <= count(out, '(')) continue;
-    const stray = new RegExp(`\\s*${escapeRe(ph)}\\s*\\)`, 'u');
+    // The full stop Google set at the cut goes too ("değerlendiriyoruz. ⟦D1⟧) ve" → "… ve").
+    const stray = new RegExp(`(\\.?)\\s*${escapeRe(ph)}\\s*\\)(?=(\\s+\\p{Ll})?)`, 'u');
     const open = new RegExp(`${escapeRe(sign)}\\s*\\)`, 'u');
-    const without = out.replace(stray, '');
+    const without = out.replace(stray, (_m, stop: string, lower?: string) =>
+      stop && !lower ? stop : '',
+    );
     if (without === out || !open.test(without)) continue;
     out = without.replace(open, `${sign} ${ph})`);
   }
