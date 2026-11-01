@@ -565,6 +565,16 @@ describe('helpers', () => {
       'It differs w.r.t. PyPI and a.k.a. Tool X (see Sect. 3, ca. 10 runs, viz. Table 2).',
       'Done.',
     ]);
+    // In other languages too: "legge n. 189", "art. 5", "см. табл. 3".
+    expect(
+      splitSentences(
+        'Fu inserito nella legge n. 189 del 2002 (cfr. art. 5). Поэтому см. табл. 3 ниже. Fine.',
+      ),
+    ).toEqual([
+      'Fu inserito nella legge n. 189 del 2002 (cfr. art. 5).',
+      'Поэтому см. табл. 3 ниже.',
+      'Fine.',
+    ]);
   });
 
   it('splits clauses outside brackets only between longer parts', () => {

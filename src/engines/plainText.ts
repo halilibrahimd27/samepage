@@ -252,8 +252,10 @@ export function planPieces(tagged: string, verbatim?: Record<string, string>): P
   return { pieces, keptVerbatim };
 }
 
+// Any one letter ("legge n. 189" was cut after "n." and Google made it "1000 sayılı kanun"),
+// and abbreviations of the other languages ("art.", "cfr.", "см.", "табл.").
 const ABBREVIATION =
-  /(?:\b(?:e\.g|i\.e|w\.r\.t|a\.k\.a|et al|cf|vs|viz|etc|ca|Fig|Figs|Eq|Eqs|Ref|Refs|Sec|Sect|Secs|Ch|Chap|Tab|Appx|Thm|Def|Alg|No|Vol|pp|Dr|Prof|approx|resp|ark|bkz|vb|örn|Şek|Tbl|z\.B|d\.h|vgl|bzw|usw|Abb|Kap)|\b\p{Lu})\.$/u;
+  /(?:\b(?:e\.g|i\.e|w\.r\.t|a\.k\.a|et al|cf|vs|viz|etc|ca|Fig|Figs|Eq|Eqs|Ref|Refs|Sec|Sect|Secs|Ch|Chap|Tab|Appx|Thm|Def|Alg|No|Vol|pp|Dr|Prof|approx|resp|ark|bkz|vb|örn|Şek|Tbl|z\.B|d\.h|vgl|bzw|usw|Abb|Kap)|(?<!\p{L})(?:[Aa]rt|[Nn]r|nn|cd|pagg?|pág|núm|cap|cfr|ecc|sez|Abs|ff|vd|ст|см|табл|рис)|(?<![\p{L}\p{M}])\p{L})\.$/u;
 
 /**
  * Splits running text into sentences (after . ! ? followed by a capital, digit or bracket),
