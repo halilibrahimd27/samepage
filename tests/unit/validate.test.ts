@@ -216,6 +216,21 @@ describe('validateTranslation', () => {
       validateTranslation({ source, target, sourceLang, targetLang: 'en' })
         .filter((i) => i.code === 'NUMBER_MISMATCH')
         .map((i) => i.detail);
+    // A decimal without its leading zero; a decade in words gains its century.
+    expect(
+      codes(
+        'We evaluate mAP @ IoU = .5:.95 and report p < .05 for every model.',
+        'Her model için mAP @ IoU = 0,5:0,95 değerlendiriyor ve p < 0,05 bildiriyoruz.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        'Az angolszász szakirodalomban a negyvenes évektől terjed el a módszer.',
+        'In the Anglo-Saxon literature the method spread from the 1940s onwards.',
+        'hu',
+      ),
+    ).toEqual([]);
     expect(
       codes(
         'A betegek négy csoportba sorolhatók a vizsgálatban.',

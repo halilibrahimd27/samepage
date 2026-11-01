@@ -7,7 +7,9 @@
 const SEP = '[.,\\u0020\\u00a0\\u2000-\\u200a\\u202f\\u205f]';
 // A space separates thousands only before exactly three digits ("12 500"); "3-9 5" (a page
 // number after a page range) is two numbers.
-const NUMBER_RE = /\d+(?:[.,]\d+|[\u0020\u00a0\u2000-\u200a\u202f\u205f]\d{3}(?!\d))*/g;
+// A decimal may drop its leading zero ("p < .05", "IoU = .5:.95"), not after a word ("v.5").
+const NUMBER_RE =
+  /(?:(?<![\d\p{L}.,])[.,](?=\d))?\d+(?:[.,]\d+|[\u0020\u00a0\u2000-\u200a\u202f\u205f]\d{3}(?!\d))*/gu;
 const SEP_RE = new RegExp(SEP);
 const SEP_RE_G = new RegExp(SEP, 'g');
 
@@ -95,6 +97,9 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'sixties',
     'eighties',
     'nineties',
+    'forties',
+    'fifties',
+    'seventies',
   ],
   de: [
     'zwei',
@@ -107,6 +112,9 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'sechziger',
     'achtziger',
     'neunziger',
+    'vierziger',
+    'fünfziger',
+    'siebziger',
   ],
   fr: [
     'deux',
@@ -119,6 +127,9 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'soixante',
     'quatre-vingts?',
     'quatre-vingt-dix',
+    'quarante',
+    'cinquante',
+    'soixante-dix',
   ],
   es: [
     'dos',
@@ -131,6 +142,9 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'sesenta',
     'ochenta',
     'noventa',
+    'cuarenta',
+    'cincuenta',
+    'setenta',
   ],
   it: [
     'due',
@@ -143,9 +157,26 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'sessanta',
     'ottanta',
     'novanta',
+    'quaranta',
+    'cinquanta',
+    'settanta',
   ],
-  pt: ['dois', 'três', 'quatro', 'cinco', 'dez', 'cem', 'mil', 'sessenta', 'oitenta', 'noventa'],
-  nl: ['twee', 'drie', 'vier', 'vijf', 'tien', 'honderd', 'duizend', '', '', ''],
+  pt: [
+    'dois',
+    'três',
+    'quatro',
+    'cinco',
+    'dez',
+    'cem',
+    'mil',
+    'sessenta',
+    'oitenta',
+    'noventa',
+    'quarenta',
+    'cinquenta',
+    'setenta',
+  ],
+  nl: ['twee', 'drie', 'vier', 'vijf', 'tien', 'honderd', 'duizend', '', '', '', '', '', ''],
   pl: [
     'dwa',
     'trzy',
@@ -157,6 +188,9 @@ const NUMBER_WORDS: Record<string, string[]> = {
     '',
     'osiemdziesiąt\\p{L}*',
     'dziewięćdziesiąt\\p{L}*',
+    'czterdziest\\p{L}*',
+    'pięćdziesiąt\\p{L}*',
+    'siedemdziesiąt\\p{L}*',
   ],
   cs: [
     'dva',
@@ -169,6 +203,9 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'šedesát\\p{L}*',
     'osmdesát\\p{L}*',
     'devadesát\\p{L}*',
+    'čtyřicát\\p{L}*',
+    'padesát\\p{L}*',
+    'sedmdesát\\p{L}*',
   ],
   ru: [
     'два',
@@ -181,8 +218,11 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'шестидесят\\p{L}*',
     'восьмидесят\\p{L}*',
     'девяност\\p{L}*',
+    'сороков\\p{L}*',
+    'пятидесят\\p{L}*',
+    'семидесят\\p{L}*',
   ],
-  uk: ['два', 'три', 'чотири', "п'ять", 'десять', 'сто', 'тисяч\\p{L}*', '', '', ''],
+  uk: ['два', 'три', 'чотири', "п'ять", 'десять', 'сто', 'тисяч\\p{L}*', '', '', '', '', '', ''],
   hu: [
     'két|kettő',
     'három',
@@ -194,14 +234,45 @@ const NUMBER_WORDS: Record<string, string[]> = {
     'hatvanas',
     'nyolcvanas',
     'kilencvenes',
+    'negyvenes',
+    'ötvenes',
+    'hetvenes',
   ],
-  ro: ['doi|două', 'trei', 'patru', 'cinci', 'zece', 'sută', 'mii|mie', '', '', ''],
-  sv: ['två', 'tre', 'fyra', 'fem', 'tio', 'hundra', 'tusen', '', '', ''],
-  el: ['δύο', 'τρ(?:ία|εις)', 'τέσσερ\\p{L}*', 'πέντε', 'δέκα', 'εκατό', 'χίλι\\p{L}*', '', '', ''],
-  tr: ['iki', 'üç', 'dört', 'beş', 'on', 'yüz', 'bin', 'altmışlı', 'seksenli', 'doksanlı'],
-  bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', ''],
+  ro: ['doi|două', 'trei', 'patru', 'cinci', 'zece', 'sută', 'mii|mie', '', '', '', '', '', ''],
+  sv: ['två', 'tre', 'fyra', 'fem', 'tio', 'hundra', 'tusen', '', '', '', '', '', ''],
+  el: [
+    'δύο',
+    'τρ(?:ία|εις)',
+    'τέσσερ\\p{L}*',
+    'πέντε',
+    'δέκα',
+    'εκατό',
+    'χίλι\\p{L}*',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ],
+  tr: [
+    'iki',
+    'üç',
+    'dört',
+    'beş',
+    'on',
+    'yüz',
+    'bin',
+    'altmışlı',
+    'seksenli',
+    'doksanlı',
+    'kırklı',
+    'ellili',
+    'yetmişli',
+  ],
+  bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', '', '', '', ''],
 };
-const WORD_VALUES = [2, 3, 4, 5, 10, 100, 1000, 1960, 1980, 1990];
+const WORD_VALUES = [2, 3, 4, 5, 10, 100, 1000, 1960, 1980, 1990, 1940, 1950, 1970];
 
 /** Values the source writes in words, in the source language. */
 function wordNumbers(text: string, lang: string): { t: string; v: number[]; optional: true }[] {
