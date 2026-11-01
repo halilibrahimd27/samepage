@@ -197,6 +197,8 @@ const CUES: Record<string, Cues> = {
       'not only',
       'above all',
       'after all',
+      // "which may or may not be present" is "whether or not".
+      '(?:may|might) or (?:may|might) not',
       // "The index could be calculated for 4845 respondents": what was possible, no hedge.
       'could be (?:calculated|computed|determined|obtained|included|analy[sz]ed|collected|measured|assessed|recruited|retrieved|extracted|identified)',
       // "with and without pre-training" compares, it negates nothing.

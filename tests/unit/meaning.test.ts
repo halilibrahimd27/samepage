@@ -172,6 +172,13 @@ describe('back-translation meaning check', () => {
   it('English and Spanish: omitted, with and without, probability, desconoce', () => {
     expect(
       issues(
+        'The dependence among components, which may or may not be present, has been summarized by Greene.',
+        'The dependence between components, whether present or not, has been summarized by Greene.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
         'Health literacy was assessed with the short form. The index could be calculated for 4845 respondents.',
         'Die Gesundheitskompetenz wurde mit der Kurzform erfasst. Der Index wurde für 4845 Teilnehmende berechnet.',
         'de',
