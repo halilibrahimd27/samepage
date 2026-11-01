@@ -192,6 +192,8 @@ const CUES: Record<string, Cues> = {
       'appear(?:s|ed)?',
       'as if',
       'as though',
+      // "habrán notado" (a guess in the future perfect) ↔ "will have noticed".
+      'will have',
       'almost',
     ]),
     ignore: words([

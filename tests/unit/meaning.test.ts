@@ -170,6 +170,13 @@ describe('back-translation meaning check', () => {
   });
 
   it('English and Spanish: omitted, with and without, probability, desconoce', () => {
+    expect(
+      issues(
+        'Careful readers might have realized that it is the same as the binary cross-entropy loss.',
+        'Attentive readers will have noticed that it is the same as the binary cross-entropy loss.',
+        'en',
+      ),
+    ).toEqual([]);
     // A ligature of the PDF's font ("insuﬃcient") and "leave out".
     expect(
       issues(
