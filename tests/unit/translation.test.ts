@@ -261,6 +261,13 @@ describe('translateSegments', () => {
     expect(sent[1]).toBe('Vœux n°18.2003.150.');
     expect(note!.text).toBe('3 Karar ⟦D1⟧.');
     expect(respacePlaceholders('⟦N1⟧ Vœux n°⟦D2⟧', '⟦N1⟧⟦D2⟧ sayılı')).toBe('⟦N1⟧ ⟦D2⟧ sayılı');
+    // A bracket Google kept a space apart is not opened again ("G Λ ((J, W)").
+    expect(
+      respacePlaceholders(
+        'block diagonal G<t2>Λ</t2><t3>(</t3>⟦F4⟧<t4>)</t4>',
+        'blok köşegen G <t2>Λ </t2><t3>(</t3> ⟦F4⟧ <t4>)</t4>',
+      ),
+    ).not.toContain('((');
   });
 
   it('Google engine: a frozen decimal written in the Turkish style is still found', async () => {
