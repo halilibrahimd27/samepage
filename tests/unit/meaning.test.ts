@@ -359,6 +359,38 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('Romanian and Ukrainian: "nu … doar", "nefiind", antonyms; a real reversal stays', () => {
+    expect(
+      issues(
+        'Contextualizarea claselor nu presupune doar oferirea multor exemple, ci și diversitatea lor.',
+        'Contextualizarea claselor implică nu doar furnizarea multor exemple, ci și diversitatea lor.',
+        'ro',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Sensul ocupă o poziție centrală în structura limbii, nefiind plasat în afara sintaxei.',
+        'Înțelesul ocupă o poziție centrală în structura limbajului și nu este separat de sintaxă.',
+        'ro',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Міграційний потік біженців з України не схожий на попередні міграційні кризи.',
+        'Наплив біженців з України відрізняється від попередніх міграційних криз.',
+        'uk',
+      ),
+    ).toEqual([]);
+    // "No less important" came back as "the least important": the meaning is reversed.
+    expect(
+      issues(
+        'Не менш важливими чинниками впливу на формування потенціалу є демографічні.',
+        'Демографічні фактори є одними з найменш важливих факторів впливу на потенціал.',
+        'uk',
+      ),
+    ).toEqual(['major: negation lost']);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(

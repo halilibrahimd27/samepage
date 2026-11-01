@@ -656,8 +656,20 @@ const CUES: Record<string, Cues> = {
     few: ['málo', 'zřídka', 'menšin\\p{L}*'],
   }),
   ro: cues({
-    ignore: ['mai ales', 'sau nu', 'nu numai', 'nu doar'],
-    negation: ['nu', 'niciodată', 'niciun\\p{L}*', 'nicio', 'nimic', 'nimeni', 'fără', 'nici'],
+    // "nu presupune doar … ci și" is "not only … but also".
+    ignore: ['mai ales', 'sau nu', 'nu numai', 'nu doar', 'nu (?:\\p{L}+\\s+){1,2}(?:doar|numai)'],
+    // "nefiind" (not being): a negated gerund.
+    negation: [
+      'nu',
+      'nefiind',
+      'niciodată',
+      'niciun\\p{L}*',
+      'nicio',
+      'nimic',
+      'nimeni',
+      'fără',
+      'nici',
+    ],
     soft: ['exclu\\p{L}*', 'lips\\p{L}*', 'imposibil\\p{L}*', 'insuficient\\p{L}*'],
     hedge: [
       'probabil',
@@ -669,7 +681,7 @@ const CUES: Record<string, Cues> = {
       'sugerează',
       'potențial',
     ],
-    weak: ['poate', 'pot', 'posibil\\p{L}*', 'aproape'],
+    weak: ['poate', 'pot', 'posibil\\p{L}*', 'aproape', 'ar'],
     all: ['toț[ia]', 'toate', 'tot', 'fiecare', 'întotdeauna', 'mereu'],
     most: ['majoritatea', 'cei mai mulți', 'în mare parte'],
     some: ['unii', 'unele', 'câțiva', 'câteva', 'parțial', 'uneori'],
@@ -759,6 +771,8 @@ const CUES: Record<string, Cues> = {
         'невозможн\\p{L}*',
         'неспособн\\p{L}*',
         'вместо',
+        'отлича\\p{L}*',
+        'вне',
       ],
       hedge: [
         'возможно',
@@ -808,6 +822,9 @@ const CUES: Record<string, Cues> = {
         'недостат\\p{L}*',
         'неможлив\\p{L}*',
         'замість',
+        // "не схожий" ↔ "відрізняється" (differs), "не за фахом" ↔ "поза фахом".
+        'відрізня\\p{L}*',
+        'поза',
       ],
       hedge: [
         'можливо',
