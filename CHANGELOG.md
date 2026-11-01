@@ -83,7 +83,11 @@ All notable changes to samepage are documented here. The format follows
   the sentence is translated whole, and the paragraph is flagged for review when that number sits
   in running text; a note keeps its own number in front; a source year written once more is
   taken, flagged, instead of leaving the paragraph in the source language; an English term in
-  brackets after a quoted term of a Cyrillic or Greek text goes back after that term.
+  brackets after a quoted term of a Cyrillic or Greek text goes back after that term; a formula
+  sign ("p < 0.01") and short formulas travel as text, so Google no longer writes its usual
+  "p < 0.05"; decimals without a leading zero (".05"), dates with the month in words and decades
+  of any kind are read as the same numbers; no sentence is cut after "n.", "art." or "см.";
+  authors with ORCID links keep their names.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
