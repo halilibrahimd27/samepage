@@ -152,6 +152,8 @@ export function readableText(tagged: string, placeholders: PlaceholderDef[] = []
  * lower-case Latin letters ("e", "a", "y" are words) nor letters of the pair's own script.
  */
 function inlineFormula(text: string, pair?: { source: string; target: string }): boolean {
+  // A sign is itself: as a stand-in ("p 𝛷 0.01") Google wrote the usual "p < 0.05".
+  if (/^[<>=≤≥≠±∓×÷≈≃∼~→←↔⇒∈∉⊂⊆∝∞°′″·∙−+*/|]{1,3}$/u.test(text)) return true;
   if (!/^\S{1,12}$/u.test(text) || [...text].length > 12 || !/\p{L}/u.test(text)) return false;
   // eslint-disable-next-line no-control-regex
   if (/^[\x00-\x7f]+$/.test(text)) return /^(?:[B-HJ-NP-XZ]|[A-Za-z]{1,3}\d+)$/.test(text);

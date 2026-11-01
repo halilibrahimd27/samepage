@@ -127,6 +127,12 @@ describe('tag/placeholder codec', () => {
     expect(verbatimOf([ph('F1', 'η')], { source: 'el', target: 'en' }).verbatim).toEqual({
       F1: '𝛷',
     });
+    // A sign travels as itself ("p < 0.01"), a longer run of signs stands in.
+    expect(verbatimOf([ph('F1', '<'), ph('F2', '≤'), ph('F3', '<=>!?')], tr).verbatim).toEqual({
+      F1: '<',
+      F2: '≤',
+      F3: '𝛷',
+    });
     // A display formula's marker reads as a formula symbol.
     expect(
       verbatimOf([{ id: 'I1', kind: 'I', text: '', ref: DISPLAY_FORMULA }], tr).verbatim,
