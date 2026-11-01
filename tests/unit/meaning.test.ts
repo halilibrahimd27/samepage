@@ -397,6 +397,22 @@ describe('back-translation meaning check', () => {
         'en',
       ),
     ).toEqual([]);
+    // Kept as "no less" or "at least as important": no difference.
+    expect(
+      issues(
+        'Не менш важливими чинниками впливу на формування потенціалу є демографічні.',
+        'Не менш важливими факторами впливу на формування потенціалу є демографічні.',
+        'uk',
+      ),
+    ).toEqual([]);
+    expect(
+      compareMeaning(
+        'Не менш важливими чинниками впливу на формування потенціалу є демографічні.',
+        'Demographic factors are at least as important in shaping this potential.',
+        'uk',
+        'en',
+      ),
+    ).toEqual([]);
     // "No less important" came back as "the least important": the meaning is reversed.
     expect(
       issues(

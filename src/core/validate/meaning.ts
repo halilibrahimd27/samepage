@@ -18,6 +18,10 @@ const words = (alternatives: string[]) =>
 interface Cues {
   /** Phrases that look like negation but are not ("whether … or not", "not only … but"). */
   ignore?: RegExp;
+  /** "No less" (a negated comparative: as much as), kept apart from the plain negation. */
+  noLess?: RegExp;
+  /** What says "no less" in a back-translation: itself, "at least as", "equally". */
+  asMuch?: RegExp;
   /** Syntactic negation ("not", "never", Turkish "-me-"): its loss or gain reverses a claim. */
   negation: RegExp;
   /**
@@ -907,6 +911,35 @@ const CUES: Record<string, Cues> = {
   }),
 };
 
+/**
+ * "Не менш важливими" (no less important) came back as "en az önemli" (least important): the
+ * negation of a comparative reverses it when lost, and is kept when it comes back as "at least
+ * as" or "equally", which have no negation.
+ */
+const LITOTES: Record<string, [noLess: string, asMuch: string]> = {
+  en: ['no less|not less', 'no less|not less|at least as|equally|just as'],
+  uk: ['не менш\\p{L}*', 'не менш\\p{L}*|так(?:ий|а|е|і|ою|ими) ж|рівною мірою'],
+  ru: [
+    'не менее|не меньш\\p{L}*',
+    'не менее|не меньш\\p{L}*|так(?:ой|ая|ое|ие|ими) же|в равной (?:мере|степени)',
+  ],
+  de: ['nicht weniger', 'nicht weniger|mindestens (?:genauso|ebenso)|genauso|ebenso|gleichermaßen'],
+  fr: ['(?:non|pas) moins', '(?:non|pas) moins|au moins aussi|tout aussi|également'],
+  es: ['no menos', 'no menos|al menos tan|igualmente|igual de'],
+  it: ['non meno', 'non meno|almeno altrettanto|altrettanto|ugualmente'],
+  pt: ['não menos', 'não menos|pelo menos tão|igualmente|tão … quanto'],
+  tr: [
+    '',
+    'en az (?:\\p{L}+ )?kadar|bir o kadar|aynı (?:derecede|ölçüde)|eşit (?:derecede|ölçüde)',
+  ],
+};
+for (const [lang, [noLess, asMuch]] of Object.entries(LITOTES)) {
+  const c = CUES[lang];
+  if (!c) continue;
+  if (noLess) c.noLess = words([noLess]);
+  c.asMuch = words([asMuch]);
+}
+
 const has = (re: RegExp, text: string) => {
   re.lastIndex = 0;
   return re.test(text);
@@ -948,14 +981,21 @@ function differences(
 ): Difference[] {
   const out: Difference[] = [];
   const clean = (t: string, c: Cues) => (c.ignore ? t.replace(c.ignore, ' ') : t);
-  const source = clean(sourceText, own);
-  const back = clean(backText, cues);
+  let source = clean(sourceText, own);
+  let back = clean(backText, cues);
+  // "No less" must come back as "no less" or "at least as"; then neither side is a negation.
+  const noLess = !!own.noLess && has(own.noLess, source);
+  const lostNoLess = noLess && !(cues.asMuch && has(cues.asMuch, back));
+  if (own.noLess) source = source.replace(own.noLess, ' ');
+  if (cues.asMuch) back = back.replace(cues.asMuch, ' ');
+  if (lostNoLess) out.push({ issue: 'negation lost', severity: 'major' });
   const negSource = has(own.negation, source);
   const negBack = has(cues.negation, back);
   const soft =
     (!!own.softNegation && has(own.softNegation, source)) ||
     (!!cues.softNegation && has(cues.softNegation, back));
-  if (negSource && !negBack && !soft) out.push({ issue: 'negation lost', severity: 'major' });
+  if (negSource && !negBack && !soft && !lostNoLess)
+    out.push({ issue: 'negation lost', severity: 'major' });
   if (!negSource && negBack && !soft) out.push({ issue: 'negation added', severity: 'major' });
   // Only a hedge that disappears is reported: one the back-translation adds is nearly always
   // paraphrase ("would have been unattainable" → "could not have been achieved").
