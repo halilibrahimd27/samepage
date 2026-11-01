@@ -10,6 +10,8 @@ import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
  * calculated. = 0,81 was calculated."); a number the engine changes again fails the restore, and
  * the retry with spans follows.
  */
+const SHORT_FORMULA = /^(?=.{3,24}$)(?:[^\p{L}\s]|(?<!\p{L})\p{L}(?!\p{L})|\s)+$/u;
+
 function inlineIdentifiers(
   req: SegmentRequest,
   asSpans: ReadonlySet<string> = new Set(),
@@ -17,7 +19,10 @@ function inlineIdentifiers(
   const inlined: InnerTag[] = [];
   const text = req.text.replace(/⟦([A-Z]\d+)⟧/g, (ph, id: string) => {
     const v = req.verbatim?.[id];
-    if (!v || !/^\S+$/u.test(v) || asSpans.has(id)) return ph;
+    // A short formula of signs, digits and one-letter names ("p < 0.01") too: as a span its
+    // number is hidden, and Google writes the usual one ("p<0,05").
+    const plain = /^\S+$/u.test(v ?? '') || (id.startsWith('F') && SHORT_FORMULA.test(v ?? ''));
+    if (!v || !plain || asSpans.has(id)) return ph;
     inlined.push({ id, text: v });
     return v;
   });
@@ -46,9 +51,10 @@ export function relocalize(t: string, inlined: InnerTag[]): string {
   const wanted = new Map<string, number>();
   const free = (n: string) => new RegExp(`(?<![\\d.,])${escapeRe(n)}(?![\\d])`, 'gu');
   for (const { text } of inlined) {
-    if (!/^[%‰]?(?:\d+)?(?:[.,]\d+)+[%‰]?$/u.test(text)) continue;
+    // A number, or a short formula with one ("p < 0.01" → "p < 0,01").
+    if (!/(?:\d|^)[.,]\d/u.test(text)) continue;
     wanted.set(text, (wanted.get(text) ?? 0) + 1);
-    const swapped = text.replace(/[.,]/gu, (c) => (c === '.' ? ',' : '.'));
+    const swapped = text.replace(/(?<=\d|^)[.,](?=\d)/gu, (c) => (c === '.' ? ',' : '.'));
     if ((out.match(free(text)) ?? []).length >= wanted.get(text)!) continue;
     // ".05" also comes back with its zero ("0,05").
     const forms = /^[.,]/u.test(text) ? [swapped, `0${text}`, `0${swapped}`] : [swapped];
@@ -407,8 +413,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket).
-    model: 'browser-page-23',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text).
+    model: 'browser-page-24',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

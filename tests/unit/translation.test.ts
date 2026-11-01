@@ -279,6 +279,9 @@ describe('translateSegments', () => {
         { id: 'D3', text: '.95' },
       ]),
     ).toBe('IoU = .5:.05:.95');
+    expect(relocalize('anlamlıdır (p < 0,01).', [{ id: 'F1', text: 'p < 0.01' }])).toBe(
+      'anlamlıdır (p < 0.01).',
+    );
     const sent: string[] = [];
     const engine = createBrowserPageEngine({
       availability: () => Promise.resolve('available'),
@@ -302,6 +305,31 @@ describe('translateSegments', () => {
     // No span retry: one call, the numbers back as placeholders.
     expect(sent).toHaveLength(1);
     expect(r!.text).toBe('standart sapma ⟦D1⟧ ile (ortalama ⟦D2⟧)');
+  });
+
+  it('Google engine: a short formula travels as text, so its number stays in view', async () => {
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(texts.map(() => 'İyileşmeler anlamlıdır (p < 0,01).'));
+      },
+    });
+    const [r] = await engine.translate(
+      [
+        {
+          id: 'a',
+          text: 'Improvements are significant with ⟦F1⟧.',
+          role: 'caption',
+          verbatim: { F1: 'p < 0.01' },
+        },
+      ],
+      { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      new AbortController().signal,
+    );
+    expect(sent).toEqual(['Improvements are significant with p < 0.01.']);
+    expect(r!.text).toBe('İyileşmeler anlamlıdır (⟦F1⟧).');
   });
 
   it('Google engine: a Turkish percent sign is not glued to the word before it', async () => {
