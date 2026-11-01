@@ -89,7 +89,11 @@ All notable changes to samepage are documented here. The format follows
   sign ("p < 0.01") and short formulas travel as text, so Google no longer writes its usual
   "p < 0.05"; decimals without a leading zero (".05"), dates with the month in words and decades
   of any kind are read as the same numbers; no sentence is cut after "n.", "art." or "см.";
-  authors with ORCID links keep their names.
+  authors with ORCID links keep their names. Small numbers the target writes in words ("fünf
+  Items", "null und eins"), "χ²" for "χ2" and "2013/14" for "2013-2014" count as the same
+  numbers; names and acronyms kept in Latin letters in a Cyrillic or Greek translation are no
+  wrong script; bullets, brackets and the commas of a list set in a math font travel as
+  themselves; ligatures ("insuﬃcient") are read as letters by the meaning check.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
