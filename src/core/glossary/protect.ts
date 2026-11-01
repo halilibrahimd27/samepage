@@ -157,8 +157,14 @@ export function protectNumbers(tagged: string, target?: string): Protected {
   // Bracketed citations ("[38,58]", "[<t4>42</t4>]") are frozen whole, tags included, so no
   // bracket can go astray; restoring puts back the exact source text.
   const text = tokenize(tagged.replace(CITATION, freeze))
+    // With a leading decimal point ("IoU = .5:.05:.95"): Google wrote ".05" as "05".
     .map((t) =>
-      markup(t, (s) => s.replace(/[%‰]\s?\d+(?:[.,]\d+)*|\d+(?:[.,]\d+)*(?:\s?[%‰])?/g, freeze)),
+      markup(t, (s) =>
+        s.replace(
+          /[%‰]\s?\d+(?:[.,]\d+)*|(?:(?<![\d\p{L}.,])[.,](?=\d))?\d+(?:[.,]\d+)*(?:\s?[%‰])?/gu,
+          freeze,
+        ),
+      ),
     )
     .join('');
   return { text, targets };

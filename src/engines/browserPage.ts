@@ -46,11 +46,14 @@ export function relocalize(t: string, inlined: InnerTag[]): string {
   const wanted = new Map<string, number>();
   const free = (n: string) => new RegExp(`(?<![\\d.,])${escapeRe(n)}(?![\\d])`, 'gu');
   for (const { text } of inlined) {
-    if (!/^[%‰]?\d+(?:[.,]\d+)+[%‰]?$/u.test(text)) continue;
+    if (!/^[%‰]?(?:\d+)?(?:[.,]\d+)+[%‰]?$/u.test(text)) continue;
     wanted.set(text, (wanted.get(text) ?? 0) + 1);
     const swapped = text.replace(/[.,]/gu, (c) => (c === '.' ? ',' : '.'));
     if ((out.match(free(text)) ?? []).length >= wanted.get(text)!) continue;
-    out = out.replace(new RegExp(free(swapped).source, 'u'), text);
+    // ".05" also comes back with its zero ("0,05").
+    const forms = /^[.,]/u.test(text) ? [swapped, `0${text}`, `0${swapped}`] : [swapped];
+    const form = forms.find((f) => free(f).test(out));
+    if (form) out = out.replace(new RegExp(free(form).source, 'u'), text);
   }
   return out;
 }
@@ -381,8 +384,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way).
-    model: 'browser-page-21',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero).
+    model: 'browser-page-22',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),

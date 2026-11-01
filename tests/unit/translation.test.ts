@@ -272,6 +272,13 @@ describe('translateSegments', () => {
     expect(relocalize('sapma 0,01 ile; 0,001 ve 0,001; 10,01', inlined)).toBe(
       'sapma 0.01 ile; 0.001 ve 0.001; 10,01',
     );
+    expect(
+      relocalize('IoU = 0,5:0,05:0,95', [
+        { id: 'D1', text: '.5' },
+        { id: 'D2', text: '.05' },
+        { id: 'D3', text: '.95' },
+      ]),
+    ).toBe('IoU = .5:.05:.95');
     const sent: string[] = [];
     const engine = createBrowserPageEngine({
       availability: () => Promise.resolve('available'),
@@ -394,6 +401,10 @@ describe('translateSegments', () => {
     expect(restoreTerms('Scikit-learn ⟦D1⟧ ve ⟦D2⟧, ⟦D4⟧ öğenin ⟦D3⟧', p.targets, 'D')).toBe(
       'Scikit-learn [<t4>42</t4>] ve [<t8>38</t8>, <t9>58</t9>], 1,000 öğenin %90',
     );
+    // A decimal without its leading zero is frozen whole, a version's dot is not taken.
+    const q = protectNumbers('mAP @ IoU = .5:.05:.95 with v.2', 'tr');
+    expect(q.text).toBe('mAP @ IoU = ⟦D1⟧:⟦D2⟧:⟦D3⟧ with v.⟦D4⟧');
+    expect(q.targets).toEqual(['.5', '.05', '.95', '2']);
   });
 
   it('writes a percentage in the target language order', async () => {
