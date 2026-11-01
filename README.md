@@ -149,7 +149,10 @@ Besides unit, golden and end-to-end tests on synthetic documents, samepage is ch
 88 real open-access papers in 17 languages — the scores by language and field are on the
 [quality page](https://halilibrahimd27.github.io/samepage/#quality) — engineering, mathematics, physics, chemistry,
 medicine, nursing, public health, computer science, biology, economics and law — plus round
-trips (a paper translated into another language and back) to measure meaning drift. Those
+trips (a paper translated into another language and back) to measure meaning drift. In live
+runs with the free Google engine on 26 papers in all 17 languages (about 7,600 paragraphs),
+99.9 % of the paragraphs came out translated with their numbers intact; the rest, OCR noise of a
+1979 scan, were kept in the original and reported. About 2 % carried a warning to review. Those
 papers are not part of this repository; [`media/demo-paper.pdf`](media/demo-paper.pdf) is a
 fictional paper written for the demo, so you can try samepage with it.
 
