@@ -233,6 +233,17 @@ describe('validateTranslation', () => {
         targetLang: 'de',
       }).map((i) => i.detail),
     ).toContain('missing 5');
+    // "χ2" written "χ²", a year range written short, "null" and "eins".
+    expect(
+      validateTranslation({
+        source:
+          'Modelin χ2/sd değeri 1,17 olup 2013-2014 döneminde KMO değeri 0 ile 1 arasında değişmiştir.',
+        target:
+          'Der χ²/sd-Wert des Modells betrug 1,17; im Zeitraum 2013/14 lag der KMO-Wert zwischen null und eins.',
+        sourceLang: 'tr',
+        targetLang: 'de',
+      }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+    ).toEqual([]);
     // A Roman numeral in Cyrillic look-alike letters.
     expect(
       codes(

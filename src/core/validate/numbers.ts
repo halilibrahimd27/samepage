@@ -45,10 +45,19 @@ export function candidateValues(token: string): number[] {
   return [...values];
 }
 
+const scriptDigit = (c: string) =>
+  String('⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c) >= 0 ? '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c) : '₀₁₂₃₄₅₆₇₈₉'.indexOf(c));
+
 export function extractNumbers(text: string): string[] {
   // Runs of spaces count as one (source and target are compared alike), and "425 ,0" — a decimal
   // split by extraction — is one number.
-  const joined = text.replace(/\s{2,}/g, ' ').replace(/(\d)\s+([.,])(\d)/g, '$1$2$3');
+  const joined = text
+    .replace(/\s{2,}/g, ' ')
+    .replace(/(\d)\s+([.,])(\d)/g, '$1$2$3')
+    // A raised or lowered digit on a letter is a digit ("χ2" written "χ²", "CO₂").
+    .replace(/(?<=\p{L})[⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]+/gu, (d) => ` ${[...d].map(scriptDigit).join('')}`)
+    // A year range written short ("2013/14", "2013–14") is the full one.
+    .replace(/\b(\d{2})(\d{2})([/–-])(\d{2})\b(?![/–-]?\d)/gu, '$1$2$3$1$4');
   return [...joined.matchAll(NUMBER_RE)].map((m) => m[0].trim());
 }
 
@@ -324,6 +333,18 @@ const SMALL_WORDS: Record<string, string[]> = {
   tr: ['iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz', 'on', '', ''],
 };
 
+/** Zero and one in words where they are no article ("zwischen null und eins"). */
+const ZERO_ONE: Record<string, string[]> = {
+  en: ['zero'],
+  de: ['null', 'eins'],
+  fr: ['zéro'],
+  es: ['cero'],
+  it: ['zero'],
+  pt: ['zero'],
+  nl: ['nul'],
+  tr: ['sıfır'],
+};
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
@@ -376,12 +397,16 @@ export function compareNumbers(
     })),
   ];
   const words = SMALL_WORDS[targetLang ?? ''];
+  const zeroOne = ZERO_ONE[targetLang ?? ''] ?? [];
   const tgt = [
     ...extractNumbers(target).map((t) => ({ t, v: candidateValues(t), word: false })),
     ...(words
       ? target.split(/[^\p{L}]+/u).flatMap((w) => {
-          const k = words.indexOf(w.toLocaleLowerCase(targetLang));
-          return k >= 0 ? [{ t: w, v: [k + 2], word: true }] : [];
+          const lower = w.toLocaleLowerCase(targetLang);
+          const k = words.indexOf(lower);
+          if (k >= 0) return [{ t: w, v: [k + 2], word: true }];
+          const z = zeroOne.indexOf(lower);
+          return z >= 0 ? [{ t: w, v: [z], word: true }] : [];
         })
       : []),
   ];
