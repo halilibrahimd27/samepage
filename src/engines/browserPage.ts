@@ -303,6 +303,26 @@ export function spellYears(text: string, lang: string): string {
 }
 
 /**
+ * A number held at the end of a bracket after a sign ("(mAP @ IoU = ⟦D1⟧)") that Google moved out
+ * with the bracket's end ("(mAP @ IoU =) değerlendiriyoruz. ⟦D1⟧)"): back after its sign. Only
+ * where the translation closes one bracket too many.
+ */
+export function backInBrackets(source: string, target: string): string {
+  const count = (t: string, c: string) => t.split(c).length - 1;
+  let out = target;
+  for (const [ph] of source.matchAll(/⟦D\d+⟧(?=\s*\))/gu)) {
+    const sign = /([=<>≤≥±:~≈])\s*$/u.exec(source.slice(0, source.indexOf(ph)))?.[1];
+    if (!sign || count(out, ')') <= count(out, '(')) continue;
+    const stray = new RegExp(`\\s*${escapeRe(ph)}\\s*\\)`, 'u');
+    const open = new RegExp(`${escapeRe(sign)}\\s*\\)`, 'u');
+    const without = out.replace(stray, '');
+    if (without === out || !open.test(without)) continue;
+    out = without.replace(open, `${sign} ${ph})`);
+  }
+  return out;
+}
+
+/**
  * A closing bracket Google dropped with the sentence end after it ("(Sír. 11,20-21). Luther …"
  * → "(Sir. 11,20-21 Luther …"): where the translation leaves a bracket open, it closes after
  * the token the source closes it after, when that token is a number the translation keeps.
@@ -384,8 +404,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero).
-    model: 'browser-page-22',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket).
+    model: 'browser-page-23',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -454,7 +474,10 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
           source,
           closeBrackets(
             source,
-            ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t,
+            backInBrackets(
+              source,
+              ctx.pair.target === 'tr' ? t.replace(/(\p{L})%(?=\d)/gu, '$1 %') : t,
+            ),
           ),
           ctx.pair.target,
         );

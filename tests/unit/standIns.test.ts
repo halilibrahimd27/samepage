@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { verbatimOf } from '../../src/core/segment/codec';
 import type { PlaceholderDef } from '../../src/core/segment/types';
 import {
+  backInBrackets,
   besideQuotedTerms,
   spellYears,
   closeBrackets,
@@ -289,6 +290,18 @@ describe('headings with machine engines', () => {
       signal,
     );
     expect(back!.text).toBe('Metodoloji "Yaşayan Laboratuvarlar" (Living Labs) kavramına dayanır.');
+  });
+
+  it('puts a held number Google moved out of its bracket back after its sign', () => {
+    expect(
+      backInBrackets(
+        'We evaluate the PASCAL VOC metric (mAP @ IoU = ⟦D1⟧) and the COCO metric.',
+        'PASCAL VOC metriğini (mAP @ IoU =) değerlendiriyoruz. ⟦D1⟧) ve COCO metriğini.',
+      ),
+    ).toBe('PASCAL VOC metriğini (mAP @ IoU = ⟦D1⟧) değerlendiriyoruz. ve COCO metriğini.');
+    // Balanced brackets, or no sign before it: left alone.
+    expect(backInBrackets('(p < ⟦D1⟧)', '(p < ⟦D1⟧)')).toBe('(p < ⟦D1⟧)');
+    expect(backInBrackets('(see ⟦D1⟧)', '(bkz.) ⟦D1⟧)')).toBe('(bkz.) ⟦D1⟧)');
   });
 
   it('puts a gloss Google moved back after its quoted term', () => {
