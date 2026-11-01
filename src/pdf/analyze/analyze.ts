@@ -1131,6 +1131,19 @@ function linkChains(
   // an inline formula ("… Вдоль оси" | "x расположены …"). The text runs on in lower case at
   // the next line's distance, or on the same line, where it may also go on with the formula's
   // relation ("Burada [fraction]" | "= cos θ olmak üzere"). Lettered items ("b) …") are new ones.
+  const pagePitch = (page: number, size: number) => {
+    const steps = ordered
+      .filter(
+        (x) =>
+          x.role === 'body' &&
+          pageOf(x) === page &&
+          Math.abs(avgSize(x) - size) < Math.max(0.3, 0.08 * size),
+      )
+      .map(lineStep)
+      .filter((s): s is number => s !== undefined)
+      .sort((x, y) => x - y);
+    return steps.length ? steps[Math.floor(steps.length / 2)] : undefined;
+  };
   for (let i = 0; i + 1 < ordered.length; i++) {
     const a = ordered[i]!;
     const b = ordered[i + 1]!;
@@ -1146,7 +1159,9 @@ function linkChains(
     const aLast = a.lines[a.lines.length - 1]!;
     const bFirst = b.lines[0]!;
     const step = bFirst.baseline - aLast.baseline;
-    const pitch = lineStep(b) ?? lineStep(a) ?? 1.2 * size;
+    // Two one-line blocks take the pitch of the page's text in their size (1.5 spacing: "…
+    // semblent également" | "intouchables, …" are 21 pt apart in 11 pt type).
+    const pitch = lineStep(b) ?? lineStep(a) ?? pagePitch(pageOf(a), size) ?? 1.2 * size;
     const below =
       runsOn &&
       step > 0.5 * size &&

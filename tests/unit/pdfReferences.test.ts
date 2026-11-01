@@ -109,6 +109,24 @@ describe('reference lists', () => {
     ]);
   });
 
+  it('chains two one-line blocks at the page text pitch (1.5 spacing)', () => {
+    const spaced = analyzeDocument([
+      page(0, [
+        [72, 100, 'The first paragraph of the page runs over three lines of text', 11],
+        [72, 121, 'set with a generous leading so that each line stands twenty-one', 11],
+        [72, 142, 'points below the one before it on the page.', 11],
+        [72, 180, 'On constate toutefois à Paris que les odonymes semblent également', 11],
+        [72, 201, 'intouchables, les autres le sont nettement moins.', 11],
+      ]),
+    ]);
+    const blocks = spaced[0]!.blocks;
+    const head = (re: RegExp) => {
+      const b = blocks.find((x) => re.test(blockText(x)))!;
+      return b.chain?.paragraphId ?? b.id;
+    };
+    expect(head(/intouchables/)).toBe(head(/constate/));
+  });
+
   it('knows the heading in more languages', () => {
     for (const t of [
       '7. REFERENCES',
