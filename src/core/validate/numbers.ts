@@ -312,12 +312,22 @@ export function compareNumbers(
   // A decade may gain its century ("90-es évek" → "the 1990s").
   const decade = (t: string, v: number[]) =>
     /^[1-9]0$/.test(t) ? [...v, 1900 + Number(t), 2000 + Number(t)] : v;
+  // A date the translation writes with its month in words ("09.03.2016" → "9 Mart 2016"): its
+  // day and year stand for it, the month may go.
+  const targetTokens = new Set(extractNumbers(target));
+  const date = (t: string) => {
+    const m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(t);
+    if (!m || targetTokens.has(t)) return null;
+    return [
+      { t: m[1]!, v: [Number(m[1])], optional: false },
+      { t: m[2]!, v: [Number(m[2])], optional: true },
+      { t: m[3]!, v: [Number(m[3])], optional: false },
+    ];
+  };
   const src = [
-    ...extractNumbers(source).map((t) => ({
-      t,
-      v: decade(t, candidateValues(t)),
-      optional: false,
-    })),
+    ...extractNumbers(source).flatMap(
+      (t) => date(t) ?? [{ t, v: decade(t, candidateValues(t)), optional: false }],
+    ),
     ...romans.map((t) => ({ t, v: [romanValue(t)], optional: true })),
     ...(lang ? wordNumbers(source, lang) : []),
     // A decade written with an apostrophe ("anni '90") becomes a year ("the 1990s").

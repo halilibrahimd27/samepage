@@ -216,6 +216,17 @@ describe('validateTranslation', () => {
       validateTranslation({ source, target, sourceLang, targetLang: 'en' })
         .filter((i) => i.code === 'NUMBER_MISMATCH')
         .map((i) => i.detail);
+    // A date with its month in words.
+    expect(
+      codes(
+        'Журнал включено до переліку наказом № 241 від 09.03.2016 р. та оновлено.',
+        'The journal was included in the list by order No. 241 of 9 March 2016 and updated.',
+        'uk',
+      ),
+    ).toEqual([]);
+    expect(
+      codes('Наказ від 09.03.2016 р. діє.', 'The order of 9 March 2018 is in force.', 'uk'),
+    ).toEqual(['missing 2016; unexpected 2018']);
     // A decimal without its leading zero; a decade in words gains its century.
     expect(
       codes(
