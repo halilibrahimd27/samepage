@@ -314,6 +314,51 @@ describe('back-translation meaning check', () => {
     ).toEqual([]);
   });
 
+  it('French and Czech: "ne … que", "ne … plus que", "non pas", opinions and antonyms', () => {
+    expect(
+      issues(
+        'Ne prendre en compte que Paris-centre revient à sous-estimer gravement cette région.',
+        'Se limiter au centre de Paris revient à sous-estimer gravement cette région.',
+        'fr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Les dix premières villes comptent pour un peu plus de 15 % du total cette année.',
+        "Les dix premières villes ne représentent plus qu'un peu plus de 15 % du total cette année.",
+        'fr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'La théorie de la concentration de la science ne résiste pas à cette analyse.',
+        'La théorie de la concentration de la science est erronée selon cette analyse.',
+        'fr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Il nous semble nécessaire de décomposer le problème en plusieurs niveaux.',
+        'Nous estimons nécessaire de décomposer le problème en plusieurs niveaux.',
+        'fr',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Kalvinismus vytvořil půdu ne pro vznik kapitalismu jako takového, nýbrž pro jeho ducha.',
+        'Kalvinismus položil základy nikoli pro vznik samotného kapitalismu, ale pro jeho ducha.',
+        'cs',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'Zdá se mi, že v tomto sporu má zcela určitě pravdu Max Weber a jeho škola.',
+        'Podle mého názoru má v tomto sporu pravdu Max Weber a jeho škola.',
+        'cs',
+      ),
+    ).toEqual([]);
+  });
+
   it('an English quotation in a French paper is read with English cues', () => {
     expect(
       issues(

@@ -311,13 +311,16 @@ const CUES: Record<string, Cues> = {
       'non seulement',
       // "ne … que" is "only": "ne repose que sur" = "relies only on".
       "n(?:e\\s+|[’'])\\p{L}+\\s+que",
+      // Also a few words on ("ne prendre en compte que Paris"), and "ne … plus que" (now only).
+      "n(?:e\\s+|[’'])(?:(?!pas|jamais|rien|guère|point)\\p{L}+[\\s’']+){1,4}qu(?:e|[’']\\p{L}+)",
+      "n(?:e\\s+|[’'])\\p{L}+\\s+plus\\s+qu(?:e|[’']\\p{L}+)",
       // An expletive "ne" negates nothing: "avant qu'un projet ne soit proposé", "plus
       // qu'elle ne l'est déjà".
       `(?<=(?:avant|à moins|de peur|de crainte) qu(?:e\\s|[’'])[^.;:!?]{0,80}?)ne(?=\\s)${NOT_PAS}`,
       `(?<=(?:plus|moins|davantage|mieux|autrement)\\s[^.;:!?]{0,60}?(?<!\\p{L})qu(?:e\\s|[’'])\\s*(?:\\p{L}+\\s+)?)ne(?=\\s)${NOT_PAS}`,
     ],
     // Written negation always has "ne"/"n'": "pas" alone is also a step, "rien" a trifle.
-    negation: ['ne', "n[’']\\p{L}+", 'aucun\\p{L}*', 'sans', 'ni'],
+    negation: ['ne', "n[’']\\p{L}+", 'aucun\\p{L}*', 'sans', 'ni', 'non pas'],
     soft: [
       'indépend\\p{L}*',
       'exclu\\p{L}*',
@@ -332,6 +335,8 @@ const CUES: Record<string, Cues> = {
       'ignor\\p{L}*',
       "faute d(?:e|[’']\\p{L}+)",
       "à défaut d(?:e|[’']\\p{L}+)",
+      // "ne résiste pas à l'analyse" ↔ "est erronée".
+      'erron\\p{L}*',
     ],
     hedge: [
       'pourraient',
@@ -349,6 +354,10 @@ const CUES: Record<string, Cues> = {
     ],
     weak: [
       'peu(?:t|vent)',
+      // "Il nous semble nécessaire" ↔ "nous estimons nécessaire".
+      'estim\\p{L}*',
+      'à (?:mon|notre) avis',
+      'selon nous',
       'possible\\p{L}*',
       'potentiel\\p{L}*',
       'probable\\p{L}*',
@@ -616,6 +625,8 @@ const CUES: Record<string, Cues> = {
       'nemohou',
       'nelze',
       'neexistuje',
+      'nejde',
+      'nikoli(?:v)?',
     ],
     soft: [
       'ne(?!j|bo|ž)\\p{L}{4,}',
@@ -623,9 +634,22 @@ const CUES: Record<string, Cues> = {
       'chyb\\p{L}*',
       'nedostat\\p{L}*',
       'nemožn\\p{L}*',
+      // "a ne jako Luther" ↔ "spíše než Luther".
+      'spíše než',
+      'místo',
     ],
     hedge: ['pravděpodobně', 'možná', 'snad', 'zřejmě', 'patrně', 'zdá se', 'mohl[aoiy]? by'],
-    weak: ['může', 'mohou', 'mož\\p{L}*', 'potenciál\\p{L}*', 'téměř'],
+    // "Zdá se mi" ↔ "podle mého názoru", "se domnívá" ↔ "věřil": a view, not a fact.
+    weak: [
+      'může',
+      'mohou',
+      'mož\\p{L}*',
+      'potenciál\\p{L}*',
+      'téměř',
+      'věř\\p{L}*',
+      'domnív\\p{L}*',
+      'podle (?:mého|našeho|jeho|jejich) názoru',
+    ],
     all: ['všechn\\p{L}*', 'všech', 'každ\\p{L}*', 'vždy'],
     most: ['většin\\p{L}*', 'převážně'],
     some: ['někter\\p{L}*', 'několik', 'částečně', 'někdy'],
