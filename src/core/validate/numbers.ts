@@ -297,12 +297,41 @@ function wordNumbers(text: string, lang: string): { t: string; v: number[]; opti
   );
 }
 
+/**
+ * Two to twelve in words, per target language: machine translators write small numbers so
+ * ("5 maddeden oluşan" → "aus fünf Items"). Not "one": it is also an article ("ein", "un").
+ */
+const SMALL_WORDS: Record<string, string[]> = {
+  en: ['two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'],
+  de: ['zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'],
+  fr: ['deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze'],
+  es: ['dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce'],
+  it: [
+    'due',
+    'tre',
+    'quattro',
+    'cinque',
+    'sei',
+    'sette',
+    'otto',
+    'nove',
+    'dieci',
+    'undici',
+    'dodici',
+  ],
+  pt: ['dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze'],
+  nl: ['twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'],
+  tr: ['iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz', 'on', '', ''],
+};
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
   target: string,
   /** Source language, for numbers written in words. */
   lang?: string,
+  /** Target language: small numbers it writes in words ("5 madde" → "fünf Items"). */
+  targetLang?: string,
 ): { missing: string[]; extra: string[] } {
   // A Roman numeral may become digits ("siglo XX" → "20th century"); one the target keeps as
   // is needs no match.
@@ -346,7 +375,16 @@ export function compareNumbers(
       optional: true,
     })),
   ];
-  const tgt = extractNumbers(target).map((t) => ({ t, v: candidateValues(t) }));
+  const words = SMALL_WORDS[targetLang ?? ''];
+  const tgt = [
+    ...extractNumbers(target).map((t) => ({ t, v: candidateValues(t), word: false })),
+    ...(words
+      ? target.split(/[^\p{L}]+/u).flatMap((w) => {
+          const k = words.indexOf(w.toLocaleLowerCase(targetLang));
+          return k >= 0 ? [{ t: w, v: [k + 2], word: true }] : [];
+        })
+      : []),
+  ];
   const matchOf = new Array<number>(tgt.length).fill(-1);
   const compatible = (i: number, j: number) => src[i]!.v.some((x) => tgt[j]!.v.includes(x));
   const augment = (i: number, seen: boolean[]): boolean => {
@@ -364,7 +402,8 @@ export function compareNumbers(
   src.forEach((s, i) => {
     if (!augment(i, new Array<boolean>(tgt.length).fill(false)) && !s.optional) missing.push(s.t);
   });
-  const extra = tgt.filter((_, j) => matchOf[j] === -1).map((x) => x.t);
+  // A number word the source has no digits for is only a word ("zwei Gruppen").
+  const extra = tgt.filter((x, j) => matchOf[j] === -1 && !x.word).map((x) => x.t);
   return { missing, extra };
 }
 

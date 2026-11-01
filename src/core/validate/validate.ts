@@ -199,7 +199,7 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
       .map((tok) => (tok.type === 'text' ? tok.text : tok.type === 'ph' ? ' | ' : ''))
       .join('')
       .replace(CITATION_RE, ' ');
-  const nums = compareNumbers(forNumbers(source), forNumbers(target), sourceLang);
+  const nums = compareNumbers(forNumbers(source), forNumbers(target), sourceLang, targetLang);
   if (nums.missing.length || nums.extra.length) {
     err(
       'NUMBER_MISMATCH',

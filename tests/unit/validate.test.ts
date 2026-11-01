@@ -216,6 +216,23 @@ describe('validateTranslation', () => {
       validateTranslation({ source, target, sourceLang, targetLang: 'en' })
         .filter((i) => i.code === 'NUMBER_MISMATCH')
         .map((i) => i.detail);
+    // A small number the target writes in words, and a number word with no digits behind it.
+    expect(
+      validateTranslation({
+        source: 'Ölçek 5 maddeden ve 2 alt boyuttan oluşmaktadır.',
+        target: 'Die Skala besteht aus fünf Items und zwei Subdimensionen sowie drei Fragen.',
+        sourceLang: 'tr',
+        targetLang: 'de',
+      }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+    ).toEqual([]);
+    expect(
+      validateTranslation({
+        source: 'Ölçek 5 maddeden oluşmaktadır.',
+        target: 'Die Skala besteht aus sechs Items.',
+        sourceLang: 'tr',
+        targetLang: 'de',
+      }).map((i) => i.detail),
+    ).toContain('missing 5');
     // A Roman numeral in Cyrillic look-alike letters.
     expect(
       codes(
