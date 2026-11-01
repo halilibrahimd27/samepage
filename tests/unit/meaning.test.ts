@@ -170,6 +170,21 @@ describe('back-translation meaning check', () => {
   });
 
   it('English and Spanish: omitted, with and without, probability, desconoce', () => {
+    // A ligature of the PDF's font ("insuﬃcient") and "leave out".
+    expect(
+      issues(
+        'It can be clearly seen that one negative sample per instance is insuﬃcient for optimal performance.',
+        'It can be clearly seen that one negative sample per instance is not sufficient for optimal performance.',
+        'en',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
+        'We leave out the comparison with item–item models such as SLIM and CDAE.',
+        'We do not consider the comparison with item-item models such as SLIM and CDAE.',
+        'en',
+      ),
+    ).toEqual([]);
     expect(
       issues(
         'The dependence among components, which may or may not be present, has been summarized by Greene.',

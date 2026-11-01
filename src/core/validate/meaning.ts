@@ -165,6 +165,8 @@ const CUES: Record<string, Cues> = {
       'yet to',
       // "were excluded" ↔ "were not included".
       'exclu(?:de|ded|des|ding|sion)',
+      // "We leave out the comparison" ↔ "we do not consider".
+      '(?:leave|leaves|left|leaving) out',
       // "it is omitted in Figure 4" ↔ "it is not included".
       'omi(?:t|ts|tted|tting|ssion)',
       'instead',
@@ -1066,12 +1068,15 @@ function overlapping(a: string, b: string): boolean {
  * paragraph only reports a cue class that is missing everywhere on one side.
  */
 export function compareMeaning(
-  source: string,
-  back: string,
+  sourceText: string,
+  backText: string,
   lang: string,
   /** The back-translation's language when it is not the source's (a second opinion in English). */
   backLang = lang,
 ): Difference[] {
+  // Ligatures of the PDF's font read as letters ("insuﬃcient" is "insufficient").
+  const source = sourceText.normalize('NFKC');
+  const back = backText.normalize('NFKC');
   const cues = CUES[backLang];
   // Headings and table cells are too short for a reliable comparison.
   if (!cues || !back.trim() || source.split(/\s+/).length < 5) return [];
