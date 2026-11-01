@@ -32,7 +32,12 @@ describe('mathFragments', () => {
   it('recognises short equations, not sentences with a relation sign', () => {
     for (const t of ['Prev = 3.940⋅Fn', '; Φ = cos−1R −Prev R', 'HT = 1,75⋅250 3,809', 'P='])
       expect(equationLike(t), t).toBe(true);
-    for (const t of ['p = 0.05 was considered significant', 'Total = 100 students', 'Results'])
+    for (const t of [
+      'p = 0.05 was considered significant',
+      'Total = 100 students',
+      'Results',
+      'then we have χmax(A ⊗M) = χmax(A) + χmax(M).',
+    ])
       expect(equationLike(t), t).toBe(false);
   });
 

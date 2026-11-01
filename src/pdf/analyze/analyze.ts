@@ -534,6 +534,9 @@ const MATH_FUNCTION =
  */
 export function equationLike(text: string): boolean {
   if (text.length > 60 || !/[=≤≥≈]/.test(text)) return false;
+  // A sentence that runs on into its formula ("then we have χmax(A) = …") is text.
+  const lead = /^\s*(\p{Ll}{2,})\s+(\p{Ll}{2,})\s/u.exec(text);
+  if (lead && !MATH_FUNCTION.test(lead[1]!) && !MATH_FUNCTION.test(lead[2]!)) return false;
   return !text.split(/\s+/).some((t) => (t.match(/\p{L}/gu)?.length ?? 0) >= 5);
 }
 
