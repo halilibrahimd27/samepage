@@ -193,6 +193,8 @@ const CUES: Record<string, Cues> = {
       'not only',
       'above all',
       'after all',
+      // "The index could be calculated for 4845 respondents": what was possible, no hedge.
+      'could be (?:calculated|computed|determined|obtained|included|analy[sz]ed|collected|measured|assessed|recruited|retrieved|extracted|identified)',
       // "with and without pre-training" compares, it negates nothing.
       'with(?: and| or)(?: one| those)? without',
       'without (?:and|or) with',

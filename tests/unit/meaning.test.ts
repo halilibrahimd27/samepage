@@ -172,6 +172,13 @@ describe('back-translation meaning check', () => {
   it('English and Spanish: omitted, with and without, probability, desconoce', () => {
     expect(
       issues(
+        'Health literacy was assessed with the short form. The index could be calculated for 4845 respondents.',
+        'Die Gesundheitskompetenz wurde mit der Kurzform erfasst. Der Index wurde für 4845 Teilnehmende berechnet.',
+        'de',
+      ),
+    ).toEqual([]);
+    expect(
+      issues(
         'Due to the weak performance of ItemPop, it is omitted in Figure 4 to better highlight the difference.',
         'Due to the low performance of ItemPop, it is not included in Figure 4 to better highlight the difference.',
         'en',
