@@ -307,7 +307,16 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
       }
     }
     const script = scriptOf(targetLang);
-    if (scriptRatio(tgtPlain, script) < 0.6) {
+    // Names, acronyms and figures kept from the source ("(c) Pinterest — HR@10") are no wrong
+    // script; the source's own words left in place ("published under", "of", "and") are.
+    const srcWords = new Set(srcPlain.split(/\s+/));
+    const tgtWords = tgtPlain.split(/\s+/);
+    const kept = tgtWords.filter((w) => srcWords.has(w)).join(' ');
+    const changed = tgtWords.filter((w) => !srcWords.has(w)).join(' ');
+    const wrongScript =
+      scriptRatio(tgtPlain, script) < 0.6 &&
+      (functionWords(kept, sourceLang) >= 2 || (!!changed && scriptRatio(changed, script) < 0.6));
+    if (wrongScript) {
       err('WRONG_LANGUAGE', `expected ${script} script for ${targetLang}`);
     } else if (scriptOf(sourceLang) === script) {
       const distinct = DISTINCT_LETTERS[sourceLang];

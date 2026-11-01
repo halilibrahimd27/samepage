@@ -56,6 +56,24 @@ describe('validateTranslation', () => {
     expect(
       codes({ source, target: 'Here is the translation: a <t1>new</t1> method ⟦F1⟧ [12].' }),
     ).toContain('CHATTER');
+    // Names and figures kept in Latin letters in a Russian translation are no wrong script; the
+    // source's own words left untranslated are.
+    const ru = (s: string, t: string) =>
+      validateTranslation({ source: s, target: t, sourceLang: 'en', targetLang: 'ru' }).map(
+        (i) => i.code,
+      );
+    expect(
+      ru(
+        '(IW3C2), published under Creative Commons CC BY 4.0 License.',
+        '(IW3C2), опубликовано под лицензией Creative Commons CC BY 4.0.',
+      ),
+    ).not.toContain('WRONG_LANGUAGE');
+    expect(
+      ru('(c) Pinterest — HR@10 on the test set', '(c) Pinterest — HR@10 на тестовом наборе'),
+    ).not.toContain('WRONG_LANGUAGE');
+    expect(ru('3.4 Fusion of GMF and MLP models', '3.4 Fusion of GMF and MLP models')).toContain(
+      'WRONG_LANGUAGE',
+    );
     expect(codes({ source, target: '' })).toEqual(['EMPTY']);
   });
 
