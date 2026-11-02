@@ -1,10 +1,5 @@
 import { tokenize } from '../core/segment/codec';
-import {
-  backTranslationFindings,
-  compareMeaning,
-  cueText,
-  inSourceLanguage,
-} from '../core/validate/meaning';
+import { backTranslationFindings, cueText, inSourceLanguage } from '../core/validate/meaning';
 import {
   assemblePieces,
   matchInitialCase,
@@ -15,7 +10,6 @@ import {
 } from './plainText';
 import type {
   Availability,
-  FidelityFinding,
   FidelityPair,
   FidelityResult,
   LangPair,
@@ -58,48 +52,10 @@ export async function checkByBackTranslation(
     const text = back[i]?.trim();
     return text && inSourceLanguage(text, source, target) ? [[p.id, text] as const] : [];
   });
-  const findings = backTranslationFindings(pairs, back, source, target);
   return {
-    findings: await inEnglishToo(bridge, pairs, findings, ctx, signal),
+    findings: backTranslationFindings(pairs, back, source, target),
     back: Object.fromEntries(kept),
   };
-}
-
-/**
- * A second opinion on what the back-translation found, in English: the source and the
- * translation each put into English, a finding kept only when the two differ the same way. A
- * back-translation into Czech or German paraphrases ("entfallen" → "nicht mehr benötigt" reads as
- * a negation added); a negation the translation really lost is missing from its English too.
- */
-async function inEnglishToo(
-  bridge: ChromeTranslatorBridge,
-  pairs: FidelityPair[],
-  findings: FidelityFinding[],
-  ctx: TranslateContext,
-  signal: AbortSignal,
-): Promise<FidelityFinding[]> {
-  const { source, target } = ctx.pair;
-  if (!findings.length || source === 'en' || !bridge.backTranslate) return findings;
-  const items = pairs.filter((p) => findings.some((f) => f.id === p.id));
-  const sources = items.map((p) => cueText(p.source, p.verbatim));
-  const targets = items.map((p) => cueText(p.target, p.verbatim));
-  const fromSource = await bridge
-    .backTranslate({ source, target: 'en' }, sources)
-    .catch(() => null);
-  signal.throwIfAborted();
-  const fromTarget =
-    target === 'en'
-      ? targets
-      : await bridge.backTranslate({ source: target, target: 'en' }, targets).catch(() => null);
-  signal.throwIfAborted();
-  if (!fromSource || !fromTarget) return findings;
-  return findings.filter((f) => {
-    const k = items.findIndex((p) => p.id === f.id);
-    const a = fromSource[k]?.trim();
-    const b = fromTarget[k]?.trim();
-    if (!a || !b) return true;
-    return compareMeaning(a, b, 'en').some((d) => d.issue === f.issue);
-  });
 }
 
 const tagIds = (t: string) =>
