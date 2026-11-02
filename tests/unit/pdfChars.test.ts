@@ -22,6 +22,19 @@ describe('restoreChar', () => {
   });
 });
 
+describe('Windows-1251 read as Latin-1', () => {
+  it('reads a misread Russian font as Cyrillic, and leaves French alone', async () => {
+    const { fromCp1251, misreadCp1251, repairCp1251 } = await import('../../src/pdf/engine/cp1251');
+    expect([...'ÀÍÒÈÊÐÈÇÈÑÍÛÅ'].map(fromCp1251).join('')).toBe('АНТИКРИЗИСНЫЕ');
+    expect([...'ýêîíîìè÷åñêèõ ¹'].map(fromCp1251).join('')).toBe('экономических №');
+    expect(misreadCp1251([...'ÀÍÒÈÊÐÈÇÈÑÍÛÅÌÅÐÎÏÐÈßÒÈß'])).toBe(true);
+    expect(misreadCp1251([...'Démystifierleconceptdauthenticitéenévaluation'])).toBe(false);
+    expect(repairCp1251('Ñåðèÿ «Ïðàâî». Démystifier le concept')).toBe(
+      'Серия «Право». Démystifier le concept',
+    );
+  });
+});
+
 describe('composeAccents', () => {
   it('puts an accent a font draws apart back on its letter ("z" + raised "." → "ż")', async () => {
     const { composeAccents } = await import('../../src/pdf/analyze/blocks');

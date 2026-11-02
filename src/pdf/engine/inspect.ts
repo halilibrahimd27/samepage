@@ -1,4 +1,5 @@
 import { loadMupdf, type MupdfModule } from './mupdf';
+import { repairCp1251 } from './cp1251';
 
 type Document = InstanceType<MupdfModule['Document']>;
 
@@ -56,7 +57,7 @@ function textSample(doc: Document, pages: number): string {
       page.destroy();
     }
   }
-  return text.normalize('NFC').slice(0, SAMPLE_CHARS);
+  return repairCp1251(text.normalize('NFC')).slice(0, SAMPLE_CHARS);
 }
 
 export async function inspectPdf(

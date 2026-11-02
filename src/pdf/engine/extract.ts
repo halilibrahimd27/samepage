@@ -1,5 +1,6 @@
 import type { Rect } from '../../core/ir/types';
 import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
+import { fromCp1251, misreadCp1251 } from './cp1251';
 import type { PagePixels } from './render';
 import { loadMupdf } from './mupdf';
 
@@ -245,6 +246,19 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
             });
           },
         });
+
+        // A font that maps Cyrillic to Windows-1251 read as Latin-1 ("ÀÍÒÈ" for "АНТИ").
+        const letters = new Map<string, string[]>();
+        for (const b of blocks)
+          for (const l of b.lines)
+            for (const ch of l.chars)
+              if (/\p{L}|[×÷]/u.test(ch.c))
+                letters.set(ch.font, [...(letters.get(ch.font) ?? []), ch.c]);
+        const misread = new Set([...letters].filter(([, cs]) => misreadCp1251(cs)).map(([f]) => f));
+        if (misread.size)
+          for (const b of blocks)
+            for (const l of b.lines)
+              for (const ch of l.chars) if (misread.has(ch.font)) ch.c = fromCp1251(ch.c);
 
         const links: RawPage['links'] = [];
         for (const link of page.getLinks()) {
