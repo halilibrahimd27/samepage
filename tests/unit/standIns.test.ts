@@ -327,6 +327,13 @@ describe('headings with machine engines', () => {
         'BULGULAR: Aşağıdakiler analiz edildi. ⟦D1⟧ Çoğunluğu Amerika Birleşik Devletleri.',
       ),
     ).toBe(true);
+    // Names the source writes after held numbers are no pieces.
+    expect(
+      piecewise(
+        'With ⟦U1⟧ Gaia and ⟦U2⟧ Kepler, ⟦D1⟧ stars pass.',
+        '⟦U1⟧ Gaia ve ⟦U2⟧ Kepler ile ⟦D1⟧ yıldız geçer.',
+      ),
+    ).toBe(false);
     // Days before their month are no pieces.
     expect(
       piecewise(

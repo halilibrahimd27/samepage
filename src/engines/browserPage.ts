@@ -44,8 +44,10 @@ const MONTH =
  */
 export function piecewise(sent: string, received: string): boolean {
   const SPAN = String.raw`⟦[A-Z]\d+⟧\s*(?:<\/?t\d+>\s*)*`;
+  // A name the source writes too ("⟦U1⟧ Gaia", "⟦F2⟧ Kepler") is no piece of a translation.
+  const named = new Set(sent.match(/\p{Lu}\p{Ll}+/gu) ?? []);
   const count = (t: string, re: RegExp) =>
-    [...t.matchAll(re)].filter((m) => !MONTH.test(m[1]!)).length;
+    [...t.matchAll(re)].filter((m) => !MONTH.test(m[1]!) && !named.has(m[1]!)).length;
   const inside = new RegExp(String.raw`(?<![.!?:]\s*)${SPAN}(\p{Lu}\p{Ll}+)`, 'gu');
   const after = new RegExp(String.raw`[.!?:]\s*${SPAN}(\p{Lu}\p{Ll}+)`, 'gu');
   const n = count(received, inside);
