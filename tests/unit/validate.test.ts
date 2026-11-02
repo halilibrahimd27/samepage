@@ -273,6 +273,17 @@ describe('validateTranslation', () => {
         targetLang: 'tr',
       }).map((i) => i.code),
     ).not.toContain('SENTENCE_LOST');
+    // "vgl. S. 5f." ends no sentence either.
+    expect(
+      validateTranslation({
+        source:
+          'Surveillance und Critical Data Studies genannt (vgl. S. 5f.); ergänzend wird auf die Analyse im Sinne Foucaults verwiesen (vgl. S. 12ff.), allerdings ohne Gouvernementalitätsstudien.',
+        target:
+          "Gözetim ve Eleştirel Veri Çalışmaları'ndan bahsediliyor (bkz. s. 5 vd.); ayrıca Foucault anlamında analize değiniliyor (bkz. s. 12 vd.), ancak yönetimsellik çalışmalarından bahsedilmiyor.",
+        sourceLang: 'de',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('SENTENCE_LOST');
     // A Roman numeral in Cyrillic look-alike letters.
     expect(
       codes(
