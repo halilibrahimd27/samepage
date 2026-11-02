@@ -223,6 +223,46 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.issues.map((i) => i.code)).not.toContain('MEANING_DRIFT');
   });
 
+  it('reads every flagged translation in English in one call', async () => {
+    const english: number[] = [];
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch, ctx) => {
+        if (ctx.pair.target === 'en') english.push(batch.length);
+        return Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text:
+              ctx.pair.target === 'en'
+                ? 'The children were not left without care.'
+                : 'Çocuklar bakımsız bırakılmadı.',
+          })),
+        );
+      },
+      checkFidelity: (pairs) =>
+        Promise.resolve({
+          findings: pairs.map((p) => ({
+            id: p.id,
+            issue: 'negation lost',
+            severity: 'major' as const,
+          })),
+        }),
+    };
+    const outs = await translateSegments({
+      engine,
+      segments: ['a', 'b', 'c'].map((id) => ({
+        id,
+        text: 'Діти не залишилися без опіки у жодному з регіонів країни.',
+        role: 'body' as const,
+      })),
+      ctx: { pair: { source: 'uk', target: 'tr' }, glossary: [], numberLocalization: false },
+      fidelityCheck: true,
+      signal: new AbortController().signal,
+    });
+    expect(english).toEqual([3]);
+    expect(outs.flatMap((o) => o.findings)).toEqual([]);
+  });
+
   it('keeps an author line with math-asterisk marks as it is', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),

@@ -895,37 +895,48 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
      * "children in care"); the source is not translated again, so an engine that drops a
      * negation from it cannot drop it on both sides.
      */
-    const sameInEnglish = async (s: SegmentRequest, text: string): Promise<boolean> => {
-      const { source, target } = ctx.pair;
-      if (source === 'en') return false;
-      const english =
-        target === 'en'
-          ? text
-          : (
-              await engine
-                .translate(
-                  [{ ...s, id: `${s.id}~en`, text }],
-                  { ...ctx, glossary: [], pair: { source: target, target: 'en' } },
-                  signal,
-                )
-                .catch(() => null)
-            )?.[0]?.text;
-      if (!english?.trim()) return false;
-      const findings = compareMeaning(
+    const inEnglish = async (items: { s: SegmentRequest; text: string }[]) => {
+      const out = new Map<string, string>();
+      if (ctx.pair.target === 'en') {
+        for (const { s, text } of items) out.set(s.id, text);
+        return out;
+      }
+      // In as few calls as fit: each change of language pair reloads a browser engine's helper.
+      const requests = items.map(({ s, text }) => ({ ...s, id: `${s.id}~en`, text }));
+      for (const batch of makeBatches(requests, engine.maxBatchChars)) {
+        const results = await engine
+          .translate(
+            batch,
+            { ...ctx, glossary: [], pair: { source: ctx.pair.target, target: 'en' } },
+            signal,
+          )
+          .catch(() => null);
+        for (const r of results ?? []) out.set(r.id.replace(/~en$/u, ''), r.text);
+      }
+      return out;
+    };
+    const soundIn = (s: SegmentRequest, english: string | undefined) =>
+      !!english?.trim() &&
+      compareMeaning(
         cueText(s.text, s.verbatim),
         cueText(english, s.verbatim),
-        source,
+        ctx.pair.source,
         'en',
-      );
-      return findings.length === 0;
-    };
+      ).length === 0;
+    const sameInEnglish = async (s: SegmentRequest, text: string): Promise<boolean> =>
+      ctx.pair.source !== 'en' && soundIn(s, (await inEnglish([{ s, text }])).get(s.id));
     const soften = (s: SegmentRequest, text: string) =>
       softenClaims(s.text, text, ctx.pair.source, ctx.pair.target);
+    // Every flagged translation in English at once.
+    const english =
+      ctx.pair.source === 'en'
+        ? new Map<string, string>()
+        : await inEnglish(flagged.map(({ s, o }) => ({ s, text: o.text })));
     for (const { s, o } of flagged) {
       signal.throwIfAborted();
       const found = o.findings.map((f) => f.issue).join('; ');
       // Sound in English: the flag came from the back-translation, nothing to repair.
-      if (await sameInEnglish(s, o.text)) {
+      if (ctx.pair.source !== 'en' && soundIn(s, english.get(s.id))) {
         o.findings = [];
         delete o.back;
         o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');

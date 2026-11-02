@@ -420,7 +420,7 @@ describe('validateTranslation', () => {
         "1950'ler ve 60'lar (bugünün yaşlıları gençken):",
         'hu',
       ],
-    ])
+    ] as [string, string, string][])
       expect(
         validateTranslation({ source, target, sourceLang, targetLang: 'tr' }).map((i) => i.code),
         source,
