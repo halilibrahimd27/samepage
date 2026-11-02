@@ -1,4 +1,5 @@
 import { checkByBackTranslation, type ChromeTranslatorBridge } from './chromeBuiltin';
+import { functionWords } from '../core/detectLanguage';
 import { restoreInline, type InnerTag } from './plainText';
 import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
 
@@ -292,6 +293,41 @@ export function shieldGlosses(text: string, lang: string): { text: string; gloss
   return { text: out, glosses };
 }
 
+/** A bracket of words in Latin letters, no figures: "(tool calling)", "(Standard of Care)". */
+const LATIN_GLOSS = /\(\p{Script=Latin}[\p{Script=Latin} '’,-]{0,60}\p{Script=Latin}\)/gu;
+
+/**
+ * Terms in brackets Google dropped from a translation: a Spanish or German paper names the
+ * English term after its own ("Arquitectura de Invocación de Herramientas (Tool Calling)") and
+ * Google leaves it out as said twice. Brackets that hold the source language's function words
+ * ("(CDSS, en adelante)") are its own text, translated.
+ */
+export function droppedGlosses(source: string, target: string, lang: string): string[] {
+  if (lang === 'en' || ['bg', 'uk', 'ru', 'el'].includes(lang)) return [];
+  const count = (t: string) => untagged(t).match(/\(/gu)?.length ?? 0;
+  if (count(target) >= count(source)) return [];
+  return [...untagged(source).matchAll(LATIN_GLOSS)]
+    .map((m) => m[0])
+    .filter(
+      (g) =>
+        functionWords(g.slice(1, -1), lang) === 0 &&
+        g.split(/\s+/u).length <= 6 &&
+        !untagged(target).includes(g),
+    );
+}
+
+/** The given glosses as no-translate spans, as shieldGlosses sets them. */
+export function shieldThese(text: string, these: string[]): { text: string; glosses: string[] } {
+  const glosses: string[] = [];
+  let out = text;
+  for (const g of these) {
+    if (!out.includes(g)) continue;
+    glosses.push(g);
+    out = out.replace(g, `⟦Z${glosses.length}⟧`);
+  }
+  return { text: out, glosses };
+}
+
 /** Double-quoted terms ("„логистично разрастване“", "“Lojistik yayılması”"), in order. */
 const QUOTED = /[„“"«][^„“”"«»]{1,80}?[“”"»]/gu;
 
@@ -459,8 +495,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused).
-    model: 'browser-page-30',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused, 30: superscripts on their character, 31: dropped bracketed terms kept).
+    model: 'browser-page-31',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -523,6 +559,30 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
           out[i] = respacePlaceholders(batch[i]!.text, texts[k] ?? '');
           if (heldInProse(batch[i]!, batch[i]!.text)) held.add(i);
           if (piecewise(batch[i]!.text, texts[k] ?? '')) pieced.add(i);
+        });
+      }
+      // Terms in brackets Google dropped: the segment again, those kept as written.
+      const dropped = out.map((t, i) =>
+        t === null || partly.includes(i) || again.includes(i)
+          ? []
+          : droppedGlosses(prepared[i]!.text, t, ctx.pair.source),
+      );
+      const glossed = dropped.flatMap((g, i) => (g.length ? [i] : []));
+      if (glossed.length) {
+        const retry = glossed.map((i) => shieldThese(prepared[i]!.text, dropped[i]!));
+        const texts = await bridge.translate(
+          ctx.pair,
+          retry.map((r) => spellYears(r.text, ctx.pair.source)),
+        );
+        signal.throwIfAborted();
+        glossed.forEach((i, k) => {
+          const { text, glosses } = retry[k]!;
+          const placed = unshield(besideQuotedTerms(text, texts[k] ?? '', glosses.length), glosses);
+          const { inlined } = prepared[i]!;
+          const relocal = relocalize(placed, inlined);
+          const restored = inlined.length ? restoreInline(relocal, inlined) : relocal;
+          if (restored !== null && !piecewise(text, texts[k] ?? ''))
+            out[i] = respacePlaceholders(batch[i]!.text, restored);
         });
       }
       // Turkish puts the percent sign before the number; Google glues it to the word before

@@ -521,7 +521,20 @@ export function compareNumbers(
   // A date the translation writes with its month in words ("09.03.2016" → "9 Mart 2016"): its
   // day and year stand for it, the month may go.
   const targetTokens = new Set(extractNumbers(target));
+  // So may a day and month with its closing dot, the year after the range ("22.08.–22.09.2026").
+  const dayMonth = new Set(
+    [...source.matchAll(/(?<![\d.])(\d{1,2})\.(\d{1,2})\.(?=\s*[–-]|\s|$)/gu)]
+      .filter((m) => Number(m[1]) <= 31 && Number(m[2]) <= 12)
+      .map((m) => `${m[1]}.${m[2]}`),
+  );
   const date = (t: string) => {
+    if (dayMonth.has(t) && !targetTokens.has(t)) {
+      const [day, month] = t.split('.');
+      return [
+        { t: day!, v: [Number(day)], optional: false },
+        { t: month!, v: [Number(month)], optional: true },
+      ];
+    }
     const m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(t);
     if (!m || targetTokens.has(t)) return null;
     return [

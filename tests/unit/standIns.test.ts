@@ -51,6 +51,37 @@ describe('placeholders that travel as text, so the sentence stays whole', () => 
     expect(out!.text).toBe('Uyum katsayısı ⟦F1⟧ calculated.');
   });
 
+  it('keeps a term in brackets that Google dropped as said twice', async () => {
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(
+          texts.map((t) =>
+            t
+              .replace(' (Tool Calling)', '')
+              .replace('Arquitectura de invocación de herramientas', 'Araç çağırma mimarisi')
+              .replace('por ejemplo', 'örneğin'),
+          ),
+        );
+      },
+    });
+    const text =
+      'Arquitectura de invocación de herramientas (Tool Calling) y sus límites (por ejemplo, Díez, 2023).';
+    const [out] = await engine.translate(
+      [{ id: 's1', text, role: 'body' }],
+      { pair: { source: 'es', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toContain('⟦Z1⟧');
+    expect(sent[1]).toContain('(por ejemplo, Díez, 2023)'); // its own words are translated
+    expect(out!.text).toBe(
+      'Araç çağırma mimarisi (Tool Calling) y sus límites (örneğin, Díez, 2023).',
+    );
+  });
+
   it('reads LaTeX references and citations as a reader sees them', async () => {
     const seen: SegmentRequest[] = [];
     const pseudo = createPseudoEngine({ factor: 1, substitute: false });

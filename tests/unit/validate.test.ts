@@ -372,6 +372,14 @@ describe('validateTranslation', () => {
     expect(
       codes('Наказ від 09.03.2016 р. діє.', 'The order of 9 March 2018 is in force.', 'uk'),
     ).toEqual(['missing 2016; unexpected 2018']);
+    // A range whose first date waits for the year of the second.
+    expect(
+      codes(
+        'Die Recherche verwendet das Datumsfenster 22.08.–22.09.2026 für alle Nachrichten.',
+        'Araştırma, tüm mesajlar için 22 Ağustos–22 Eylül 2026 tarih aralığını kullanır.',
+        'de',
+      ),
+    ).toEqual([]);
     // A decimal without its leading zero; a decade in words gains its century.
     expect(
       codes(
