@@ -17,8 +17,10 @@ import {
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
 import {
   academicHeading,
+  documentAcronyms,
   isNameList,
   isOrcidAuthorLine,
+  keepAsWritten,
   metricGlossary,
   runInLabels,
   usesMetrics,
@@ -276,6 +278,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   };
 
   const pending: SegmentRequest[] = [];
+  const acronyms = documentAcronyms(segments.map((s) => plainText(s.text)));
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
     const heading = headings
@@ -299,6 +302,17 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         attempts: 0,
         issues: [],
         notes: ['names'],
+        findings: [],
+      });
+    } else if (heading === null && keepAsWritten(plainText(s.text), acronyms)) {
+      outcomes.set(s.id, {
+        id: s.id,
+        text: s.text,
+        untranslated: false,
+        cached: false,
+        attempts: 0,
+        issues: [],
+        notes: ['as-written'],
         findings: [],
       });
     } else if (heading !== null) {

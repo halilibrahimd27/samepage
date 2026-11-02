@@ -209,7 +209,61 @@ const TERMS: Langs[] = [
     pt: 'Geral',
     ru: 'В целом',
   },
+  // The columns of a pre-post design: "Post" alone became "Postalamak" (to mail).
+  {
+    en: 'Pre',
+    tr: 'Ön',
+    de: 'Vor',
+    fr: 'Pré',
+    es: 'Pre',
+    it: 'Pre',
+    pt: 'Pré',
+    ru: 'До',
+  },
+  {
+    en: 'Post',
+    tr: 'Son',
+    de: 'Nach',
+    fr: 'Post',
+    es: 'Post',
+    it: 'Post',
+    pt: 'Pós',
+    ru: 'После',
+  },
 ];
+
+/**
+ * A table's statistics head or a company's legal form, which engines misread alone ("Sig." →
+ * "Sonraki", "Inc" → "Inch"): kept as written.
+ */
+const AS_WRITTEN = /^(?:Sig|df|gl|Mdn|IQR|Inc|Ltd|LLC|GmbH|Corp|S\.\s?A|A\.\s?Ş)\.?$/u;
+
+/**
+ * Acronyms the document's own sentences use in capitals ("the WACC of each country"), at least
+ * twice: a label of them alone stays as written ("WACC (%)" was spelled out by the engine).
+ * A heading in capitals ("RESULTS") is not one: no sentence writes it so.
+ */
+export function documentAcronyms(texts: string[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const text of texts) {
+    const words = text.match(/\p{L}+/gu) ?? [];
+    if (words.length < 8 || words.filter((w) => /^\p{Ll}/u.test(w)).length < words.length / 2)
+      continue;
+    for (const a of text.match(/(?<![\p{L}\d])\p{Lu}[\p{Lu}\d]+(?![\p{L}\d])/gu) ?? [])
+      counts.set(a, (counts.get(a) ?? 0) + 1);
+  }
+  return new Set([...counts].filter(([, n]) => n >= 2).map(([a]) => a));
+}
+
+/** A short label to keep as written: a statistics head, or acronyms with figures and units. */
+export function keepAsWritten(text: string, acronyms: Set<string>): boolean {
+  const t = text.trim();
+  if (AS_WRITTEN.test(t)) return true;
+  if (t.length > 40) return false;
+  // A unit or a symbol in brackets is no word to translate ("(%)", "(€/kg)", "(t CO2/MWh)").
+  const words = t.replace(/\([^()]{1,14}\)/gu, ' ').match(/\p{L}[\p{L}\p{M}\d]*/gu) ?? [];
+  return words.length > 0 && words.every((w) => acronyms.has(w));
+}
 
 const REFERENCES: Langs = {
   en: 'References',

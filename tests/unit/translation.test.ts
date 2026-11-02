@@ -19,8 +19,10 @@ import {
 } from '../../src/engines/plainText';
 import {
   academicHeading,
+  documentAcronyms,
   isNameList,
   isOrcidAuthorLine,
+  keepAsWritten,
   usesMetrics,
 } from '../../src/core/glossary/academic';
 import { validateTranslation } from '../../src/core/validate/validate';
@@ -606,6 +608,8 @@ describe('helpers', () => {
     expect(academicHeading('A B S T R A C T', 'en', 'tr')).toBe('ÖZET');
     // An Italian paper heading its abstract in English.
     expect(academicHeading('Abstract', 'it', 'tr')).toBe('Özet');
+    // The columns of a pre-post design.
+    expect(academicHeading('Post', 'it', 'tr')).toBe('Son');
     expect(academicHeading('A R T I C L E  I N F O', 'en', 'tr')).toBe('MAKALE BİLGİSİ');
     // Metrics only in documents that name both precision and recall.
     expect(academicHeading('Recall (%)', 'en', 'tr', true)).toBe('Duyarlılık (%)');
@@ -649,6 +653,21 @@ describe('helpers', () => {
     expect(academicHeading('Recall', 'en', 'tr')).toBeNull();
     expect(usesMetrics(['Precision and recall of the classifier'], 'en')).toBe(true);
     expect(usesMetrics(['Free recall of word lists'], 'en')).toBe(false);
+  });
+
+  it('keeps statistics heads and acronym labels as written', () => {
+    const acronyms = documentAcronyms([
+      'The WACC of each country is taken from the literature and converted to real terms.',
+      'We assume a uniform WACC for all technologies in the base case of this study.',
+      'RESULTS',
+      'RESULTS',
+    ]);
+    expect(keepAsWritten('WACC (%)', acronyms)).toBe(true);
+    expect(keepAsWritten('Sig.', acronyms)).toBe(true);
+    expect(keepAsWritten('Inc', acronyms)).toBe(true);
+    // A heading in capitals, and a label with words, are translated.
+    expect(keepAsWritten('RESULTS', acronyms)).toBe(false);
+    expect(keepAsWritten('WACC by country', acronyms)).toBe(false);
   });
 
   it('accepts identical output for names and code, not for sentences', () => {
