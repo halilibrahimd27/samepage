@@ -327,6 +327,69 @@ describe('ruled grids drawn cell by cell', () => {
     expect(tables).toHaveLength(1);
     expect(tables[0]!.rect.y1).toBeGreaterThanOrEqual(250);
   });
+
+  it('takes the rows of a ruled grid from its rules, not from where the lines fall', async () => {
+    const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
+    // Rows 50 pt tall: a cell of four lines beside a centred one and one split in two blocks.
+    const ys = [100, 150, 200];
+    const cells: Cell[] = [
+      [60, 106, 140, 115, 'Panozzo et al.'],
+      [60, 117, 90, 126, '(2020)'],
+      [160, 104, 240, 113, 'Comparar o impacto'],
+      [160, 115, 240, 124, 'de recomendações'],
+      [160, 126, 240, 135, 'agrupadas e mensagens'],
+      [160, 137, 240, 146, 'personalizadas'],
+      [270, 121, 290, 130, 'EUA'],
+      [60, 170, 140, 179, 'Berry et al.'],
+      [160, 170, 240, 179, 'Identificar'],
+      [270, 170, 290, 179, 'Índia'],
+    ];
+    const p = cellPage(cells, []);
+    const v = (x0: number, y0: number, x1: number, y1: number) => ({
+      bbox: { x0, y0, x1, y1 },
+      isRectangle: true,
+      isStroked: false,
+      color: [0, 0, 0] as [number, number, number],
+    });
+    p.vectors.push(
+      ...ys.map((y) => v(50, y, 300, y + 0.5)),
+      ...[50, 150, 260, 299].map((x) => v(x, 100, x + 0.5, 200)),
+    );
+    const [pageIR] = analyzeDocument([p]);
+    const at = (t: string) =>
+      pageIR!.blocks.find((b) => b.lines.some((l) => l.spans.map((s) => s.text).join('') === t))!
+        .tableCell!;
+    for (const t of ['(2020)', 'EUA', 'personalizadas']) {
+      expect(at(t).row, t).toBe(at('Panozzo et al.').row);
+      expect(at(t).cellRect.y0, t).toBeLessThanOrEqual(101);
+      expect(at(t).cellRect.y1, t).toBeGreaterThanOrEqual(149);
+    }
+    expect(at('Índia').row).toBe(at('EUA').row + 1);
+    // Rules between the columns, under the header, but none between the data rows: the rows
+    // stay rows.
+    const data = cellPage(
+      [
+        [60, 103, 90, 112, 'Name'],
+        [160, 103, 190, 112, 'Value'],
+        [270, 103, 290, 112, 'Unit'],
+        ...[0, 1, 2].flatMap((r): Cell[] => [
+          [60, 122 + 12 * r, 90, 131 + 12 * r, `a${r}`],
+          [160, 122 + 12 * r, 190, 131 + 12 * r, `b${r}`],
+          [270, 122 + 12 * r, 290, 131 + 12 * r, `c${r}`],
+        ]),
+      ],
+      [],
+    );
+    data.vectors.push(
+      ...[100, 116, 160].map((y) => v(50, y, 300, y + 0.5)),
+      ...[50, 150, 260, 299].map((x) => v(x, 100, x + 0.5, 160)),
+    );
+    const [dataIR] = analyzeDocument([data]);
+    const rowOf = (t: string) =>
+      dataIR!.blocks.find((b) => b.lines.some((l) => l.spans.map((s) => s.text).join('') === t))!
+        .tableCell!.row;
+    expect(rowOf('a2')).toBe(rowOf('a0') + 2);
+  });
 });
 
 describe('tables found from their caption', () => {

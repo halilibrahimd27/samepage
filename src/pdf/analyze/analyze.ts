@@ -261,15 +261,46 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
       rulesInside.length,
     ] as const;
   });
-  const rowBounds = rowYs.map(
+  let rowBounds = rowYs.map(
     (c, i) =>
       [
         i === 0 ? table.rect.y0 : (rowYs[i - 1]! + c) / 2,
         i === rowYs.length - 1 ? table.rect.y1 : (c + rowYs[i + 1]!) / 2,
       ] as const,
   );
+  let cellRow = rowOf;
+  // A grid ruled between its columns and under its rows: a row is the band between two rules,
+  // however its cells' lines fall (five lines beside one, a cell MuPDF split into two blocks),
+  // unless some cell's text crosses a rule or lies outside them (a source note under the table),
+  // or a band holds rows of its own (rules between the columns, none between the data rows).
+  const rules = [...table.rows]
+    .sort((a, b) => a - b)
+    .filter((y, i, all) => i === 0 || y - all[i - 1]! > 1.5);
+  const bandOf = (b: BlockIR) =>
+    rules.findIndex(
+      (y, i) => i < rules.length - 1 && mid(b.bbox) >= y && mid(b.bbox) < rules[i + 1]!,
+    );
+  const fullRows = (band: number) =>
+    rowYs.filter(
+      (_, r) =>
+        cells.filter((b) => rowOf(b) === r && bandOf(b) === band).length >=
+        Math.max(2, 0.8 * intervals.length),
+    ).length;
+  const gridded =
+    rules.length >= 3 &&
+    table.cols.some((x) => x > table.rect.x0 + 3 && x < table.rect.x1 - 3) &&
+    cells.every((b) => {
+      const i = bandOf(b);
+      return i >= 0 && b.bbox.y0 > rules[i]! - 2.5 && b.bbox.y1 < rules[i + 1]! + 2.5;
+    }) &&
+    rules.every((_, i) => fullRows(i) < 2);
+  if (gridded) {
+    const bands = [...new Set(cells.map(bandOf))].sort((a, b) => a - b);
+    rowBounds = bands.map((i) => [rules[i]!, rules[i + 1]!] as const);
+    cellRow = (b) => bands.indexOf(bandOf(b));
+  }
   for (const b of cells) {
-    const row = rowOf(b);
+    const row = cellRow(b);
     const cx = (b.bbox.x0 + b.bbox.x1) / 2;
     // A header over a column group starts in its first column and keeps the group's width.
     const covered = intervals.flatMap(([x0, x1], i) =>
