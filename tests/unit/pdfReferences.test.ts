@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeDocument, blockText } from '../../src/pdf/analyze/analyze';
 import type { RawLine, RawPage } from '../../src/pdf/extract/raw';
-import { SELF_CITATION_LABEL, REFERENCES_HEADING } from '../../src/core/references';
+import { SELF_CITATION_LABEL, REFERENCES_HEADING, referenceProse } from '../../src/core/references';
+import { functionWords } from '../../src/core/detectLanguage';
 import { hyphenEvidence, joinHyphen } from '../../src/pdf/typeset/segments';
 
 type Cell = [x0: number, y0: number, text: string, size?: number];
@@ -136,10 +137,23 @@ describe('reference lists', () => {
       'Zdroje',
       'Използвана литература',
       'Використана література',
+      'Anhang B. Literatur und lokale Quellen',
+      'Appendix A: References',
     ])
       expect(REFERENCES_HEADING.test(t), t).toBe(true);
-    for (const t of ['Literature review', '2. Related work'])
+    for (const t of ['Literature review', '2. Related work', 'Appendix B. Survey questions'])
       expect(REFERENCES_HEADING.test(t)).toBe(false);
+  });
+
+  it('translates a note in prose among the entries, not the entries', () => {
+    const note =
+      'Abruf und bibliografische Prüfung: 22.09.2026. Jahresangaben beziehen sich auf die Erstveröffentlichung, sofern nicht anders angegeben.';
+    expect(referenceProse(note, functionWords(note, 'de'))).toBe(true);
+    for (const entry of [
+      '[F02] Schick, T. et al. (2023). Toolformer: Language Models Can Teach Themselves to Use Tools.',
+      'Müller, K. (2020). Die Rolle der Sprache in der Bildung und in der Schule. Berlin: Springer.',
+    ])
+      expect(referenceProse(entry, functionWords(entry, 'de')), entry).toBe(false);
   });
 });
 

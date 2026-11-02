@@ -2,7 +2,10 @@ import { DOMParser, XMLSerializer, type Document as XDocument } from '@xmldom/xm
 
 /** Hardened XML parsing (SECURITY.md §3): DOCTYPEs are stripped, so no entity can be resolved. */
 export function parseXml(text: string): XDocument {
-  const withoutDoctype = text.replace(/<!DOCTYPE[^>[]*(\[[\s\S]*?\])?\s*>/gi, '');
+  // A byte-order mark before the declaration (the .NET Open XML SDK writes one) is no content.
+  const withoutDoctype = text
+    .replace(/^\uFEFF/u, '')
+    .replace(/<!DOCTYPE[^>[]*(\[[\s\S]*?\])?\s*>/gi, '');
   return new DOMParser({
     onError: (level, msg) => {
       if (level === 'fatalError') throw new Error(`XML parse error: ${msg}`);

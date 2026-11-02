@@ -264,8 +264,11 @@ export function keepAsWritten(text: string, acronyms: Set<string>): boolean {
   if (t.length > 40) return false;
   // A unit or a symbol in brackets is no word to translate ("(%)", "(€/kg)", "(t CO2/MWh)").
   const words = t.replace(/\([^()]{1,14}\)/gu, ' ').match(/\p{L}[\p{L}\p{M}\d]*/gu) ?? [];
-  return words.length > 0 && words.every((w) => acronyms.has(w));
+  return words.length > 0 && words.every((w) => acronyms.has(w) || TIME_ZONE.test(w));
 }
+
+/** Time zones written beside a time ("02.09., 14:03 UTC"): the same in every language. */
+const TIME_ZONE = /^(?:UTC|GMT|CES?T|EES?T|WES?T|MES?Z|ES?T|EDT|CDT|PS?T|PDT|MSK|TRT|JST|IST)$/u;
 
 const REFERENCES: Langs = {
   en: 'References',

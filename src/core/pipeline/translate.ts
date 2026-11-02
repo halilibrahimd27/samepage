@@ -25,6 +25,7 @@ import {
   runInLabels,
   usesMetrics,
 } from '../glossary/academic';
+import { paragraphLanguage } from '../detectLanguage';
 import { glossaryHash } from '../glossary/glossary';
 import { protectNumbers, protectTerms, restoreTerms, withBuiltInNames } from '../glossary/protect';
 import { splitSentences } from '../../engines/plainText';
@@ -71,6 +72,8 @@ export interface TranslateJob {
    * not called. A segment the project lacks stays untranslated and is reported.
    */
   replay?: Record<string, StoredOutcome>;
+  /** Every segment is in the pair's source language (a part split off by its own language). */
+  oneLanguage?: boolean;
 }
 
 /**
@@ -142,7 +145,70 @@ const promptVersion = (engine: TranslationEngine, ctx: TranslateContext) =>
     ? `${PROMPT_VERSION}:${ctx.englishSpelling}`
     : PROMPT_VERSION;
 
+/**
+ * Segments written in another language than the document's are translated from their own (an
+ * English abstract of a Turkish paper, the Arabic body of a paper whose abstract is English):
+ * given as the document's language, the engine returns them as they were or makes up text.
+ * Those already in the target language stay as written. Null when all are in the source's.
+ */
+async function byOwnLanguage(job: TranslateJob): Promise<SegmentOutcome[] | null> {
+  const { pair } = job.ctx;
+  const own = new Map<string, string>();
+  for (const s of job.segments) {
+    const lang = paragraphLanguage(plainText(s.text), pair.source);
+    if (lang && lang !== pair.source) own.set(s.id, lang);
+  }
+  if (!own.size) return null;
+  const outcomes = new Map<string, SegmentOutcome>();
+  const groups = new Map<string, SegmentRequest[]>();
+  for (const s of job.segments) {
+    const lang = own.get(s.id);
+    if (lang === pair.target)
+      outcomes.set(s.id, {
+        id: s.id,
+        text: s.text,
+        untranslated: false,
+        cached: false,
+        attempts: 0,
+        issues: [],
+        notes: ['in-target'],
+        findings: [],
+      });
+    else if (lang) groups.set(lang, [...(groups.get(lang) ?? []), s]);
+  }
+  // A language the engine does not translate from stays with the document's.
+  for (const lang of [...groups.keys()])
+    if ((await job.engine.isAvailable({ source: lang, target: pair.target })) === 'unavailable')
+      groups.delete(lang);
+  const split = new Set([...groups.values()].flat());
+  const parts: [SegmentRequest[], string][] = [
+    [job.segments.filter((s) => !outcomes.has(s.id) && !split.has(s)), pair.source],
+    ...[...groups].map(([lang, segments]): [SegmentRequest[], string] => [segments, lang]),
+  ];
+  let done = outcomes.size;
+  // One after another: the browser engines keep one language pair open at a time.
+  for (const [segments, source] of parts) {
+    if (!segments.length) continue;
+    const base = done;
+    const results = await translateSegments({
+      ...job,
+      segments,
+      ctx: { ...job.ctx, pair: { source, target: pair.target } },
+      oneLanguage: true,
+      onProgress: (n, total, phase) =>
+        phase ? job.onProgress?.(n, total, phase) : job.onProgress?.(base + n, job.segments.length),
+    });
+    for (const r of results) outcomes.set(r.id, r);
+    done += segments.length;
+  }
+  return job.segments.map((s) => outcomes.get(s.id)!);
+}
+
 export async function translateSegments(job: TranslateJob): Promise<SegmentOutcome[]> {
+  if (!job.replay && !job.oneLanguage) {
+    const split = await byOwnLanguage(job);
+    if (split) return split;
+  }
   if (job.replay) {
     const replay = job.replay;
     job.onProgress?.(job.segments.length, job.segments.length);

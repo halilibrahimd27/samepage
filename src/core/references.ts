@@ -3,7 +3,8 @@
  * "Literaturverzeichnis", "Bibliografía", "Список литературы", "Použitá literatura" …).
  */
 export const REFERENCES_HEADING = new RegExp(
-  `^\\s*((?:\\d+(?:\\.\\d+)*|[IVX]+)[.)]?\\s*)?(${[
+  // An appendix that holds the list: "Anhang B. Literatur und lokale Quellen", "Appendix A: References".
+  `^\\s*(?:(?:appendix|anhang|annexe?|ap[eé]ndice|anexo|allegato|ek|bijlage|bilaga|bilag|liite|příloha|aneks|függelék|anexa|приложение|додаток|παράρτημα)\\s+[A-Z0-9IVX]{1,3}[.:)]?\\s*)?((?:\\d+(?:\\.\\d+)*|[IVX]+)[.)]?\\s*)?(${[
     'cited (literature|references)',
     'literature cited',
     'references cited',
@@ -68,6 +69,20 @@ export const REFERENCES_HEADING = new RegExp(
   )})(?:\\s+(?:and|und|et|y|e|i|и|ve|en|a|a také)\\s+[\\p{L}][\\p{L}\\s-]{0,40})?\\s*:?\\s*$`,
   'iu',
 );
+
+/** Signs of a reference entry: a year in brackets, a list mark, initials, "et al.", a DOI. */
+const ENTRY_SIGN =
+  /\((?:1[5-9]|20)\d{2}[a-z]?[),;/]|^\s*(?:\[[\p{L}\d]{1,6}\]|\d{1,3}[.)]\s)|\b\p{Lu}\.(?:\s?\p{Lu}\.)*\s?[,(&]|\bet al\.|\bdoi[:.]|https?:\/\//u;
+
+/**
+ * A note in prose inside a reference section ("Retrieved and checked on 22.09.2026; years give
+ * the first publication"), translated like the text around the list: many words, many of them
+ * function words of the language, and none of an entry's signs.
+ */
+export function referenceProse(text: string, functionWordCount: number): boolean {
+  const words = text.match(/\p{L}+/gu)?.length ?? 0;
+  return words >= 12 && functionWordCount >= 0.15 * words && !ENTRY_SIGN.test(text);
+}
 
 /**
  * The label that introduces a paper's citation of itself ("ACM Reference Format:", "Cite this

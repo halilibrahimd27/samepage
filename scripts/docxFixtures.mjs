@@ -28,6 +28,7 @@ import {
   WidthType,
 } from 'docx';
 import { ChartRun } from 'docx/charts';
+import JSZip from 'jszip';
 
 const DATE = '2026-01-01T00:00:00Z';
 const p = (text, opts = {}) => new Paragraph({ children: [new TextRun(text)], ...opts });
@@ -189,6 +190,146 @@ function academic() {
   });
 }
 
+const mono = (text) => new TextRun({ text, font: 'Consolas' });
+const cell = (text) => new TableCell({ children: [p(text)] });
+
+/** A lab sheet with code: inline commands, a listing, a comment in words, a label in Consolas. */
+function lab() {
+  return new Document({
+    creator: 'samepage fixtures',
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            heading: HeadingLevel.TITLE,
+            children: [new TextRun('Hafta 2 Uygulama Föyü')],
+          }),
+          new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('1. Kurulum')] }),
+          new Paragraph({
+            children: [
+              new TextRun('Python sürümünü '),
+              new TextRun({ text: 'mutlaka', bold: true }),
+              new TextRun(' kontrol edin: '),
+              mono('python3 --version'),
+              new TextRun({ text: ' (3.10 veya üstü).', italics: true }),
+            ],
+          }),
+          new Paragraph({ children: [mono('BİLMEN GEREKEN')] }),
+          new Paragraph({ children: [mono('import hashlib')] }),
+          new Paragraph({ children: [mono('mesaj = "Blokzincir".encode("utf-8")')] }),
+          new Paragraph({ children: [mono('# İki bayt dizisi arasındaki farklı bit sayısı')] }),
+          new Paragraph({ children: [mono('ozet = hashlib.sha256(mesaj).hexdigest()')] }),
+          new Paragraph({ children: [mono('print(ozet)')] }),
+          new Table({
+            width: { size: 9000, type: WidthType.DXA },
+            columnWidths: [3000, 6000],
+            rows: [
+              new TableRow({ children: [cell('Oturum'), cell('Zaman')] }),
+              new TableRow({ children: [cell('Birinci deneme'), cell('02.09., 14:03–14:12 UTC')] }),
+            ],
+          }),
+          new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('Kaynakça')] }),
+          p('Yılmaz, A. (2022). Kriptografiye giriş. Ankara: Bilim Yayınları.'),
+        ],
+      },
+    ],
+  });
+}
+
+/**
+ * A Turkish paper with other languages in it: an English abstract (already in the target
+ * language), an Arabic quotation set right to left, a German quotation; its reference list is an
+ * appendix with a sub-heading and a note in prose, and another appendix follows it.
+ */
+function mixed() {
+  return new Document({
+    creator: 'samepage fixtures',
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            heading: HeadingLevel.TITLE,
+            children: [new TextRun('Çok dilli kaynaklarda şiir ve toplum')],
+          }),
+          new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('Öz')] }),
+          p(
+            'Bu çalışmada şiirin toplumsal işlevi, farklı dillerde yazılmış kaynaklar üzerinden incelenmiştir.',
+          ),
+          new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('Abstract')] }),
+          p(
+            'This study examines the social function of poetry through sources that were written in different languages.',
+          ),
+          new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('1. Giriş')] }),
+          new Paragraph({
+            children: [
+              new TextRun('Şiir, '),
+              new TextRun({ text: 'toplumsal bellek', bold: true }),
+              new TextRun(' için '),
+              new TextRun({ text: 'temel', italics: true }),
+              new TextRun(' bir araç olarak görülmüştür.'),
+            ],
+          }),
+          new Paragraph({
+            bidirectional: true,
+            children: [
+              new TextRun({
+                text: 'لم يكن الشعر العربي مجرد لون من ألوان الأدب، بل كان مؤسسة ثقافية واجتماعية متكاملة.',
+                rightToLeft: true,
+                boldComplexScript: true,
+                sizeComplexScript: 32,
+              }),
+            ],
+          }),
+          p(
+            'Die Dichtung war nicht nur eine Form der Literatur, sondern eine kulturelle Institution der Gesellschaft.',
+          ),
+          new Table({
+            width: { size: 9000, type: WidthType.DXA },
+            columnWidths: [4500, 4500],
+            rows: [
+              new TableRow({ children: [cell('Toplantı'), cell('Saat')] }),
+              new TableRow({ children: [cell('Açılış oturumu'), cell('30.08., 19:00 UTC')] }),
+            ],
+          }),
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun('Ek B. Kaynakça ve yerel kaynaklar')],
+          }),
+          new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun('Yayınlar')] }),
+          p(
+            'Erişim ve bibliyografik kontrol tarihi 22.09.2026 olup yıllar ilk yayımlanma tarihini gösterir ve aksi belirtilmedikçe bu şekilde kullanılmıştır.',
+          ),
+          p(
+            '[F01] Yao, S. et al. (2023). ReAct: Synergizing Reasoning and Acting in Language Models. ICLR.',
+          ),
+          p('[F02] Demir, B. (2021). Şiirin toplumsal işlevi. Edebiyat Dergisi, 4(2), 10–25.'),
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun('Ek C. Anket soruları')],
+          }),
+          p(
+            'Katılımcılara şiir okuma alışkanlıkları ve tercih ettikleri diller hakkında sorular soruldu.',
+          ),
+        ],
+      },
+    ],
+  });
+}
+
+/** Parts written with a byte-order mark first, as the .NET Open XML SDK writes them. */
+async function withByteOrderMarks(bytes) {
+  const zip = await JSZip.loadAsync(bytes);
+  for (const name of ['word/document.xml', 'word/styles.xml']) {
+    const xml = await zip.file(name).async('string');
+    zip.file(name, `\uFEFF${xml}`);
+  }
+  return new Uint8Array(await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' }));
+}
+
 export async function buildDocxFixtures() {
-  return { 'academic.docx': new Uint8Array(await Packer.toBuffer(academic())) };
+  return {
+    'academic.docx': new Uint8Array(await Packer.toBuffer(academic())),
+    'lab.docx': new Uint8Array(await Packer.toBuffer(lab())),
+    'mixed.docx': await withByteOrderMarks(new Uint8Array(await Packer.toBuffer(mixed()))),
+  };
 }

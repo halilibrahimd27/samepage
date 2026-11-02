@@ -116,6 +116,120 @@ export function shortTextLanguage(text: string, hint?: string): LanguageCode | n
   return script === 'latin' ? null : (scores[0]?.lang ?? null);
 }
 
+/**
+ * Writing systems outside the offered languages, each with the language Google reads it as
+ * (Persian and Urdu by their own letters; Japanese by its kana).
+ */
+const OTHER_SCRIPTS: [RegExp, (text: string) => string][] = [
+  [/\p{Script=Arabic}/gu, (t) => (/[پچژگ]/u.test(t) ? 'fa' : /[ٹڈڑںے]/u.test(t) ? 'ur' : 'ar')],
+  [/\p{Script=Hebrew}/gu, () => 'iw'],
+  [
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu,
+    (t) => (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(t) ? 'ja' : 'zh-CN'),
+  ],
+  [/\p{Script=Hangul}/gu, () => 'ko'],
+  [/\p{Script=Devanagari}/gu, () => 'hi'],
+  [/\p{Script=Thai}/gu, () => 'th'],
+  [/\p{Script=Armenian}/gu, () => 'hy'],
+  [/\p{Script=Georgian}/gu, () => 'ka'],
+];
+/** Letters outside Mathematical Alphanumeric Symbols ("𝑝", "𝐱" belong to no language). */
+const LETTER = /(?![\u{1d400}-\u{1d7ff}])\p{L}/gu;
+
+/**
+ * Function words of Latin-script languages outside the offered ones, to tell a paragraph in one
+ * (an Indonesian paper with an English abstract; Malay reads as Indonesian). Google translates
+ * from each of them.
+ */
+const MORE_STOPWORDS: Record<string, string> = {
+  id: 'yang dan di ini dengan untuk dari dalam pada tidak akan adalah juga ke oleh atau dapat karena sebagai telah bahwa mereka lebih ada itu kami kita tersebut',
+  ca: 'el la els les i de que en un una per amb no és del dels als al com més però aquest aquesta són també seu seva hi',
+  vi: 'của và các có là được trong cho này với những một không người để đã khi từ theo về như',
+  fi: 'ja on ei se että oli kun mutta tai myös ovat joka sekä kuin jos niin tämä nämä hän sen voi',
+  da: 'og i at det er en som på af for med til den har ikke de et var men sig kan eller ved fra også efter meget',
+  no: 'og i at det er en som på av for med til den har ikke de et var men seg kan eller ved fra også etter mye',
+  sk: 'a v sa na je že s z do o to ako pre by vo sú k ktoré ktorý alebo aj pri bolo ich nie',
+  hr: 'i u je na da se za od su s ne koji kao što ili iz o te biti bio može ali',
+  sl: 'in je v na da se za ki so z ne kot pa ali tudi iz o bi lahko',
+  lt: 'ir yra kad su į iš tai buvo kaip bet ar jo jų taip pat dėl už',
+  lv: 'un ir ka ar uz no par kas tas bija arī lai vai bet pēc to',
+  et: 'ja on et ei see oli kui ka mis või aga ning selle mida seda',
+};
+const MORE_LETTERS: Record<string, RegExp> = {
+  vi: /[ạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹđơư]/gu,
+  sk: /[ľĺŕô]/gu,
+  lv: /[āēīūļņķģ]/gu,
+  lt: /[ėįų]/gu,
+  da: /[æø]/gu,
+  no: /[æø]/gu,
+  ca: /l·l|ŀ/gu,
+};
+const allSets = new Map<string, Set<string>>([
+  ...sets,
+  ...Object.entries(MORE_STOPWORDS).map(([l, w]): [string, Set<string>] => [
+    l,
+    new Set(w.split(' ')),
+  ]),
+]);
+const allWeight = new Map<string, number>();
+for (const set of allSets.values())
+  for (const w of set) allWeight.set(w, (allWeight.get(w) ?? 0) + 1);
+
+/** A language a paragraph clearly reads as by its function words and letters, among a script's. */
+function clearLanguage(text: string, script: 'latin' | 'cyrillic' | 'greek', source: string) {
+  const words =
+    text
+      .replace(/\bet al\.?/giu, ' ')
+      .toLocaleLowerCase()
+      .match(/\p{L}+/gu) ?? [];
+  if (words.length < 8) return null;
+  const sample = words.join(' ');
+  const candidates: string[] = [
+    ...LANGUAGES.filter((l) => scriptOf(l) === script),
+    ...(script === 'latin' ? Object.keys(MORE_STOPWORDS) : []),
+  ];
+  const scored = candidates.map((lang) => {
+    const stop = allSets.get(lang)!;
+    const letters = LETTERS[lang as LanguageCode] ?? MORE_LETTERS[lang];
+    return {
+      lang,
+      score:
+        words.reduce((n, w) => (stop.has(w) ? n + 1 / allWeight.get(w)! : n), 0) +
+        0.3 * (letters ? (sample.match(letters)?.length ?? 0) : 0),
+    };
+  });
+  const best = scored.reduce((a, b) => (b.score > a.score ? b : a));
+  const own = scored.find((s) => s.lang === source)?.score ?? 0;
+  return best.lang !== source && best.score >= 3 && best.score >= 3 * Math.max(own, 0.5)
+    ? best.lang
+    : null;
+}
+
+/**
+ * The language a paragraph is written in when it is not the document's: an abstract in English
+ * in a Turkish paper, the Arabic body of a paper whose abstract is English. Another writing
+ * system tells it at once; in the same one, its function words must clearly say so. Null when
+ * the paragraph reads as the source language or nothing tells (names, figures, a short line).
+ */
+export function paragraphLanguage(text: string, source: string): string | null {
+  const letters = text.match(LETTER) ?? [];
+  if (letters.length < 3) return null;
+  const joined = letters.join('');
+  for (const [script, lang] of OTHER_SCRIPTS)
+    if ((joined.match(script)?.length ?? 0) >= 0.6 * letters.length) return lang(text);
+  const script = (['latin', 'cyrillic', 'greek'] as const).find(
+    (s) => (joined.match(new RegExp(SCRIPT[s].source, 'gu'))?.length ?? 0) >= 0.6 * letters.length,
+  );
+  if (!script) return null;
+  const known = LANGUAGES.find((l) => l === source);
+  if (known && scriptOf(known) === script) return clearLanguage(text, script, source);
+  // Words, not symbols: "α β γ" in a formula or a table head is no Greek.
+  if (script !== 'latin' && !new RegExp(`${SCRIPT[script].source}{3}`, 'u').test(text)) return null;
+  if (script === 'greek') return 'el';
+  if (script === 'cyrillic') return shortTextLanguage(text) ?? 'ru';
+  return clearLanguage(text, script, source);
+}
+
 export interface DetectedLanguage {
   lang: LanguageCode;
   /** Winner's score divided by the runner-up's (≥ 1.5 when returned). */

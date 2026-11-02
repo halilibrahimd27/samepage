@@ -400,6 +400,58 @@ export function breakLongTokens(text: string, minLength = 25): { text: string; c
   return { text: out, changed };
 }
 
+/** Schema order of paragraph and run properties: Word rejects a property out of its place. */
+const PPR_ORDER = `pStyle keepNext keepLines pageBreakBefore framePr widowControl numPr
+  suppressLineNumbers pBdr shd tabs suppressAutoHyphens kinsoku wordWrap overflowPunct topLinePunct
+  autoSpaceDE autoSpaceDN bidi adjustRightInd snapToGrid spacing ind contextualSpacing mirrorIndents
+  suppressOverlap jc textDirection textAlignment textboxTightWrap outlineLvl divId cnfStyle rPr
+  sectPr pPrChange`.split(/\s+/u);
+const RPR_ORDER = `rStyle rFonts b bCs i iCs caps smallCaps strike dstrike outline shadow emboss
+  imprint noProof snapToGrid vanish webHidden color spacing w kern position sz szCs highlight u
+  effect bdr shd fitText vertAlign rtl cs em lang eastAsianLayout specVanish oMath
+  rPrChange`.split(/\s+/u);
+
+/** Sets a property (its w:val, or none), placed where the schema orders it. */
+function setProperty(props: XElement, order: string[], local: string, val: string | null) {
+  let el = elementChildren(props).find((c) => is(c, W, local));
+  if (!el) {
+    el = props.ownerDocument!.createElementNS(W, `w:${local}`);
+    const rank = order.indexOf(local);
+    const next = elementChildren(props).find(
+      (c) => c.namespaceURI === W && order.indexOf(c.localName ?? '') > rank,
+    );
+    props.insertBefore(el, next ?? null);
+  }
+  if (val === null) el.removeAttributeNS(W, 'val');
+  else el.setAttributeNS(W, 'w:val', val);
+}
+
+const on = (el: XElement | undefined) =>
+  !!el && !/^(?:0|false|off)$/u.test(el.getAttributeNS(W, 'val') ?? '');
+
+/** Most letters Arabic or Hebrew. */
+const rightToLeft = (text: string) => {
+  const letters = text.match(/\p{L}/gu)?.length ?? 0;
+  return (
+    letters > 0 &&
+    (text.match(/[\p{Script=Arabic}\p{Script=Hebrew}]/gu)?.length ?? 0) >= 0.5 * letters
+  );
+};
+
+/**
+ * A run of Arabic or Hebrew now in a left-to-right language: not right to left any more, and
+ * shown with the bold, italic and size Word gave it as complex script.
+ */
+function turnLeftToRight(rPr: XElement) {
+  const kids = elementChildren(rPr);
+  const find = (local: string) => kids.find((c) => is(c, W, local));
+  if (find('rtl')) setProperty(rPr, RPR_ORDER, 'rtl', '0');
+  if (on(find('bCs')) && !find('b')) setProperty(rPr, RPR_ORDER, 'b', null);
+  if (on(find('iCs')) && !find('i')) setProperty(rPr, RPR_ORDER, 'i', null);
+  const szCs = find('szCs')?.getAttributeNS(W, 'val');
+  if (szCs) setProperty(rPr, RPR_ORDER, 'sz', szCs);
+}
+
 export interface RebuildOptions {
   targetLang: string;
   breakLongTokens: boolean;
@@ -422,6 +474,16 @@ export function rebuild(
 
   // Detach everything except paragraph properties.
   const pPr = elementChildren(p.para).find((c) => c.namespaceURI === ns && c.localName === 'pPr');
+  // Arabic or Hebrew translated into a left-to-right language reads left to right.
+  const turn =
+    p.dialect === 'w' &&
+    rightToLeft(p.plain) &&
+    !rightToLeft(decoded.map((r) => (r.type === 'text' ? r.text : '')).join(''));
+  if (turn && pPr) {
+    setProperty(pPr, PPR_ORDER, 'bidi', '0');
+    const mark = elementChildren(pPr).find((c) => is(c, W, 'rPr'));
+    if (mark) turnLeftToRight(mark);
+  }
   while (p.para.firstChild) p.para.removeChild(p.para.firstChild);
   if (pPr) p.para.appendChild(pPr);
   for (const h of p.head) p.para.appendChild(h);
@@ -453,6 +515,7 @@ export function rebuild(
     if (p.dialect === 'w') {
       for (const lang of elementChildren(c).filter((x) => is(x, W, 'lang')))
         lang.setAttributeNS(W, 'w:val', locale);
+      if (turn) turnLeftToRight(c);
     } else if (c.hasAttribute('lang')) {
       c.setAttribute('lang', locale);
     }

@@ -1,0 +1,92 @@
+{
+  "summary": {
+    "segments": 11,
+    "translated": 10,
+    "warnings": 0,
+    "untranslated": 0,
+    "skipped": 1,
+    "cached": 0,
+    "manual": 0,
+    "repairs": {}
+  },
+  "repairs": [],
+  "segments": [
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Hafta 2 Uygulama Föyü",
+      "target": "[Håftå 2 Üуğülåmå Föуü ~~~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "1. Kurulum",
+      "target": "[1. Kürülüm ~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Python sürümünü mutlaka kontrol edin: python3 --version (3.10 veya üstü).",
+      "target": "[Python şürümünü mütlåkå köntröl еdın: python3 --version (3.10 vеуå üştü). ~~~~~~~ ~~~~~~~ ~~~~~~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "BİLMEN GEREKEN",
+      "target": "[BİLMÉN ĞÉRÉKÉN ~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "# İki bayt dizisi arasındaki farklı bit sayısı",
+      "target": "[# İkı båуt dızışı åråşındåkı fårklı bıt şåуışı ~~~~~~~ ~~~~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Oturum",
+      "target": "[Ötürüm]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Zaman",
+      "target": "[Zåmån]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Birinci deneme",
+      "target": "[Bırınçı dеnеmе ~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "02.09., 14:03–14:12 UTC",
+      "target": "02.09., 14:03–14:12 UTC"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Kaynakça",
+      "target": "[Kåуnåkçå]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "reference",
+      "status": "skipped",
+      "source": "Yılmaz, A. (2022). Kriptografiye giriş. Ankara: Bilim Yayınları.",
+      "target": ""
+    }
+  ]
+}

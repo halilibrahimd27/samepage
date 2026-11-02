@@ -80,6 +80,11 @@ describe('security checklist (SECURITY.md §8)', () => {
     );
   });
 
+  it('reads a part that starts with a byte-order mark', () => {
+    const doc = parseXml(`${String.fromCharCode(0xfeff)}<?xml version="1.0"?><r>text</r>`);
+    expect(doc.documentElement?.textContent).toBe('text');
+  });
+
   it('never resolves DOCTYPE entities (XXE / billion laughs)', () => {
     const xml =
       '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd"><!ENTITY a "aaaaaaaaaa">]><r>&x;&a;</r>';

@@ -667,6 +667,7 @@ describe('helpers', () => {
     expect(keepAsWritten('Inc', acronyms)).toBe(true);
     expect(keepAsWritten('Pr.', acronyms)).toBe(true);
     expect(keepAsWritten('Rec.', acronyms)).toBe(true);
+    expect(keepAsWritten('02.09., 14:03–14:12 UTC', acronyms)).toBe(true);
     // A heading in capitals, and a label with words, are translated.
     expect(keepAsWritten('RESULTS', acronyms)).toBe(false);
     expect(keepAsWritten('WACC by country', acronyms)).toBe(false);

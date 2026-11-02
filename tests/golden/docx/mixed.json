@@ -1,0 +1,155 @@
+{
+  "summary": {
+    "segments": 20,
+    "translated": 18,
+    "warnings": 0,
+    "untranslated": 0,
+    "skipped": 2,
+    "cached": 0,
+    "manual": 0,
+    "repairs": {}
+  },
+  "repairs": [],
+  "segments": [
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Çok dilli kaynaklarda şiir ve toplum",
+      "target": "[Çök dıllı kåуnåklårdå şıır vе töрlüm ~~~~~~~ ~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Öz",
+      "target": "[Öz]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Bu çalışmada şiirin toplumsal işlevi, farklı dillerde yazılmış kaynaklar üzerinden incelenmiştir.",
+      "target": "[Bü çålışmådå şıırın töрlümşål ışlеvı, fårklı dıllеrdе уåzılmış kåуnåklår üzеrındеn ınçеlеnmıştır. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Abstract",
+      "target": "[Åbştråçt]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "This study examines the social function of poetry through sources that were written in different languages.",
+      "target": "This study examines the social function of poetry through sources that were written in different languages."
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "1. Giriş",
+      "target": "[1. Ğırış]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Şiir, toplumsal bellek için temel bir araç olarak görülmüştür.",
+      "target": "[Şıır, töрlümşål bеllеk ıçın tеmеl bır åråç ölåråk ğörülmüştür. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "لم يكن الشعر العربي مجرد لون من ألوان الأدب، بل كان مؤسسة ثقافية واجتماعية متكاملة.",
+      "target": "[لم يكن الشعر العربي مجرد لون من ألوان الأدب، بل كان مؤسسة ثقافية واجتماعية متكاملة. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Die Dichtung war nicht nur eine Form der Literatur, sondern eine kulturelle Institution der Gesellschaft.",
+      "target": "[Dıе Dıçhtünğ wår nıçht nür еınе Förm dеr Lıtеråtür, şöndеrn еınе kültürеllе İnştıtütıön dеr Ğеşеllşçhåft. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Toplantı",
+      "target": "[Töрlåntı]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Saat",
+      "target": "[Şååt]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "Açılış oturumu",
+      "target": "[Åçılış ötürümü ~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "table-cell",
+      "status": "translated",
+      "source": "30.08., 19:00 UTC",
+      "target": "30.08., 19:00 UTC"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Ek B. Kaynakça ve yerel kaynaklar",
+      "target": "[Ék B. Kåуnåkçå vе уеrеl kåуnåklår ~~~~~~~ ~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Yayınlar",
+      "target": "[Yåуınlår]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Erişim ve bibliyografik kontrol tarihi 22.09.2026 olup yıllar ilk yayımlanma tarihini gösterir ve aksi belirtilmedikçe bu şekilde kullanılmıştır.",
+      "target": "[Érışım vе bıblıуöğråfık köntröl tårıhı 22.09.2026 ölüр уıllår ılk уåуımlånmå tårıhını ğöştеrır vе åkşı bеlırtılmеdıkçе bü şеkıldе küllånılmıştır. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "reference",
+      "status": "skipped",
+      "source": "[F01] Yao, S. et al. (2023). ReAct: Synergizing Reasoning and Acting in Language Models. ICLR.",
+      "target": ""
+    },
+    {
+      "part": "word/document.xml",
+      "role": "reference",
+      "status": "skipped",
+      "source": "[F02] Demir, B. (2021). Şiirin toplumsal işlevi. Edebiyat Dergisi, 4(2), 10–25.",
+      "target": ""
+    },
+    {
+      "part": "word/document.xml",
+      "role": "heading",
+      "status": "translated",
+      "source": "Ek C. Anket soruları",
+      "target": "[Ék Ç. Ånkеt şörülårı ~~~~]"
+    },
+    {
+      "part": "word/document.xml",
+      "role": "body",
+      "status": "translated",
+      "source": "Katılımcılara şiir okuma alışkanlıkları ve tercih ettikleri diller hakkında sorular soruldu.",
+      "target": "[Kåtılımçılårå şıır ökümå ålışkånlıklårı vе tеrçıh еttıklеrı dıllеr håkkındå şörülår şörüldü. ~~~~~~~ ~~~~~~~ ~~~~~~~ ~~~~~]"
+    }
+  ]
+}

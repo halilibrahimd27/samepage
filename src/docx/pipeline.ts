@@ -1,4 +1,5 @@
-import { REFERENCES_HEADING } from '../core/references';
+import { REFERENCES_HEADING, referenceProse } from '../core/references';
+import { functionWords } from '../core/detectLanguage';
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
 import type { TermText } from '../core/glossary/detect';
@@ -118,6 +119,16 @@ function discoverParts(
   return out;
 }
 
+/** A heading's level: its outline level, else the number of its style ("Heading 2"); a title 0. */
+function headingLevel(para: XElement): number {
+  const pPr = para.getElementsByTagNameNS(NS.w, 'pPr')[0];
+  const outline = pPr?.getElementsByTagNameNS(NS.w, 'outlineLvl')[0]?.getAttributeNS(NS.w, 'val');
+  if (outline) return Number(outline) + 1;
+  const style = pPr?.getElementsByTagNameNS(NS.w, 'pStyle')[0]?.getAttributeNS(NS.w, 'val') ?? '';
+  if (/^(?:title|titel)$/i.test(style)) return 0;
+  return Number(/(\d)\s*$/u.exec(style)?.[1] ?? 1);
+}
+
 function wRole(para: XElement, part: string): Role {
   if (/header/.test(part)) return 'header';
   if (/footer/.test(part)) return 'footer';
@@ -216,17 +227,25 @@ export async function translateDocx(
       continue;
     }
     if (kind === 'w') {
-      let inReferences = false;
+      // Level of the heading over the reference list; its sub-headings stay in the list.
+      let referencesLevel: number | null = null;
       const paras = Array.from(doc.getElementsByTagNameNS(NS.w, 'p'));
       const code = codeFontIsCode(doc);
       for (const para of paras) {
         const role = wRole(para, path);
         const p = extractW(para, role, { code });
-        if (role === 'heading') inReferences = REFERENCES_HEADING.test(p.plain);
+        if (role === 'heading') {
+          const level = headingLevel(para);
+          if (REFERENCES_HEADING.test(p.plain)) referencesLevel = level;
+          else if (referencesLevel !== null && level <= referencesLevel) referencesLevel = null;
+        }
         // Only letters outside placeholders count (a cell holding just a URL is not translated).
         if (!hasLetters(plainText(p.encoded.source))) continue;
         const skipped =
-          inReferences && role !== 'heading' && !opts.translateReferences
+          referencesLevel !== null &&
+          role !== 'heading' &&
+          !opts.translateReferences &&
+          !referenceProse(p.plain, functionWords(p.plain, opts.pair.source))
             ? ('reference' as const)
             : undefined;
         units.push({
@@ -484,8 +503,9 @@ export async function translateDocx(
 }
 
 /**
- * Whether a code font marks code in this document: not when most of its text is set in one (a
- * typescript in Courier), where it is the document's own face.
+ * Whether a code font marks code in this document: not when nearly all its text is set in one (a
+ * typescript in Courier), where it is the document's own face. A lab sheet or a tutorial may be
+ * half code.
  */
 function codeFontIsCode(doc: XDocument): boolean {
   let mono = 0;
@@ -500,7 +520,7 @@ function codeFontIsCode(doc: XDocument): boolean {
     const rPr = run.getElementsByTagNameNS(NS.w, 'rPr')[0] ?? null;
     if (isMono(rPr)) mono += n;
   }
-  return all > 0 && mono < 0.5 * all;
+  return all > 0 && mono < 0.8 * all;
 }
 
 /** The text parts of a Word or PowerPoint package and their paragraphs (samples, terms, abstract). */

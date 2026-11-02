@@ -5,6 +5,7 @@ import { MemoryCache } from '../../src/core/cache/cache';
 import { translateDocx } from '../../src/docx/pipeline';
 import { NS, parseXml } from '../../src/docx/xml';
 import { createPseudoEngine } from '../../src/engines/pseudo';
+import type { TranslationEngine } from '../../src/engines/types';
 
 const CORPUS = 'tests/corpus/docx';
 const OUT = 'tests/golden/__out__';
@@ -121,5 +122,86 @@ describe('reference titles in brackets (P9.6)', () => {
     const entry = report.segments.find((s) => s.source.startsWith('Yılmaz'))!;
     expect(entry.role).toBe('reference');
     expect(entry.status).toBe('translated');
+  });
+});
+
+const documentText = async (bytes: Uint8Array) => {
+  const xml = await (await JSZip.loadAsync(bytes)).file('word/document.xml')!.async('string');
+  const paragraphs = [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]);
+  const text = (p: string) => [...p.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join('');
+  return { paragraphs, texts: paragraphs.map(text) };
+};
+const options = (engine: TranslationEngine) => ({
+  engine,
+  pair: { source: 'tr', target: 'en' },
+  glossary: [],
+  numberLocalization: false,
+  fidelityCheck: false,
+  translateComments: false,
+  translateReferences: false,
+  translateMetadata: false,
+  signal: new AbortController().signal,
+});
+
+describe('a lab sheet with code', () => {
+  it('keeps commands and listings as written, translates the words around them', async () => {
+    const input = new Uint8Array(readFileSync(`${CORPUS}/lab.docx`));
+    const { bytes } = await translateDocx(
+      input,
+      options(createPseudoEngine({ factor: 1, substitute: true })),
+    );
+    const { texts } = await documentText(bytes);
+    for (const code of [
+      'import hashlib',
+      'mesaj = "Blokzincir".encode("utf-8")',
+      'ozet = hashlib.sha256(mesaj).hexdigest()',
+      'print(ozet)',
+      '02.09., 14:03–14:12 UTC',
+    ])
+      expect(texts, code).toContain(code);
+    const command = texts.find((t) => t.includes('python3 --version'))!;
+    expect(command).not.toContain('Python sürümünü'); // the sentence around it is translated
+    // A comment in words and a label in a typewriter font are language.
+    expect(texts).not.toContain('# İki bayt dizisi arasındaki farklı bit sayısı');
+    expect(texts).not.toContain('BİLMEN GEREKEN');
+  });
+});
+
+describe('a paper with other languages in it', () => {
+  it('translates each paragraph from its own language, keeps the target language as written', async () => {
+    const input = new Uint8Array(readFileSync(`${CORPUS}/mixed.docx`));
+    const pseudo = createPseudoEngine({ factor: 1, substitute: true });
+    const sent: string[] = [];
+    const engine: TranslationEngine = {
+      ...pseudo,
+      async translate(batch, ctx, signal) {
+        for (const s of batch) sent.push(`${ctx.pair.source}: ${s.text}`);
+        const out = await pseudo.translate(batch, ctx, signal);
+        // Arabic comes back in Latin letters, as a translation into English would.
+        return out.map((r) => ({ ...r, text: r.text.replace(/\p{Script=Arabic}+/gu, 'arabic') }));
+      },
+    };
+    const { bytes, report } = await translateDocx(input, options(engine));
+    expect(sent.some((s) => s.startsWith('ar: لم يكن الشعر'))).toBe(true);
+    expect(sent.some((s) => s.startsWith('de: Die Dichtung'))).toBe(true);
+    expect(sent.some((s) => s.includes('This study examines'))).toBe(false);
+
+    const { paragraphs, texts } = await documentText(bytes);
+    expect(texts).toContain(
+      'This study examines the social function of poetry through sources that were written in different languages.',
+    );
+    // The Arabic paragraph, now in English, reads left to right.
+    const arabic = paragraphs[texts.findIndex((t) => t.includes('arabic'))]!;
+    expect(arabic).toContain('<w:bidi w:val="0"/>');
+    expect(arabic).toContain('<w:rtl w:val="0"/>');
+
+    // The appendix holding the reference list: its entries kept, its note and the next appendix
+    // translated.
+    const status = (start: string) => report.segments.find((s) => s.source.startsWith(start))!;
+    expect(status('[F01]').status).toBe('skipped');
+    expect(status('[F02]').status).toBe('skipped');
+    expect(status('Erişim ve bibliyografik').status).toBe('translated');
+    expect(status('Katılımcılara').status).toBe('translated');
+    expect(texts).toContain('30.08., 19:00 UTC');
   });
 });

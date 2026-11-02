@@ -3,6 +3,13 @@
  */
 
 /**
+ * A line opened by a keyword or a command, in lower case: "import hashlib", "pip install numpy",
+ * "cd proje", "return total" are code without any of its signs.
+ */
+const CODE_START =
+  /^(?:import|from|def|class|return|print|for|while|elif|else|try|except|finally|with|lambda|yield|async|await|var|let|const|function|public|private|protected|static|void|int|float|double|char|bool|struct|enum|using|namespace|package|select|insert|update|delete|create|drop|alter|cd|ls|mkdir|rm|cp|mv|cat|echo|pip3?|npm|npx|yarn|git|sudo|apt(?:-get)?|brew|python3?|node|java|javac|gcc|make|docker|kubectl|curl|wget|export|source|conda)\s+\S/u;
+
+/**
  * Text in a typewriter font that reads as language, not code: a slide's labels ("TEMEL",
  * "BİLMEN GEREKEN", "1. HAFTA") are set in JetBrains Mono like its code, and stayed untranslated.
  * Code has its signs ({ } = $ < > |), paths and names (a.b, snake_case, camelCase, --flags).
@@ -17,6 +24,7 @@ export const monoProse = (text: string): boolean => {
   const signs = t.replace(/[\p{L}\p{M}\p{N}\s.,:;!?'’"“”()\-–—&%·•/+*]/gu, '');
   // One lower-case word is a name ("requests", "colors" in a package table), not a label.
   if (words.length === 1 && /^\p{Ll}/u.test(t)) return false;
+  if (CODE_START.test(t)) return false;
   return words.length > 0 && signs.length <= 1;
 };
 
