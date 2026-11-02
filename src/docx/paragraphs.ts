@@ -354,19 +354,38 @@ export function extractW(
 }
 
 /** Extracts a DrawingML paragraph (charts, SmartArt, shapes). */
-export function extractA(para: XElement, role: Role): ExtractedParagraph {
+/**
+ * Extracts a DrawingML paragraph (a slide, a text box, a chart label). With `code`, runs in a code
+ * font travel as themselves, as in extractW.
+ */
+export function extractA(
+  para: XElement,
+  role: Role,
+  opts: { code?: boolean } = {},
+): ExtractedParagraph {
   const runs: InlineRun<RunStyle>[] = [];
   const atoms: AtomPayload[] = [];
   const tail: XNode[] = [];
+  const textOf = (r: XElement) => elementChildren(r).find((c) => is(c, A, 't'))?.textContent ?? '';
+  const rPrOf = (r: XElement) => elementChildren(r).find((c) => is(c, A, 'rPr')) ?? null;
+  const textRuns = elementChildren(para).filter((c) => is(c, A, 'r') && /\S/u.test(textOf(c)));
+  const allMono = textRuns.length > 0 && textRuns.every((r) => isMono(rPrOf(r)));
+  const whole = textRuns.map(textOf).join('');
+  const codeRuns = !!opts.code && !(allMono && (monoProse(whole) || commentInWords(whole)));
   for (const el of elementChildren(para)) {
     const name = el.localName ?? '';
     if (el.namespaceURI === A && name === 'pPr') continue;
     if (el.namespaceURI === A && name === 'endParaRPr') {
       tail.push(el);
     } else if (el.namespaceURI === A && name === 'r') {
-      const rPr = elementChildren(el).find((c) => is(c, A, 'rPr')) ?? null;
-      const t = elementChildren(el).find((c) => is(c, A, 't'));
-      runs.push({ type: 'text', text: t?.textContent ?? '', style: styleOf(rPr, []) });
+      const rPr = rPrOf(el);
+      const text = textOf(el);
+      if (codeRuns && isMono(rPr) && /\S/u.test(text)) {
+        atoms.push({ node: el, wrappers: [] });
+        runs.push({ type: 'atom', kind: 'C', text, ref: String(atoms.length - 1) });
+        continue;
+      }
+      runs.push({ type: 'text', text, style: styleOf(rPr, []) });
     } else {
       atoms.push({ node: el, wrappers: [] });
       runs.push({

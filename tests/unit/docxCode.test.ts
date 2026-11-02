@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { commentInWords, monoProse } from '../../src/core/segment/code';
 import { plainText } from '../../src/core/segment/codec';
-import { extractW } from '../../src/docx/paragraphs';
+import { extractA, extractW } from '../../src/docx/paragraphs';
 import { NS, parseXml } from '../../src/docx/xml';
 
 const W = NS.w;
@@ -53,5 +53,24 @@ describe('code in a Word document', () => {
     const p = extractW(paragraph(run('python3 --version', true)), 'body', { code: false });
     expect(p.encoded.placeholders.some((x) => x.kind === 'C')).toBe(false);
     expect(plainText(p.encoded.source)).toContain('--version');
+  });
+
+  it('does the same on a slide', () => {
+    const A = NS.a;
+    const run = (text: string, mono = false) =>
+      `<a:r><a:rPr lang="tr-TR">${mono ? '<a:latin typeface="JetBrains Mono"/>' : ''}</a:rPr><a:t>${text}</a:t></a:r>`;
+    const slide = (runs: string) =>
+      parseXml(`<a:txBody xmlns:a="${A}"><a:p>${runs}</a:p></a:txBody>`).getElementsByTagNameNS(
+        A,
+        'p',
+      )[0]!;
+    const inline = extractA(slide(run('Kurulum: ') + run('pip install numpy', true)), 'body', {
+      code: true,
+    });
+    expect(inline.encoded.placeholders.map((x) => x.kind)).toEqual(['C']);
+    const label = extractA(slide(run('BİLMEN GEREKEN', true)), 'body', { code: true });
+    expect(plainText(label.encoded.source)).toBe('BİLMEN GEREKEN');
+    const code = extractA(slide(run('import hashlib', true)), 'body', { code: true });
+    expect(/\p{L}/u.test(plainText(code.encoded.source))).toBe(false);
   });
 });

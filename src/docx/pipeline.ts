@@ -270,7 +270,8 @@ export async function translateDocx(
     } else if (kind === 'slide' || kind === 'notes') {
       for (const para of Array.from(doc.getElementsByTagNameNS(NS.a, 'p'))) {
         const role = slideRole(para);
-        const p = extractA(para, role);
+        // On a slide a code font marks code: a code slide is mostly code.
+        const p = extractA(para, role, { code: true });
         if (!hasLetters(plainText(p.encoded.source))) continue;
         const body = kind === 'slide' ? textBodyOf(para) : null;
         units.push({
