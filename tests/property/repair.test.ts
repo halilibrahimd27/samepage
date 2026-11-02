@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { BlockIR, PageIR, Role } from '../../src/core/ir/types';
 import type { DecodedRun } from '../../src/core/segment/codec';
 import { DEFAULT_POLICY } from '../../src/layout-repair/policy';
-import { inkBox, repairDocument, type RepairInput } from '../../src/layout-repair/repair';
+import {
+  inkBox,
+  repairDocument,
+  SAME_AS_SOURCE,
+  type RepairInput,
+} from '../../src/layout-repair/repair';
 import type { PdfStyle, PdfUnit } from '../../src/pdf/typeset/segments';
 import type { Measurer } from '../../src/pdf/typeset/types';
 
@@ -133,6 +138,17 @@ describe('layout repair properties', () => {
       }),
       { numRuns: 60 },
     );
+  });
+
+  it('keeps a label its translation leaves as it is, without a note', () => {
+    // A name in a narrow cell that does not fit in the substitute font ("SECURICOM").
+    const input = build([{ role: 'label', lines: 1, width: 60, factor: 30 }]);
+    const unit = input.units[0]!;
+    const text = (unit.runs[0] as { text: string }).text;
+    unit.unit.blocks[0]!.lines[0]!.spans[0]!.text = text;
+    const [r] = repairDocument(input).units;
+    expect(r!.fallback).toBe('keep-original');
+    expect(r!.steps.map((st) => st.note)).toContain(SAME_AS_SOURCE);
   });
 
   it('is idempotent: repairing its own output needs no new fallback', () => {

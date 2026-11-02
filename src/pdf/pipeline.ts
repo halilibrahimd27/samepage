@@ -22,7 +22,12 @@ import {
 } from './engine';
 import type { RawPage } from './extract/raw';
 import { DEFAULT_POLICY } from '../layout-repair/policy';
-import { repairDocument, type RepairInput, type RepairUnitInput } from '../layout-repair/repair';
+import {
+  repairDocument,
+  SAME_AS_SOURCE,
+  type RepairInput,
+  type RepairUnitInput,
+} from '../layout-repair/repair';
 import { scoreDocument, unitScore, type PageScore, type Status } from '../layout-repair/score';
 import type {
   FallbackKind,
@@ -904,7 +909,8 @@ export async function translatePdf(
       report.fallback = 'annotation';
       if (report.status === 'translated') report.status = 'warning';
     }
-    if (r.fallback === 'keep-original' || forcedOriginal.has(r.unitId))
+    const same = r.steps.some((st) => st.note === SAME_AS_SOURCE);
+    if ((r.fallback === 'keep-original' && !same) || forcedOriginal.has(r.unitId))
       report.status = 'kept-original';
   }
   const unitScores: { pageIndex: number; score: number }[] = [];

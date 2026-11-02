@@ -63,6 +63,8 @@ interface State {
 }
 
 const pageOf = (b: BlockIR) => Number(b.id.split('-')[0]!.slice(1));
+/** The repair note of a unit whose translation reads as its source: nothing is kept untranslated. */
+export const SAME_AS_SOURCE = 'translation same as the source; original kept as it is';
 const fits = (layouts: BlockLayout[]) => !layouts.some((l) => l.overflow);
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -523,6 +525,16 @@ export function repairDocument(input: RepairInput): RepairOutput {
     }
     const kind = policy.fallback[s.role] ?? policy.fallback.default;
     const translation = s.input.runs.map((r) => r.text).join('');
+    // A name or a code the translation leaves as it is ("SECURICOM"): the original stays, no note.
+    const flat = (t: string) => t.replace(/\s+/gu, ' ').trim();
+    const original = s.blocks
+      .flatMap((b) => b.lines.map((l) => l.spans.map((sp) => sp.text).join('')))
+      .join(' ');
+    if (flat(translation) === flat(original)) {
+      s.fallback = 'keep-original';
+      s.steps.push({ code: 'R6_FALLBACK', unitId: id, note: SAME_AS_SOURCE });
+      return;
+    }
     if (kind === 'annotation') {
       s.fallback = 'annotation';
       s.annotation = { rect: s.blocks[0]!.bbox, text: translation };

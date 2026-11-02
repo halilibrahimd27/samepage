@@ -519,11 +519,14 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
           ),
           ctx.pair.target,
         );
+      // Google sometimes writes zero-width spaces into a term ("Cyber \u200b\u200bSecurity").
+      const visible = (t: string, source: string) =>
+        /[\u200b\ufeff]/u.test(source) ? t : t.replace(/[\u200b\ufeff]/gu, '');
       return batch.map((s, i) => ({
         id: s.id,
-        text: unpin(
-          dropAddedFullStop(s.text, confineTags(s.text, fix(out[i]!, s.text))),
-          pinned[i]!,
+        text: visible(
+          unpin(dropAddedFullStop(s.text, confineTags(s.text, fix(out[i]!, s.text))), pinned[i]!),
+          s.text,
         ),
         ...(held.has(i) || pieced.has(i)
           ? {
