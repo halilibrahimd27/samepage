@@ -262,6 +262,15 @@ describe('validateTranslation', () => {
         targetLang: 'de',
       }).filter((i) => i.code === 'NUMBER_MISMATCH'),
     ).toEqual([]);
+    // A specialty code is matched whole: "19.00.01" made "19.00.2001" is another one.
+    expect(
+      validateTranslation({
+        source: 'Автореф. дисс. … канд. психол. наук: 19.00.01. – Краснодар, 2003.',
+        target: 'Psikoloji Yüksek Lisans Tezi Özeti: 19.00.2001. - Krasnodar, 2003.',
+        sourceLang: 'ru',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).toContain('NUMBER_MISMATCH');
     // Percentiles are no percentages.
     expect(
       validateTranslation({

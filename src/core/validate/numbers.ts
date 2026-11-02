@@ -39,8 +39,9 @@ export function candidateValues(token: string): number[] {
     values.add(Number(groups.join('')));
   }
   if (values.size === 0) {
-    // Not a well-formed number (e.g. "1.2.3" section numbers): compare digit groups as-is.
-    groups.forEach((g) => values.add(Number(g)));
+    // Not a well-formed number ("1.2.3" section numbers, a specialty code "19.00.01"): matched
+    // whole, its digit groups in order ("19.00.2001" is another one).
+    values.add(Number(groups.join('')));
   }
   return [...values];
 }
