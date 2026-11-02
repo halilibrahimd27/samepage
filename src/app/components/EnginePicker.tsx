@@ -30,8 +30,10 @@ export function EnginePicker(props: {
         return (
           <label
             key={engine.id}
-            className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${
-              props.value === engine.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'
+            className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${
+              props.value === engine.id
+                ? 'border-blue-600 bg-blue-50/70 ring-1 ring-blue-600'
+                : 'border-slate-200 bg-white hover:border-slate-300'
             } ${unavailable ? 'opacity-60' : ''}`}
           >
             <input

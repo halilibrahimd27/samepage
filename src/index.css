@@ -1,1 +1,66 @@
 @import 'tailwindcss';
+
+/*
+ * One quiet brand colour: the blue scale is a deep navy, so every action, link and accent in the
+ * interface speaks with the same voice. Type is the system's own UI face, set a little tighter.
+ */
+@theme {
+  --font-sans:
+    'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue',
+    Arial, sans-serif;
+  --color-blue-50: #f2f5fa;
+  --color-blue-100: #e1e8f3;
+  --color-blue-200: #c4d2e8;
+  --color-blue-300: #97b0d4;
+  --color-blue-400: #6688bb;
+  --color-blue-500: #406aa3;
+  --color-blue-600: #2c5288;
+  --color-blue-700: #213f6e;
+  --color-blue-800: #1b3358;
+  --color-blue-900: #152846;
+  --color-blue-950: #0d1a30;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-feature-settings: 'cv11', 'ss01';
+    accent-color: var(--color-blue-700);
+  }
+
+  /* Form controls: one height, one border, one focus ring. */
+  select,
+  input[type='text'],
+  input[type='number'],
+  input[type='password'],
+  input[type='url'],
+  input[type='search'],
+  textarea {
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-slate-300);
+    background-color: white;
+    transition:
+      border-color 120ms,
+      box-shadow 120ms;
+  }
+
+  select:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible,
+  a:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-blue-500) 35%, transparent);
+    border-color: var(--color-blue-500);
+  }
+
+  button:not(:disabled),
+  [role='button'] {
+    cursor: pointer;
+  }
+}

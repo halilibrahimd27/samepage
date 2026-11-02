@@ -60,7 +60,7 @@ export function EngineConfigPanel({
 
       {(config.engine === 'browser' || config.engine === 'chrome-builtin') && (
         <div
-          className="flex flex-col gap-3 rounded-lg border border-violet-200 bg-violet-50/40 p-3"
+          className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4"
           data-testid="polish"
         >
           <label className="flex items-start gap-2 text-sm">

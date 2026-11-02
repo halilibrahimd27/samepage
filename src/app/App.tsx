@@ -19,33 +19,24 @@ const REPO_URL = 'https://github.com/halilibrahimd27/samepage';
 function Logo() {
   return (
     <svg aria-hidden="true" viewBox="0 0 32 32" className="h-9 w-9 flex-none">
-      <rect
-        x="3"
-        y="2"
-        width="18"
-        height="24"
-        rx="3"
-        className="fill-blue-100 stroke-blue-700"
-        strokeWidth="1.5"
-      />
-      <rect
-        x="11"
-        y="6"
-        width="18"
-        height="24"
-        rx="3"
-        className="fill-white stroke-blue-700"
-        strokeWidth="1.5"
-      />
+      <rect x="1" y="1" width="30" height="30" rx="8" className="fill-blue-900" />
+      <rect x="7" y="7" width="12" height="16" rx="2" className="fill-blue-300/60" />
+      <rect x="12" y="10" width="13" height="16" rx="2" className="fill-white" />
       <path
-        d="M15 13h10M15 17h10M15 21h7"
-        className="stroke-blue-700"
-        strokeWidth="1.5"
+        d="M15 15h7M15 18h7M15 21h4.5"
+        className="stroke-blue-900"
+        strokeWidth="1.4"
         strokeLinecap="round"
       />
     </svg>
   );
 }
+
+const Check = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 flex-none text-emerald-300">
+    <path fill="currentColor" d="M8.1 13.6 4.5 10l1.1-1.1 2.5 2.5 6.3-6.3 1.1 1.1z" />
+  </svg>
+);
 
 export function App() {
   const [settings, updateSettings] = useSettings();
@@ -89,13 +80,16 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
       )}
     >
       <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-        <header translate="no" className="notranslate border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+        <header
+          translate="no"
+          className="notranslate sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80"
+        >
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3">
             <a href="#" className="flex items-center gap-3">
               <Logo />
-              <span>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">samepage</h1>
-                <span className="block text-xs font-medium uppercase tracking-wider text-blue-700">
+              <span className="leading-tight">
+                <h1 className="text-lg font-semibold tracking-tight text-slate-900">samepage</h1>
+                <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
                   {t('header.badge')}
                 </span>
               </span>
@@ -103,22 +97,33 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
             <nav className="flex items-center gap-1 text-sm">
               <a
                 href="#quality"
-                className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                aria-current={route === '#quality' ? 'page' : undefined}
+                className={`rounded-md px-3 py-2 font-medium ${
+                  route === '#quality'
+                    ? 'bg-blue-50 text-blue-800'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
               >
                 {t('header.quality')}
               </a>
               <a
                 href={REPO_URL}
                 rel="noopener noreferrer"
-                className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                className="rounded-md px-3 py-2 font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               >
                 GitHub
               </a>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(true)}
-                className="ml-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                className="ml-2 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 font-medium text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50"
               >
+                <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 text-slate-500">
+                  <path
+                    fill="currentColor"
+                    d="M11.5 1.5h-3l-.5 2.3a6.6 6.6 0 0 0-1.6.9L4.2 4l-1.5 2.6 1.7 1.6a6.7 6.7 0 0 0 0 1.8L2.7 11.6 4.2 14.2l2.2-.7c.5.4 1 .7 1.6.9l.5 2.3h3l.5-2.3c.6-.2 1.1-.5 1.6-.9l2.2.7 1.5-2.6-1.7-1.6a6.7 6.7 0 0 0 0-1.8l1.7-1.6L15.8 4l-2.2.7a6.6 6.6 0 0 0-1.6-.9zM10 7a3 3 0 1 1 0 6 3 3 0 0 1 0-6"
+                  />
+                </svg>
                 {t('header.settings')}
               </button>
             </nav>
@@ -126,28 +131,27 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
         </header>
 
         {route === '' || route === '#' ? (
-          <section translate="no" className="notranslate border-b border-slate-200 bg-white">
-            <div className="mx-auto max-w-3xl px-6 pb-8 pt-6">
-              <p className="text-2xl font-semibold leading-snug tracking-tight text-slate-900 sm:text-3xl">
+          <section
+            translate="no"
+            className="notranslate bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 text-white"
+          >
+            <div className="mx-auto max-w-6xl px-6 py-12 sm:py-16">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">
+                {t('header.badge')}
+              </p>
+              <p className="mt-3 max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-[2.6rem]">
                 {t('hero.title')}
               </p>
-              <p className="mt-2 text-slate-600">{t('hero.subtitle')}</p>
-              <ul className="mt-5 grid gap-2 text-sm text-slate-700 sm:grid-cols-3">
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-blue-100/90">
+                {t('hero.subtitle')}
+              </p>
+              <ul className="mt-8 grid max-w-4xl gap-3 text-sm sm:grid-cols-3">
                 {(['trust.meaning', 'trust.numbers', 'trust.private'] as const).map((key) => (
                   <li
                     key={key}
-                    className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+                    className="flex items-start gap-2.5 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-blue-50"
                   >
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 20 20"
-                      className="mt-0.5 h-4 w-4 flex-none text-emerald-600"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M8.1 13.6 4.5 10l1.1-1.1 2.5 2.5 6.3-6.3 1.1 1.1z"
-                      />
-                    </svg>
+                    <Check />
                     {t(key)}
                   </li>
                 ))}
@@ -175,13 +179,33 @@ function Shell(props: { settings: Settings; updateSettings: (patch: Partial<Sett
         </main>
 
         <footer translate="no" className="notranslate border-t border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-6 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-xl">{t('footer.privacy')}</p>
-            <div className="flex flex-wrap items-center gap-4">
-              <a href="#quality" className="underline" data-testid="quality-link">
+          <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex max-w-xl items-start gap-3">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 20 20"
+                className="mt-0.5 h-4 w-4 flex-none text-slate-400"
+              >
+                <path
+                  fill="currentColor"
+                  d="M10 1.7 3.5 4.2v4.6c0 4 2.8 7.7 6.5 9.5 3.7-1.8 6.5-5.5 6.5-9.5V4.2zm-1.1 11.5L6 10.3l1.1-1.1 1.8 1.8 4-4 1.1 1.1z"
+                />
+              </svg>
+              <p>{t('footer.privacy')}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <a
+                href="#quality"
+                className="font-medium text-slate-700 hover:text-blue-700"
+                data-testid="quality-link"
+              >
                 {t('footer.quality')}
               </a>
-              <a href={REPO_URL} className="underline" rel="noopener noreferrer">
+              <a
+                href={REPO_URL}
+                className="font-medium text-slate-700 hover:text-blue-700"
+                rel="noopener noreferrer"
+              >
                 {t('footer.source')}
               </a>
               <WorkerStatus />

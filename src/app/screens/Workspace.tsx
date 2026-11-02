@@ -211,7 +211,7 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
         <DropZone onFile={(f) => void openFile(f)} />
       ) : (
         <section
-          className="flex gap-4 rounded-xl border border-slate-200 bg-white p-4"
+          className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
           aria-live="polite"
         >
           {doc.status === 'ready' && doc.thumb && (

@@ -826,7 +826,8 @@ export function repairDocument(input: RepairInput): RepairOutput {
   // Consistency: members of a group should not differ by more than maxScaleSpread.
   const byGroup = new Map<string, State[]>();
   for (const s of states) {
-    if (s.fallback) continue;
+    // A column part set in its flow has its own scale by design.
+    if (s.fallback || flowed.has(s)) continue;
     const key = groupKey(s);
     byGroup.set(key, [...(byGroup.get(key) ?? []), s]);
   }
@@ -835,7 +836,8 @@ export function repairDocument(input: RepairInput): RepairOutput {
     if (Math.max(...scales) - Math.min(...scales) > policy.consistency.maxScaleSpread + 1e-9) {
       issues.push({
         code: 'SCALE_INCONSISTENT',
-        severity: 'warning',
+        // Paragraphs that fit keep their size while a tight one shrinks: noted, not a fault.
+        severity: 'info',
         pageIndex: members[0]!.pageIndex,
         message: `scales ${Math.min(...scales)}–${Math.max(...scales)} in one group`,
       });

@@ -199,7 +199,7 @@ export function PdfTranslator(props: {
             type="button"
             onClick={() => void run(true)}
             disabled={running !== null}
-            className="w-full rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white sm:w-auto hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white shadow-sm shadow-blue-900/20 transition-colors sm:w-auto hover:bg-blue-800 disabled:opacity-50"
           >
             {t('config.translate')}
           </button>
