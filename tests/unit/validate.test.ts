@@ -392,6 +392,21 @@ describe('validateTranslation', () => {
     expect(
       codes('Наказ від 09.03.2016 р. діє.', 'The order of 9 March 2018 is in force.', 'uk'),
     ).toEqual(['missing 2016; unexpected 2018']);
+    // An English term the source repeats in brackets, left out: no paragraph to review.
+    const gloss = validateTranslation({
+      source: 'Cada acción deja un registro (log) auditable del sistema (Art. 9).',
+      target: 'Her eylem, sistemin denetlenebilir bir kaydını bırakır (Madde 9).',
+      sourceLang: 'es',
+      targetLang: 'tr',
+    }).filter((i) => i.code === 'PUNCTUATION_CHANGED');
+    expect(gloss.map((i) => i.severity)).toEqual(['info']);
+    const own = validateTranslation({
+      source: 'Cada acción deja un registro (por ejemplo, un archivo) auditable.',
+      target: 'Her eylem denetlenebilir bir kayıt bırakır.',
+      sourceLang: 'es',
+      targetLang: 'tr',
+    }).filter((i) => i.code === 'PUNCTUATION_CHANGED');
+    expect(own.map((i) => i.severity)).toEqual(['warning']);
     // A count of one written as a word; the count left out is still missing.
     const one = (target: string) =>
       validateTranslation({

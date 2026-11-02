@@ -1,4 +1,5 @@
 import { functionWords, languageScore } from '../detectLanguage';
+import { droppedGlosses } from './glosses';
 import { plainText, tokenize } from '../segment/codec';
 import { compareNumbers } from './numbers';
 
@@ -342,10 +343,26 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
   if (BROKEN_AT_NUMBER.test(tgtPlain) && !BROKEN_AT_NUMBER.test(srcPlain))
     err('PUNCTUATION_CHANGED', 'a sentence was broken at a number');
   else if (bracketsLost || glued.length) {
-    warn(
-      'PUNCTUATION_CHANGED',
-      bracketsLost ? 'brackets differ from the source' : 'sentences or words run together',
-    );
+    // Only English terms the source gives again in brackets left out ("registro (log)"): Google
+    // drops them as said twice, the meaning is all there.
+    const lostRound = count(suffixes(srcPlain), '(') - count(suffixes(tgtPlain), '(');
+    const termsOnly =
+      !glued.length &&
+      lostRound > 0 &&
+      count(tgtPlain, '(') === count(tgtPlain, ')') &&
+      count(srcPlain, '[') === count(tgtPlain, '[') &&
+      droppedGlosses(srcPlain, tgtPlain, sourceLang).length === lostRound;
+    if (termsOnly)
+      issues.push({
+        code: 'PUNCTUATION_CHANGED',
+        severity: 'info',
+        detail: 'an English term the source repeats in brackets was left out',
+      });
+    else
+      warn(
+        'PUNCTUATION_CHANGED',
+        bracketsLost ? 'brackets differ from the source' : 'sentences or words run together',
+      );
   }
   if (!sameMultiset(citations(srcPlain), citations(tgtPlain))) {
     const left = [...citations(tgtPlain)];

@@ -76,7 +76,7 @@ describe('placeholders that travel as text, so the sentence stays whole', () => 
     expect(out!.text).toBe('PROCESS ⟦F1⟧');
   });
 
-  it('keeps a term in brackets that Google dropped as said twice', async () => {
+  it('keeps a term in brackets that Google dropped as said twice, where it ends the text', async () => {
     const sent: string[] = [];
     const engine = createBrowserPageEngine({
       availability: () => Promise.resolve('available'),
@@ -85,28 +85,34 @@ describe('placeholders that travel as text, so the sentence stays whole', () => 
         return Promise.resolve(
           texts.map((t) =>
             t
-              .replace(' (Tool Calling)', '')
+              .replace(/ \((?:Tool Calling|log)\)/gu, '')
               .replace('Arquitectura de invocación de herramientas', 'Araç çağırma mimarisi')
-              .replace('(cifras provisionales)', '(geçici rakamlar)')
-              .replace('por ejemplo', 'örneğin'),
+              .replace(
+                'Cada acción deja un registro auditable',
+                'Her eylem denetlenebilir bir kayıt bırakır',
+              )
+              .replace(
+                'Cada acción deja un registro (log) auditable',
+                'Her eylem denetlenebilir bir kayıt bırakır',
+              ),
           ),
         );
       },
     });
-    const text =
-      'Arquitectura de invocación de herramientas (Tool Calling) y sus límites (cifras provisionales; por ejemplo, Díez, 2023).';
-    const [out] = await engine.translate(
-      [{ id: 's1', text: text.replace('; por', ') (por'), role: 'body' }],
-      { pair: { source: 'es', target: 'tr' }, glossary: [], numberLocalization: false },
-      signal,
-    );
-    expect(sent).toHaveLength(2);
-    expect(sent[1]).toContain('⟦Z1⟧');
-    // Its own words are translated, the term it lost alone is kept.
-    expect(sent[1]).toContain('(cifras provisionales)');
-    expect(out!.text).toBe(
-      'Araç çağırma mimarisi (Tool Calling) y sus límites (geçici rakamlar) (örneğin, Díez, 2023).',
-    );
+    const run = (text: string) =>
+      engine.translate(
+        [{ id: 's1', text, role: 'body' }],
+        { pair: { source: 'es', target: 'tr' }, glossary: [], numberLocalization: false },
+        signal,
+      );
+    const [heading] = await run('Arquitectura de invocación de herramientas (Tool Calling)');
+    expect(sent[1]).toBe('Arquitectura de invocación de herramientas ⟦Z1⟧');
+    expect(heading!.text).toBe('Araç çağırma mimarisi (Tool Calling)');
+    // Inside a sentence Google would translate the words between spans apart: no retry.
+    sent.length = 0;
+    const [body] = await run('Cada acción deja un registro (log) auditable.');
+    expect(sent).toHaveLength(1);
+    expect(body!.text).toBe('Her eylem denetlenebilir bir kayıt bırakır.');
   });
 
   it('reads LaTeX references and citations as a reader sees them', async () => {

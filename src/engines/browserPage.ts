@@ -1,5 +1,6 @@
 import { checkByBackTranslation, type ChromeTranslatorBridge } from './chromeBuiltin';
 import { functionWords } from '../core/detectLanguage';
+import { droppedGlosses } from '../core/validate/glosses';
 import { restoreInline, type InnerTag } from './plainText';
 import type { SegmentRequest, SegmentResult, TranslationEngine } from './types';
 
@@ -336,42 +337,17 @@ export function sentenceCase(text: string, lang: string): string | null {
 export const inCapitals = (text: string, lang: string) =>
   outsideMarks(text, (t) => t.toLocaleUpperCase(lang));
 
-/** A bracket of words in Latin letters, no figures: "(tool calling)", "(Standard of Care)". */
-const LATIN_GLOSS = /\(\p{Script=Latin}[\p{Script=Latin} '’,-]{0,60}\p{Script=Latin}\)/gu;
-
-/** How English a term reads: its function words, Title Case, English endings, an acronym. */
-const englishness = (term: string) =>
-  2 * functionWords(term, 'en') +
-  (/^(?:\p{Lu}\p{Ll}+[ -]?)+$/u.test(term) ? 1 : 0) +
-  (/(?:ing|ness|ship|ity|ment|tion)\b/u.test(term) ? 1 : 0) +
-  (/^\p{Lu}{2,6}$/u.test(term) ? 1 : 0);
-
 /**
- * Terms in brackets Google dropped from a translation: a Spanish or Czech paper names the
- * English term after its own ("Arquitectura de Invocación de Herramientas (Tool Calling)") and
- * Google leaves it out as said twice. As many as the translation lost, the most English first;
- * brackets with the source language's function words or letters ("(CDSS, en adelante)") are its
- * own text, translated.
+ * Terms in brackets Google dropped that can travel as no-translate spans: those that end the text
+ * (a heading "… Herramientas (Tool Calling)"). Inside a sentence Google translates the words
+ * between spans apart, so a term there stays left out (the validator reports it).
  */
-export function droppedGlosses(source: string, target: string, lang: string): string[] {
-  if (lang === 'en' || ['bg', 'uk', 'ru', 'el'].includes(lang)) return [];
-  const count = (t: string) => untagged(t).match(/\(/gu)?.length ?? 0;
-  const lost = count(source) - count(target);
-  if (lost <= 0) return [];
-  return [...untagged(source).matchAll(LATIN_GLOSS)]
-    .map((m) => m[0])
-    .filter(
-      (g) =>
-        /^[\x20-\x7e’]+$/u.test(g) &&
-        functionWords(g.slice(1, -1), lang) === 0 &&
-        g.split(/\s+/u).length <= 6 &&
-        !untagged(target).includes(g),
-    )
-    .map((g, order) => ({ g, order, score: englishness(g.slice(1, -1)) }))
-    .sort((a, b) => b.score - a.score || a.order - b.order)
-    .slice(0, lost)
-    .sort((a, b) => a.order - b.order)
-    .map((x) => x.g);
+export function glossesToKeep(source: string, target: string, lang: string): string[] {
+  if (['bg', 'uk', 'ru', 'el'].includes(lang)) return [];
+  const text = untagged(source);
+  return droppedGlosses(source, target, lang).filter((g) =>
+    /^[\s.,;:!?)\]]*$/u.test(text.slice(text.indexOf(g) + g.length)),
+  );
 }
 
 /** The given glosses as no-translate spans, as shieldGlosses sets them. */
@@ -553,8 +529,8 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused, 30: superscripts on their character, 31: dropped bracketed terms kept, 32: headings in capitals sent in sentence case).
-    model: 'browser-page-32',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused, 30: superscripts on their character, 31: dropped bracketed terms kept, 32: headings in capitals sent in sentence case, 33: only terms ending the text kept as spans).
+    model: 'browser-page-33',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -625,7 +601,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       const dropped = out.map((t, i) =>
         t === null || partly.includes(i) || again.includes(i)
           ? []
-          : droppedGlosses(prepared[i]!.text, t, ctx.pair.source),
+          : glossesToKeep(prepared[i]!.text, t, ctx.pair.source),
       );
       const glossed = dropped.flatMap((g, i) => (g.length ? [i] : []));
       if (glossed.length) {
