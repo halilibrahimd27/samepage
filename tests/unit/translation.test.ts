@@ -604,6 +604,8 @@ describe('helpers', () => {
     expect(academicHeading('<t1>ABSTRACT:</t1>', 'en', 'de')).toBe('<t1>ZUSAMMENFASSUNG:</t1>');
     expect(academicHeading('Abstract algebra', 'en', 'tr')).toBeNull();
     expect(academicHeading('A B S T R A C T', 'en', 'tr')).toBe('ÖZET');
+    // An Italian paper heading its abstract in English.
+    expect(academicHeading('Abstract', 'it', 'tr')).toBe('Özet');
     expect(academicHeading('A R T I C L E  I N F O', 'en', 'tr')).toBe('MAKALE BİLGİSİ');
     // Metrics only in documents that name both precision and recall.
     expect(academicHeading('Recall (%)', 'en', 'tr', true)).toBe('Duyarlılık (%)');

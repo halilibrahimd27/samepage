@@ -392,9 +392,10 @@ export function academicTerm(
   const key = (w: string, lang: string) => w.replace(/\s+/gu, '').toLocaleLowerCase(lang);
   const terms = [...TERMS, ...(metrics ? METRIC_TERMS : []), ...(heading ? SECTION_TERMS : [])];
   for (const t of terms) {
-    const from = t[source];
     const to = t[target];
-    if (!from || !to || key(word, source) !== key(from, source)) continue;
+    // Papers in other languages often head their sections in English ("Abstract" in Italian).
+    const from = [t[source], t.en].filter((f): f is string => !!f);
+    if (!to || !from.some((f) => key(word, source) === key(f, source))) continue;
     return word === word.toLocaleUpperCase(source) && /\p{L}{2}/u.test(word.replace(/\s+/gu, ''))
       ? to.toLocaleUpperCase(target)
       : to;

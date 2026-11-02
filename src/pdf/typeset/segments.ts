@@ -111,6 +111,10 @@ export function joinHyphen(text: string, next: string, evidence?: HyphenEvidence
   return /^\s/u.test(next) ? `${text} ` : text;
 }
 
+/** A range of numbers broken at its dash ("2020-" | "21", "pp. 123–" | "130"): no space. */
+export const numberRange = (text: string, next: string) =>
+  /\d[-–]$/u.test(text) && /^\d/u.test(next);
+
 /** A unit symbol at the end of the text ("кг/м", "10 cm", "Вт/(м"). */
 const UNIT_END = /(?:^|[\s/·⋅(×*])(?:[kcmdμn]?m|[кмсдн]?м|s|с|mol|моль|L|л)$/u;
 const SUPERSCRIPT: Record<string, string> = {
@@ -181,7 +185,13 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[], evidence?: Hyphe
       // digit belongs to the word ("Von-" + "Neumann", "COVID-" + "19").
       if (isLastSpan && nextLine && /\p{L}-$/u.test(text))
         text = joinHyphen(text, nextLine.spans[0]?.text ?? '', evidence);
-      else if (isLastSpan && li < block.lines.length - 1 && !text.endsWith(' ')) text += ' ';
+      else if (
+        isLastSpan &&
+        nextLine &&
+        !text.endsWith(' ') &&
+        !numberRange(text, nextLine.spans[0]?.text ?? '')
+      )
+        text += ' ';
       const before = runs[runs.length - 1];
       if (
         span.font.isMath &&
@@ -337,7 +347,7 @@ export function buildPdfUnits(pages: PageIR[]): PdfUnit[] {
         if (next && last?.type === 'text' && !last.text.endsWith(' ')) {
           // A chain continues in the next box: hyphenated words are joined, otherwise a space.
           if (/\p{L}-$/u.test(last.text)) last.text = joinHyphen(last.text, next.text, evidence);
-          else last.text += ' ';
+          else if (!numberRange(last.text, next.text)) last.text += ' ';
         } else if (next && last && last.type !== 'text') {
           // After a formula or a mark at the end of the box ("… vn" | "= rkeinθ …").
           runs.push({ type: 'text', text: ' ', style: styleOf(next) });

@@ -262,6 +262,33 @@ describe('validateTranslation', () => {
         targetLang: 'de',
       }).filter((i) => i.code === 'NUMBER_MISMATCH'),
     ).toEqual([]);
+    // Percentiles are no percentages.
+    expect(
+      validateTranslation({
+        source: 'Медиана и размах в виде 25 и 75 процентилей (С25 и С75) приведены в таблице.',
+        target: 'Medyan ve aralık, tabloda 25. ve 75. yüzdelikler (C25 ve C75) olarak verilmiştir.',
+        sourceLang: 'ru',
+        targetLang: 'tr',
+      }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+    ).toEqual([]);
+    // A label said in one word.
+    expect(
+      validateTranslation({
+        source: 'Acidente vascular cerebral',
+        target: 'İnme',
+        sourceLang: 'pt',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('LENGTH_RATIO');
+    // An academic year broken at its dash ("2015- 16") and written in full.
+    expect(
+      validateTranslation({
+        source: 'a.a. 2014-15 e 2015- 16',
+        target: '2014-2015 ve 2015-2016 akademik yılları',
+        sourceLang: 'it',
+        targetLang: 'tr',
+      }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+    ).toEqual([]);
     // "c.f. Theorem 3.1" ends no sentence: one sentence in, one out.
     expect(
       validateTranslation({

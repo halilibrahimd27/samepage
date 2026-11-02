@@ -250,5 +250,10 @@ describe('PDF translation units', () => {
       ]),
     ]);
     expect(unit!.encoded.source).toBe('Bu yöntem gelişmiş bir Von-Neumann analizidir.');
+    // A range of years broken at its dash.
+    const [range] = buildPdfUnits([
+      page([block('p0-b1', [[span('nell’a.a. 2020-', 50)], [span('21 sono stati', 50)]])]),
+    ]);
+    expect(range!.encoded.source).toBe('nell’a.a. 2020-21 sono stati');
   });
 });

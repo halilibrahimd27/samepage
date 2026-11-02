@@ -56,8 +56,9 @@ export function extractNumbers(text: string): string[] {
     .replace(/(\d)\s+([.,])(\d)/g, '$1$2$3')
     // A raised or lowered digit on a letter is a digit ("χ2" written "χ²", "CO₂").
     .replace(/(?<=\p{L})[⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]+/gu, (d) => ` ${[...d].map(scriptDigit).join('')}`)
-    // A year range written short ("2013/14", "2013–14") is the full one.
-    .replace(/\b(\d{2})(\d{2})([/–-])(\d{2})\b(?![/–-]?\d)/gu, '$1$2$3$1$4');
+    // A year range written short ("2013/14", "2013–14", "2020- 21" across a line end) is the
+    // full one.
+    .replace(/\b(\d{2})(\d{2})([/–-])\s?(\d{2})\b(?![/–-]?\d)/gu, '$1$2$3$1$4');
   return [...joined.matchAll(NUMBER_RE)].map((m) => m[0].trim());
 }
 

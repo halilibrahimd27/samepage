@@ -794,7 +794,12 @@ export function blockText(
       // word's own hyphen stays ("Von-Neumann").
       if (/\u00AD$/u.test(out)) out = out.slice(0, -1);
       else if (/[\p{L}]-$/u.test(out) && /^\p{Ll}/u.test(text)) out = hyphen(out, text);
-      else if (!out.endsWith(' ') && !(/[\p{L}]-$/u.test(out) && /^[\p{Lu}\d]/u.test(text)))
+      else if (
+        !out.endsWith(' ') &&
+        !(/[\p{L}]-$/u.test(out) && /^[\p{Lu}\d]/u.test(text)) &&
+        // A range of numbers broken at its dash ("2020-" | "21").
+        !(/\d[-–]$/u.test(out) && /^\d/u.test(text))
+      )
         out += ' ';
     }
     out += text;

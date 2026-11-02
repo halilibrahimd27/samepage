@@ -205,8 +205,8 @@ const CITATION_RE = /\[\s*\d+(?:\s*[,–-]\s*\d+)*\s*\]/g;
 const GLUED = [/[\p{Ll}\d)][.!?;:]\p{Lu}\p{Ll}/u, /\d\p{Lu}\p{Ll}{3,}/u];
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
 // Percentage points ("15 Prozentpunkte", "yüzde puan") are no percentage: a translation may
-// write them as points ("15 puan").
-const PERCENT_WORD = String.raw`(?:yüzde|percent|per cent|prozent|pour cent|por ciento|por cento|per cento|procent\p{L}*|процент\p{L}*|відсот\p{L}*|τοις εκατό)(?!\s?(?:punkt|age\s?point|puan|ní bod|owy\s?punkt|ных\s?пункт))`;
+// write them as points ("15 puan"). Nor are percentiles ("25 и 75 процентилей", "yüzdelik").
+const PERCENT_WORD = String.raw`(?:yüzde(?!lik)|percent(?!il)|per cent|prozent|pour cent|por ciento|por cento|per cento|procent\p{L}*|процент(?!ил)\p{L}*|відсот\p{L}*|τοις εκατό)(?!\s?(?:punkt|age\s?point|puan|ní bod|owy\s?punkt|ных\s?пункт))`;
 /** A percentage, sign or word on either side: "81%", "%81", "81 %", "yüzde 81", "81 Prozent". */
 const PERCENT_RE = new RegExp(
   String.raw`[%‰]\s?${NUMBER}|${NUMBER}\s?[%‰]|${PERCENT_WORD}\s?${NUMBER}|${NUMBER}\s?${PERCENT_WORD}`,
@@ -376,9 +376,12 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     );
 
   if (srcPlain.length >= 20) {
+    // A label may say in one word what the source says in three ("Acidente vascular cerebral" →
+    // "İnme"), or spell out its abbreviations: short texts get wide bounds.
+    const [low, high] = srcPlain.length < 60 ? [0.12, 4] : [0.3, 2.5];
     const ratio = tgtPlain.length / srcPlain.length;
-    if (ratio < 0.3 || ratio > 2.5)
-      err('LENGTH_RATIO', `length ratio ${ratio.toFixed(2)} outside [0.3, 2.5]`);
+    if (ratio < low || ratio > high)
+      err('LENGTH_RATIO', `length ratio ${ratio.toFixed(2)} outside [${low}, ${high}]`);
   }
 
   if (input.checkLanguage !== false && sourceLang !== targetLang && srcPlain.length >= 20) {
