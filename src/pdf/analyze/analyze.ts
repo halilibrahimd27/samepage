@@ -92,6 +92,87 @@ export const monoProse = (text: string): boolean => {
   if (words.length === 1 && /^\p{Ll}/u.test(t)) return false;
   return words.length > 0 && signs.length <= 1;
 };
+/**
+ * The same text drawn twice over itself, wrapped differently (a slide exported with each bullet
+ * twice): one copy is translated, the other only erased, or the two translations overlap.
+ */
+function dropTwins(blocks: BlockIR[]): BlockIR[] {
+  const words = (b: BlockIR) =>
+    blockText(b)
+      .toLocaleLowerCase()
+      .match(/\p{L}{2,}/gu) ?? [];
+  const area = (r: Rect) => Math.max(0, r.x1 - r.x0) * Math.max(0, r.y1 - r.y0);
+  const shared = (a: string[], b: string[]) => {
+    const left = [...b];
+    let n = 0;
+    for (const w of a) {
+      const i = left.indexOf(w);
+      if (i >= 0) {
+        n++;
+        left.splice(i, 1);
+      }
+    }
+    return n / Math.max(a.length, b.length);
+  };
+  const dropped = new Set<BlockIR>();
+  for (const a of blocks) {
+    if (dropped.has(a)) continue;
+    const wa = words(a);
+    if (wa.length < 3) continue;
+    for (const b of blocks) {
+      if (b === a || dropped.has(b)) continue;
+      const inter = {
+        x0: Math.max(a.bbox.x0, b.bbox.x0),
+        y0: Math.max(a.bbox.y0, b.bbox.y0),
+        x1: Math.min(a.bbox.x1, b.bbox.x1),
+        y1: Math.min(a.bbox.y1, b.bbox.y1),
+      };
+      // Copies a line apart overlap less; the same words make them twins all the same.
+      const overlap = area(inter) / Math.min(area(a.bbox), area(b.bbox));
+      const same = shared(wa, words(b));
+      // A copy a line away is told from a value repeated in the next table row by where it
+      // lands: on top of other text.
+      const lineHeight = Math.min(
+        a.lines[0]!.bbox.y1 - a.lines[0]!.bbox.y0,
+        b.lines[0]!.bbox.y1 - b.lines[0]!.bbox.y0,
+      );
+      const apart = Math.max(a.bbox.y0, b.bbox.y0) - Math.min(a.bbox.y1, b.bbox.y1);
+      const collides = (x: BlockIR) =>
+        blocks.some((o) => {
+          if (o === a || o === b || dropped.has(o)) return false;
+          const i = {
+            x0: Math.max(o.bbox.x0, x.bbox.x0),
+            y0: Math.max(o.bbox.y0, x.bbox.y0),
+            x1: Math.min(o.bbox.x1, x.bbox.x1),
+            y1: Math.min(o.bbox.y1, x.bbox.y1),
+          };
+          return area(i) > 0.15 * area(x.bbox);
+        });
+      const near =
+        same >= 0.9 &&
+        // Over each other, or a line away and over other text.
+        (apart < -1 || apart <= 1.5 * lineHeight) &&
+        Math.min(a.bbox.x1, b.bbox.x1) - Math.max(a.bbox.x0, b.bbox.x0) >=
+          0.5 * Math.min(a.bbox.x1 - a.bbox.x0, b.bbox.x1 - b.bbox.x0) &&
+        (apart < -1 || collides(a) || collides(b));
+      if (!near && !((overlap >= 0.5 && same >= 0.8) || (overlap >= 0.25 && same >= 0.9))) continue;
+      // The copy that runs into other text goes, else the one wrapped into fewer lines.
+      const [keep, twin] =
+        near && collides(a) !== collides(b)
+          ? collides(a)
+            ? [b, a]
+            : [a, b]
+          : b.lines.length > a.lines.length
+            ? [b, a]
+            : [a, b];
+      keep.extraRedact = [...(keep.extraRedact ?? []), ...twin.lines.map((l) => l.bbox)];
+      dropped.add(twin);
+      if (twin === a) break;
+    }
+  }
+  return blocks.filter((b) => !dropped.has(b));
+}
+
 /** A comment of a code listing, after its sign ("# ", "// ", "-- "). */
 const COMMENT = /^\s*(?:#|\/\/|--|%)\s*(.*)$/u;
 
@@ -1514,7 +1595,7 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
       ),
     ),
   );
-  for (const p of pages) p.blocks = absorbDropCaps(p.blocks, stats.bodySize, words);
+  for (const p of pages) p.blocks = dropTwins(absorbDropCaps(p.blocks, stats.bodySize, words));
   classify(pages, stats);
   for (const p of pages) {
     p.blocks = splitCodeComments(p.blocks);

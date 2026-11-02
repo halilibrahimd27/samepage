@@ -180,4 +180,48 @@ describe('text in a typewriter font', () => {
     expect(of('gecmisin').translatable).toBe(true);
     expect(of('v4.1.7').translatable).toBe(false);
   });
+
+  it('translates a paragraph drawn twice over itself once, and erases the other copy', () => {
+    const line = (y: number, x0: number, text: string): RawLine => ({
+      bbox: { x0, y0: y, x1: x0 + 6 * text.length, y1: y + 12 },
+      dir: [1, 0],
+      wmode: 0,
+      chars: [...text].map((c, i) => ({
+        c,
+        x: x0 + 6 * i,
+        y: y + 10,
+        bbox: { x0: x0 + 6 * i, y0: y, x1: x0 + 6 * (i + 1), y1: y + 12 },
+        font: 'Poppins-Regular',
+        size: 11,
+        color: [1, 1, 1] as [number, number, number],
+      })),
+    });
+    // The same bullet set twice, wrapped differently, the copies a few points apart.
+    const a = [
+      line(283, 74, 'Her bulguyu düzeltmeye çalışma, önce gerçekten'),
+      line(298, 74, 'çağrılan kod yolundakilere bak.'),
+    ];
+    const b = [
+      line(304, 74, 'Her bulguyu düzeltmeye çalışma, önce'),
+      line(319, 74, 'gerçekten çağrılan kod yolundakilere bak.'),
+    ];
+    const page: RawPage = {
+      index: 0,
+      width: 960,
+      height: 540,
+      rotation: 0,
+      blocks: [
+        { bbox: { x0: 74, y0: 283, x1: 360, y1: 310 }, lines: a },
+        { bbox: { x0: 74, y0: 300, x1: 330, y1: 345 }, lines: b },
+      ],
+      images: [],
+      vectors: [],
+      links: [],
+      fonts: {},
+    };
+    const [p] = analyzeDocument([page]);
+    const copies = p!.blocks.filter((x) => blockText(x).includes('bulguyu'));
+    expect(copies).toHaveLength(1);
+    expect(copies[0]!.extraRedact?.length).toBe(2);
+  });
 });

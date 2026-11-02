@@ -786,6 +786,8 @@ export async function translatePdf(
       const d = policy.postApply.maskDilatePt;
       const masks = [
         ...pages[w.index]!.blocks.flatMap((b) => b.lines.map((l) => l.bbox)),
+        // What we erase on purpose (a twin copy of a paragraph, a drop cap) is no damage.
+        ...w.redact,
         ...(w.cover ?? []).map((c) => c.rect),
         ...w.lines.flatMap((line) =>
           line.runs.map((run) => ({
