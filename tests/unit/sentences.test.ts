@@ -223,6 +223,35 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.issues.map((i) => i.code)).not.toContain('MEANING_DRIFT');
   });
 
+  it('tries a label back as it was again, and keeps it when it never changes', async () => {
+    const run = async (answer: (text: string, call: number) => string) => {
+      let calls = 0;
+      const engine: TranslationEngine = {
+        ...machineTranslator(),
+        translate: (batch) => {
+          calls++;
+          return Promise.resolve(batch.map((b) => ({ id: b.id, text: answer(b.text, calls) })));
+        },
+      };
+      const [out] = await translateSegments({
+        engine,
+        segments: [{ id: 'l', text: 'mPFC aktiváció (prefrontális kéreg)', role: 'table-cell' }],
+        ctx: { pair: { source: 'hu', target: 'tr' }, glossary: [], numberLocalization: false },
+        signal: new AbortController().signal,
+      });
+      return out!;
+    };
+    // Translated when tried again.
+    const retried = await run((t, call) =>
+      call === 1 ? t : 'mPFC aktivasyonu (prefrontal korteks)',
+    );
+    expect(retried.text).toBe('mPFC aktivasyonu (prefrontal korteks)');
+    // The same every time (an example in another language): kept, noted, not untranslated.
+    const kept = await run((t) => t);
+    expect(kept.untranslated).toBe(false);
+    expect(kept.issues.map((i) => i.severity)).toEqual(['info']);
+  });
+
   it('reads every flagged translation in English in one call', async () => {
     const english: number[] = [];
     const engine: TranslationEngine = {

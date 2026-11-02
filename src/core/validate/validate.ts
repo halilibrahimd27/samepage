@@ -128,6 +128,12 @@ export function sentenceCount(text: string): number {
     .filter((end, i) => (text.slice(cuts[i], end).match(/\p{L}{2,}/gu)?.length ?? 0) >= 3).length;
 }
 
+/**
+ * A label in words that came back as it was: tried again alone. If it comes back so every time,
+ * it is kept (an example sentence in another language, which a translator keeps too).
+ */
+export const SAME_LABEL = 'a label came back as it was';
+
 export type ValidationCode =
   | 'EMPTY'
   | 'TAG_MISMATCH'
@@ -432,8 +438,9 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
           .split(/\s+/)
           .map((w) => w.replace(/^\p{P}+|\p{P}+$/gu, ''))
           .filter((w) => /^\p{Ll}[\p{L}\p{M}-]{3,}$/u.test(w));
-        if ((fw >= 3 && fw >= 0.2 * srcPlain.split(/\s+/).length) || words.length >= 2)
+        if (fw >= 3 && fw >= 0.2 * srcPlain.split(/\s+/).length)
           err('UNTRANSLATED', 'translation is identical to the source');
+        else if (words.length >= 2) err('UNTRANSLATED', SAME_LABEL);
         else
           issues.push({
             code: 'UNTRANSLATED',

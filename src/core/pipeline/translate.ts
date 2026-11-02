@@ -34,7 +34,7 @@ import { createDehyphenator } from '../segment/dehyphenate';
 import { keepNumberSpelling } from '../validate/numbers';
 import { compareMeaning, cueText } from '../validate/meaning';
 import { softenClaims } from './hedges';
-import { validateTranslation, type ValidationIssue } from '../validate/validate';
+import { SAME_LABEL, validateTranslation, type ValidationIssue } from '../validate/validate';
 
 export interface SegmentOutcome {
   id: string;
@@ -715,6 +715,28 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       const added = onlyAddedNumbers.get(req.id);
       if (added) {
         accept(req, added.r, added.issues);
+        continue;
+      }
+      const issues = lastIssues.get(req.id) ?? [];
+      const errors = issues.filter((i) => i.severity === 'error');
+      if (errors.length && errors.every((i) => i.detail === SAME_LABEL)) {
+        outcomes.set(req.id, {
+          id: req.id,
+          text: originalText.get(req.id) ?? req.text,
+          untranslated: false,
+          cached: false,
+          attempts: attempts.get(req.id) ?? 0,
+          issues: [
+            ...issues.filter((i) => i.severity !== 'error'),
+            {
+              code: 'UNTRANSLATED',
+              severity: 'info',
+              detail: 'kept as is: it came back as it was on every try',
+            },
+          ],
+          notes: ['as-written'],
+          findings: [],
+        });
         continue;
       }
       outcomes.set(req.id, {
