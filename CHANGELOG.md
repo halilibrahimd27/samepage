@@ -4,7 +4,7 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — 1.0.0 release candidate
+## [1.0.0] — 2026-11-02
 
 ### Added
 
@@ -93,7 +93,10 @@ All notable changes to samepage are documented here. The format follows
   Items", "null und eins"), "χ²" for "χ2" and "2013/14" for "2013-2014" count as the same
   numbers; names and acronyms kept in Latin letters in a Cyrillic or Greek translation are no
   wrong script; bullets, brackets and the commas of a list set in a math font travel as
-  themselves; ligatures ("insuﬃcient") are read as letters by the meaning check.
+  themselves; ligatures ("insuﬃcient") are read as letters by the meaning check. A chemical
+  formula stays whole with its subscripts ("CO₂", "CH₃NH₃I" no longer becomes "CH … 3NH3Ben"); a
+  bracket Google kept a space before a formula is not opened twice; "c.f. Theorem 3.1" and other
+  abbreviations end no sentence; a sentence that runs on into its formula is translated.
 
 - Fully client-side translation of PDF (text-based and scanned), DOCX and PPTX documents in 17
   languages, hosted on GitHub Pages.
