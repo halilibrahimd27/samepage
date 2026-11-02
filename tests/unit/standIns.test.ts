@@ -8,6 +8,7 @@ import {
   closeBrackets,
   confineTags,
   reattachTags,
+  sentenceCase,
   createBrowserPageEngine,
   piecewise,
   unglue,
@@ -49,6 +50,30 @@ describe('placeholders that travel as text, so the sentence stays whole', () => 
     );
     expect(sent[0]).not.toContain('⟦F1⟧');
     expect(out!.text).toBe('Uyum katsayısı ⟦F1⟧ calculated.');
+  });
+
+  it('sends a heading in capitals in sentence case and sets the translation in capitals', async () => {
+    expect(sentenceCase('SÜREÇ', 'tr')).toBe('Süreç');
+    expect(sentenceCase('BAĞIMLILIK VE <t1>AB</t1> ÜLKELERİ', 'tr')).toBe(
+      'Bağımlılık ve <t1>AB</t1> ülkeleri',
+    );
+    expect(sentenceCase('AB', 'tr')).toBeNull(); // an acronym alone
+    expect(sentenceCase('Süreç ve sonuçlar', 'tr')).toBeNull();
+    const sent: string[] = [];
+    const engine = createBrowserPageEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(texts.map((t) => (t === 'Süreç ⟦F1⟧' ? 'Process ⟦F1⟧' : t)));
+      },
+    });
+    const [out] = await engine.translate(
+      [{ id: 's1', text: 'SÜREÇ ⟦F1⟧', role: 'heading', verbatim: {} }],
+      { pair, glossary: [], numberLocalization: false },
+      signal,
+    );
+    expect(sent[0]).toBe('Süreç ⟦F1⟧');
+    expect(out!.text).toBe('PROCESS ⟦F1⟧');
   });
 
   it('keeps a term in brackets that Google dropped as said twice', async () => {
@@ -132,7 +157,8 @@ describe('headings with machine engines', () => {
       { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
       signal,
     );
-    expect(sent).toEqual(['THREATS TO VALIDITY']);
+    // In sentence case: capitals alone are read without context.
+    expect(sent).toEqual(['Threats to validity']);
     expect(out!.text).toBe('7 GEÇERLİLİĞE YÖNELİK TEHDİTLER');
   });
 

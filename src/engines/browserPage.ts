@@ -293,6 +293,49 @@ export function shieldGlosses(text: string, lang: string): { text: string; gloss
   return { text: out, glosses };
 }
 
+/** Text outside tags and placeholders ("⟦F1⟧" keeps its capital). */
+const outsideMarks = (text: string, f: (t: string) => string) =>
+  text
+    .split(/(<\/?t\d+>|⟦[^⟧]*⟧)/u)
+    .map((part, i) => (i % 2 ? part : f(part)))
+    .join('');
+
+const WORD = /\p{L}[\p{L}\p{M}'’-]*/gu;
+
+/**
+ * A short heading in capitals ("SÜREÇ", "BAĞIMLILIK"), in sentence case: Google reads capitals
+ * without context as something else ("PERIOD", "Addiction"). Words of up to three letters that
+ * are no function words stay in capitals as acronyms ("AB", "ABD"); the translation is set in
+ * capitals again, so "pisa" comes back "PISA". Null for any other text.
+ */
+export function sentenceCase(text: string, lang: string): string | null {
+  const words =
+    outsideMarks(text, (t) => t)
+      .replace(/<\/?t\d+>|⟦[^⟧]*⟧/gu, ' ')
+      .match(WORD) ?? [];
+  if (
+    !words.length ||
+    words.length > 8 ||
+    !words.some((w) => w.length >= 4) ||
+    words.some((w) => w !== w.toLocaleUpperCase(lang) || w === w.toLocaleLowerCase(lang))
+  )
+    return null;
+  let first = true;
+  return outsideMarks(text, (part) =>
+    part.replace(WORD, (w) => {
+      const acronym = w.length <= 3 && !functionWords(w, lang);
+      const lower = acronym ? w : w.toLocaleLowerCase(lang);
+      const out = first && !acronym ? lower[0]!.toLocaleUpperCase(lang) + lower.slice(1) : lower;
+      first = false;
+      return out;
+    }),
+  );
+}
+
+/** A translation set in capitals again, its tags and placeholders as they are. */
+export const inCapitals = (text: string, lang: string) =>
+  outsideMarks(text, (t) => t.toLocaleUpperCase(lang));
+
 /** A bracket of words in Latin letters, no figures: "(tool calling)", "(Standard of Care)". */
 const LATIN_GLOSS = /\(\p{Script=Latin}[\p{Script=Latin} '’,-]{0,60}\p{Script=Latin}\)/gu;
 
@@ -510,13 +553,15 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     },
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
-    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused, 30: superscripts on their character, 31: dropped bracketed terms kept).
-    model: 'browser-page-31',
+    // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused, 30: superscripts on their character, 31: dropped bracketed terms kept, 32: headings in capitals sent in sentence case).
+    model: 'browser-page-32',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
-    async translate(whole, ctx, signal): Promise<SegmentResult[]> {
+    async translate(given, ctx, signal): Promise<SegmentResult[]> {
+      const caps = given.map((s) => sentenceCase(s.text, ctx.pair.source));
+      const whole = given.map((s, i) => (caps[i] ? { ...s, text: caps[i] } : s));
       const pinned = whole.map(pinSectionNumber);
       const batch = pinned.map((p) => p.req);
       const prepared = batch.map((s) => inlineIdentifiers(s));
@@ -617,17 +662,21 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       // Google sometimes writes zero-width spaces into a term ("Cyber \u200b\u200bSecurity").
       const visible = (t: string, source: string) =>
         /[\u200b\ufeff]/u.test(source) ? t : t.replace(/[\u200b\ufeff]/gu, '');
+      const shout = (t: string, i: number) => (caps[i] ? inCapitals(t, ctx.pair.target) : t);
       return batch.map((s, i) => ({
         id: s.id,
-        text: visible(
-          unpin(
-            dropAddedFullStop(
-              s.text,
-              reattachTags(s.text, confineTags(s.text, fix(out[i]!, s.text))),
+        text: shout(
+          visible(
+            unpin(
+              dropAddedFullStop(
+                s.text,
+                reattachTags(s.text, confineTags(s.text, fix(out[i]!, s.text))),
+              ),
+              pinned[i]!,
             ),
-            pinned[i]!,
+            s.text,
           ),
-          s.text,
+          i,
         ),
         ...(held.has(i) || pieced.has(i)
           ? {
