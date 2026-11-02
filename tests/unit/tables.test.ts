@@ -71,6 +71,24 @@ const CAPTION: Cell = [
 ];
 const RULE: [number, number, number] = [58, 297, 299];
 
+describe('a box of ruled lines', () => {
+  it('ends at its last rule: the paragraphs under it are no rows', () => {
+    // A book review's data, one ruled line each, then the review's text at its own pitch.
+    const data: Cell[] = [0, 1, 2, 3, 4, 5, 6].map(
+      (i) => [199, 204 + 11.5 * i, 540, 213 + 11.5 * i, `Line ${i} of the book's data`] as Cell,
+    );
+    const text: Cell[] = [0, 1, 2, 3, 4, 5].map(
+      (i) =>
+        [199, 330 + 14 * i, 541, 341 + 14 * i, 'Die Autorinnen und Autoren der Monografie'] as Cell,
+    );
+    const rules: [number, number, number][] = [0, 1, 2, 3, 4, 5, 6, 7].map(
+      (i) => [199, 202 + 11.5 * i, 544] as [number, number, number],
+    );
+    const [table] = detectTables(page([...data, ...text], rules));
+    expect(table!.rect.y1).toBeLessThan(300);
+  });
+});
+
 describe('tables with a single rule', () => {
   it('finds the table under its caption, header and data rows included', () => {
     const [table] = detectTables(page([...HEADER, ...DATA, CAPTION], [RULE]));

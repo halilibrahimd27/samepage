@@ -154,7 +154,11 @@ export function detectTables(page: RawPage): TableRegion[] {
       inside.map((l) => l.y0),
       1,
     );
-    const pitch = tops.length > 1 ? median(tops.slice(1).map((t, i) => t - tops[i]!)) : 0;
+    // A table with a rule under nearly every row (a book's data in ruled lines) is closed: the
+    // paragraphs under it, at the text's own pitch, are no rows of it.
+    const closed = g.length >= 4 && g.length - 1 >= 0.8 * tops.length;
+    const pitch =
+      tops.length > 1 && !closed ? median(tops.slice(1).map((t, i) => t - tops[i]!)) : 0;
     let lastTop = tops[tops.length - 1] ?? rect.y1;
     while (pitch > 0) {
       // …and line up with the table's cells (a chart right below does not).

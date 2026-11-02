@@ -72,7 +72,7 @@ export function DocxReportPanel({
           )}
         </span>
         <span className="pl-5 text-sm text-slate-700" data-testid="report-summary">
-          {t('report.summary', counts)}
+          {t('report.summary', { ...counts, translated: counts.translated + counts.warnings })}
         </span>
       </summary>
       <div className="mt-3 flex flex-col gap-3">

@@ -96,7 +96,7 @@ export function PdfReportPanel({
           )}
         </span>
         <span className="pl-5 text-sm text-slate-700" data-testid="pdf-report-summary">
-          {t('pdfReport.summary', counts)}
+          {t('pdfReport.summary', { ...counts, translated: counts.translated + counts.warnings })}
         </span>
       </summary>
       <div className="mt-3 flex flex-col gap-3">
