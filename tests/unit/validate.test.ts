@@ -282,6 +282,19 @@ describe('validateTranslation', () => {
         targetLang: 'tr',
       }).filter((i) => i.code === 'NUMBER_MISMATCH'),
     ).toEqual([]);
+    // Numbers in several words ("yirmi iki", "twenty-two").
+    for (const [target, lang] of [
+      ['Bu incelemeye yirmi iki makale dahil edildi.', 'tr'],
+      ['Twenty-two articles were included in this review.', 'en'],
+    ] as const)
+      expect(
+        validateTranslation({
+          source: 'Foram incluídos nesta revisão 22 artigos.',
+          target,
+          sourceLang: 'pt',
+          targetLang: lang,
+        }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+      ).toEqual([]);
     // A specialty code is matched whole: "19.00.01" made "19.00.2001" is another one.
     expect(
       validateTranslation({

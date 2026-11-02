@@ -431,6 +431,72 @@ const ORDINALS: Record<string, RegExp[]> = {
 const TR_INFLECTED =
   /^(iki|üç|dör[td]|beş|altı|yedi|sekiz|dokuz)(?:[ıiuü]|[sy][ıiuü]|[ıiuü]n[ıiuü]n|[sn][ıiuü]n|[ıiuü]n[ae]|[ıiuü]n[dt][ae]n?|[ıiuü]nd[ae]n?|[dt][ae]n?|[ye][ae]|[ae]|yle|yla|l[ae]r[ıi]?|[şs][ae]r)$/u;
 
+/** Number words that compose ("yirmi iki", "twenty-two", "iki yüz"): units, tens, scales. */
+const COMPOSING: Record<
+  string,
+  { units: string[]; tens: string[]; hundred: string; thousand: string }
+> = {
+  tr: {
+    units: ['bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'],
+    tens: ['on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'],
+    hundred: 'yüz',
+    thousand: 'bin',
+  },
+  en: {
+    units: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
+    tens: ['ten', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'],
+    hundred: 'hundred',
+    thousand: 'thousand',
+  },
+};
+
+/**
+ * Numbers a translation writes in several words ("yirmi iki makale" for "22 artigos", "twenty-two
+ * studies"); the last word may carry a Turkish suffix ("otuz dördü").
+ */
+function numberPhrases(text: string, lang: string): { t: string; v: number[] }[] {
+  const c = COMPOSING[lang];
+  if (!c) return [];
+  const valueOf = (
+    w: string,
+  ): { v: number; kind: 'unit' | 'ten' | 'hundred' | 'thousand' } | null => {
+    const u = c.units.indexOf(w);
+    if (u >= 0) return { v: u + 1, kind: 'unit' };
+    const t = c.tens.indexOf(w);
+    if (t >= 0) return { v: (t + 1) * 10, kind: 'ten' };
+    if (w === c.hundred) return { v: 100, kind: 'hundred' };
+    if (w === c.thousand) return { v: 1000, kind: 'thousand' };
+    const inflected = lang === 'tr' ? TR_INFLECTED.exec(w) : null;
+    const stem = inflected?.[1]!.replace(/d$/u, 't');
+    return stem && c.units.includes(stem) ? { v: c.units.indexOf(stem) + 1, kind: 'unit' } : null;
+  };
+  const out: { t: string; v: number[] }[] = [];
+  const words = text.toLocaleLowerCase(lang).split(/[^\p{L}]+/u);
+  for (let i = 0; i < words.length; i++) {
+    let total = 0;
+    let current = 0;
+    let n = 0;
+    let composed = false;
+    for (let j = i; j < words.length; j++) {
+      const x = valueOf(words[j]!);
+      if (!x) break;
+      if (x.kind === 'thousand') {
+        total += (current || 1) * 1000;
+        current = 0;
+      } else if (x.kind === 'hundred') current = (current || 1) * 100;
+      else current += x.v;
+      n++;
+      if (x.kind !== 'unit') composed = true;
+    }
+    // Two words or more with a ten or a scale among them; a lone "bir"/"one" is an article.
+    if (n >= 2 && composed) {
+      out.push({ t: words.slice(i, i + n).join(' '), v: [total + current] });
+      i += n - 1;
+    }
+  }
+  return out;
+}
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
@@ -502,6 +568,7 @@ export function compareNumbers(
           return o >= 0 ? [{ t: w, v: [o + 1], word: true }] : [];
         })
       : []),
+    ...numberPhrases(target, targetLang ?? '').map((p) => ({ ...p, word: true })),
   ];
   const matchOf = new Array<number>(tgt.length).fill(-1);
   const compatible = (i: number, j: number) => src[i]!.v.some((x) => tgt[j]!.v.includes(x));
