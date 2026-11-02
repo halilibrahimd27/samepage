@@ -45,9 +45,13 @@ the paper says.
   found with full, booktabs or single rules and also without any rule, from their caption, and
   keep their rules and column alignment; footnote marks become Word footnotes and every
   reference entry its own paragraph.
-- **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. A meaning
-  check translates the result back and flags lost negations, softened or hardened claims
-  ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"). You can
+- **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. Each
+  paragraph is translated from its own language — an English abstract in a Turkish paper, a German
+  quotation, the Arabic body of a paper with an English abstract — and one already in the target
+  language stays as written. Code in Word and PowerPoint files (commands, listings) stays as
+  written. A meaning check translates the result back and flags lost negations, softened or
+  hardened claims ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"),
+  asking again in English before it reports one. You can
   compare every paragraph sentence by sentence, even in a language you do not read. With your own
   Claude key, the flagged sentences are revised automatically (British or American spelling).
 - **Abstract only.** For journals that ask for a second-language abstract: samepage finds the
@@ -87,7 +91,7 @@ the paper says.
 It works the same on a phone:
 
 <p align="center">
-  <img src="media/phone.png" alt="samepage on a phone: the demo paper chosen, Turkish to English, Google Translate engine" width="260">
+  <img src="media/phone.png" alt="samepage on a phone: the demo paper chosen and its language detected" width="260">
   &nbsp;&nbsp;&nbsp;
   <img src="media/phone-result.png" alt="samepage on a phone: downloads, quality report and preview after the translation" width="260">
 </p>
@@ -153,14 +157,20 @@ trips (a paper translated into another language and back) to measure meaning dri
 runs with the free Google engine on 29 papers in all 17 languages (about 8,100 paragraphs,
 including chemistry, law and mathematical physics),
 99.9 % of the paragraphs came out translated with their numbers intact; the rest, OCR noise of a
-1979 scan, were kept in the original and reported. About 2 % carried a warning to review. Those
-papers are not part of this repository; [`media/demo-paper.pdf`](media/demo-paper.pdf) is a
+1979 scan, were kept in the original and reported. About 2 % carried a warning to review. Word
+documents were run the same way: 54 papers from Zenodo in 19 languages (about 14,300 paragraphs,
+with code, tables, footnotes, text boxes, Arabic and mixed-language papers), 99.9 % translated,
+2.2 % with a warning, the structure of every file intact. Those papers are not part of this
+repository; [`media/demo-paper.pdf`](media/demo-paper.pdf) is a
 fictional paper written for the demo, so you can try samepage with it.
 
 ## Limitations
 
-- Not supported: right-to-left scripts, vertical CJK, encrypted PDFs, form field values and text
-  inside raster images (left untouched and reported).
+- Not supported: right-to-left and CJK target languages, right-to-left and CJK PDFs, vertical
+  CJK, encrypted PDFs, form field values and text inside raster images (left untouched and
+  reported). Arabic, Hebrew, Persian, Chinese, Japanese or Korean passages in a Word or PowerPoint
+  file are translated from their language into the offered ones (right-to-left text then reads
+  left to right).
 - OCR errors (rare letters, names, small print) carry into the translation of scanned PDFs, and
   the scanned text is covered with the paper colour rather than removed; hard-to-read pages are
   flagged.

@@ -13,6 +13,10 @@ All notable changes to samepage are documented here. The format follows
   long one shrank the type of every paragraph and the short ones left gaps under them.
 - A quieter, corporate look: one navy brand colour, a sticky header, a hero band, refined cards,
   form controls and buttons.
+- Each paragraph is translated from its own language: an Arabic or Indonesian paper with an
+  English abstract, a Russian one with English chapters, a Turkish one quoting German. Given as
+  the paper's language, Google returned such paragraphs unchanged or made up fluent text that
+  said something else. A paragraph already in the target language stays as written.
 
 ### Fixed
 
@@ -21,6 +25,27 @@ All notable changes to samepage are documented here. The format follows
   translation; a bullet the slide draws twice over itself is translated once and its copy erased.
 - Word: a table stays in one column with its caption.
 - A name in code style ("libraries.io") keeps its style alone, not the rest of the sentence.
+- Word documents, from 54 papers in 19 languages translated and read:
+  - Code stays as written, in Word and on slides: commands in a sentence ("python3 --version"),
+    listings and lines such as "import hashlib"; a comment in words and a label in a typewriter
+    font are translated. A lab sheet that is half code no longer counts as set in a typewriter
+    face.
+  - Arabic and Hebrew translated into a left-to-right language read left to right, paragraphs,
+    tables and sections (and slides), at the document's size for Latin letters.
+  - A reference list in an appendix ("Anhang B. Literatur und lokale Quellen") and under its own
+    sub-headings is kept as published; a note in prose among the entries is translated.
+  - Documents saved by the .NET Open XML SDK (a byte-order mark before each part) open.
+  - Dates and times beside a time zone ("02.09., 14:03–14:12 UTC") are kept as written.
+- An English term a heading gives in brackets ("Arquitectura de Invocación de Herramientas (Tool
+  Calling)") is kept where Google dropped it as said twice; inside a sentence such a term left out
+  is noted, not flagged. Superscripts and subscripts stay on their character ("W/m²", not
+  "W/m ²"). A short heading in capitals is translated in sentence case and set in capitals again:
+  Google read "SÜREÇ" as "PERIOD".
+- Fewer false alarms: ISO dates written the target's way, a date range spelled out, a count of one
+  written as a word ("1 groter stuk" → "bir büyük parça", which had made the retries hold the
+  number and break the sentence), hours of the clock ("14 órakor" → "saat 2'de", "03:00"), a
+  number and a half ("4 heures et demie" → "4,5 saat"), a number with its thousand in one word
+  ("százezer" → "100.000") and sentences that open with a figure.
 
 ## [1.0.1] — 2026-11-02
 
