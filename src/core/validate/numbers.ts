@@ -563,8 +563,16 @@ export function compareNumbers(
   ];
   const words = SMALL_WORDS[targetLang ?? ''];
   const zeroOne = ZERO_ONE[targetLang ?? ''] ?? [];
+  // A date the translation writes the target's way ("2026-07-31" → "31.07.2026") is its parts.
+  const sourceTokens = new Set(extractNumbers(source));
+  const parts = (t: string) => {
+    const m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(t);
+    return m && !sourceTokens.has(t)
+      ? [m[1]!, m[2]!, m[3]!].map((p) => ({ t: p, v: [Number(p)], word: false }))
+      : [{ t, v: candidateValues(t), word: false }];
+  };
   const tgt = [
-    ...extractNumbers(target).map((t) => ({ t, v: candidateValues(t), word: false })),
+    ...extractNumbers(target).flatMap(parts),
     ...(words
       ? target.split(/[^\p{L}]+/u).flatMap((w) => {
           const lower = w.toLocaleLowerCase(targetLang);

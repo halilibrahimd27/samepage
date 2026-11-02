@@ -62,23 +62,25 @@ describe('placeholders that travel as text, so the sentence stays whole', () => 
             t
               .replace(' (Tool Calling)', '')
               .replace('Arquitectura de invocación de herramientas', 'Araç çağırma mimarisi')
+              .replace('(cifras provisionales)', '(geçici rakamlar)')
               .replace('por ejemplo', 'örneğin'),
           ),
         );
       },
     });
     const text =
-      'Arquitectura de invocación de herramientas (Tool Calling) y sus límites (por ejemplo, Díez, 2023).';
+      'Arquitectura de invocación de herramientas (Tool Calling) y sus límites (cifras provisionales; por ejemplo, Díez, 2023).';
     const [out] = await engine.translate(
-      [{ id: 's1', text, role: 'body' }],
+      [{ id: 's1', text: text.replace('; por', ') (por'), role: 'body' }],
       { pair: { source: 'es', target: 'tr' }, glossary: [], numberLocalization: false },
       signal,
     );
     expect(sent).toHaveLength(2);
     expect(sent[1]).toContain('⟦Z1⟧');
-    expect(sent[1]).toContain('(por ejemplo, Díez, 2023)'); // its own words are translated
+    // Its own words are translated, the term it lost alone is kept.
+    expect(sent[1]).toContain('(cifras provisionales)');
     expect(out!.text).toBe(
-      'Araç çağırma mimarisi (Tool Calling) y sus límites (örneğin, Díez, 2023).',
+      'Araç çağırma mimarisi (Tool Calling) y sus límites (geçici rakamlar) (örneğin, Díez, 2023).',
     );
   });
 

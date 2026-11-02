@@ -353,6 +353,26 @@ describe('validateTranslation', () => {
         targetLang: 'tr',
       }).map((i) => i.code),
     ).not.toContain('SENTENCE_LOST');
+    // Translated sentences may start with a figure ("5 Ocak 2022'de"); a date's dots end none.
+    expect(
+      validateTranslation({
+        source:
+          'Северна Македония съобщи за първото огнище. На 5 януари 2022 г. са взети кръвни проби от фермата. Във фермата са отглеждани 18 бр. свине.',
+        target:
+          "Kuzey Makedonya ilk salgını bildirdi. 5 Ocak 2022'de çiftlikten kan örnekleri alındı. Çiftlikte 18 domuz yetiştiriliyordu.",
+        sourceLang: 'bg',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).not.toContain('SENTENCE_LOST');
+    expect(
+      validateTranslation({
+        source: 'Výstava trvala do 27. 9. 2021 a navštívilo ji mnoho lidí z celé republiky.',
+        target:
+          'Sergi 27.09.2021 tarihine kadar sürdü ve ülkenin her yerinden birçok kişi ziyaret etti.',
+        sourceLang: 'cs',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).toEqual([]);
     // A Roman numeral in Cyrillic look-alike letters.
     expect(
       codes(
@@ -372,6 +392,14 @@ describe('validateTranslation', () => {
     expect(
       codes('Наказ від 09.03.2016 р. діє.', 'The order of 9 March 2018 is in force.', 'uk'),
     ).toEqual(['missing 2016; unexpected 2018']);
+    // An ISO date written the target's way.
+    expect(
+      codes(
+        'Erstbereitstellung 2026-07-31, abgerufen am 22.09.2026.',
+        'İlk yayın 31.07.2026, erişim tarihi 22.09.2026.',
+        'de',
+      ),
+    ).toEqual([]);
     // A range whose first date waits for the year of the second.
     expect(
       codes(

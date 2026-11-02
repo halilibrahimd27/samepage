@@ -108,12 +108,16 @@ const ABBREVIATION = new RegExp(
 );
 
 /**
- * Sentences of a passage: an end mark, then a space and a capital, outside abbreviations. Pieces
- * of fewer than three words ("Paris Data.", "Données :") are no sentence an engine could drop.
+ * Sentences of a passage: an end mark, then a space and a capital (or a figure after a word),
+ * outside abbreviations. Pieces of fewer than three words ("Paris Data.", "Données :") are no
+ * sentence an engine could drop.
  */
 export function sentenceCount(text: string): number {
   const cuts = [0];
-  for (const m of text.matchAll(/[.!?…](?=["”»’)\]]*\s+["“„«(]?\p{Lu})/gu)) {
+  // Before a capital, or a figure after a word ("… elde edildi. 7 Ocak"; not "27. 9. 2021").
+  for (const m of text.matchAll(
+    /[.!?…](?=["”»’)\]]*\s+["“„«(]?\p{Lu})|(?<=\p{L}{2}["”»’)\]]*)[.!?…](?=["”»’)\]]*\s+\d)/gu,
+  )) {
     if (!ABBREVIATION.test(text.slice(Math.max(0, m.index - 12), m.index + 1)))
       cuts.push(m.index + 1);
   }
