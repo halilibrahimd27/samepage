@@ -71,6 +71,42 @@ describe('sentence-by-sentence retry', () => {
     expect(engine.sent).toContain('Sonuçlar tutarlıdır.');
   });
 
+  it('translates sentence by sentence a paragraph the engine breaks at a number', async () => {
+    const pieces: Record<string, string> = {
+      'По нашим данным, студенты 2-3 курса видят это иначе.':
+        'Verilerimize göre 2-3. sınıf öğrencileri bunu farklı görüyor.',
+      'Это важно.': 'Bu önemlidir.',
+    };
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text:
+              pieces[b.text] ??
+              'Verilerimize göre bu 2. sınıf öğrencileri tarafından görülüyor.3 Kurs farklı. Bu önemlidir.',
+          })),
+        ),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [
+        {
+          id: 'r',
+          text: 'По нашим данным, студенты 2-3 курса видят это иначе. Это важно.',
+          role: 'body',
+        },
+      ],
+      ctx: { pair: { source: 'ru', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(out!.untranslated).toBe(false);
+    expect(out!.text).toBe(
+      'Verilerimize göre 2-3. sınıf öğrencileri bunu farklı görüyor. Bu önemlidir.',
+    );
+  });
+
   it('keeps the source when an engine makes up years, even if no number is lost', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),

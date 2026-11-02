@@ -203,6 +203,7 @@ const ids = (text: string, type: 'open' | 'ph') =>
 const CITATION_RE = /\[\s*\d+(?:\s*[,–-]\s*\d+)*\s*\]/g;
 /** A sentence end glued to the next sentence, a number glued to the next word. */
 const GLUED = [/[\p{Ll}\d)][.!?;:]\p{Lu}\p{Ll}/u, /\d\p{Lu}\p{Ll}{3,}/u];
+const BROKEN_AT_NUMBER = /\p{Ll}{2}[.!?]\d+\s\p{Lu}\p{Ll}/u;
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
 // Percentage points ("15 Prozentpunkte", "yüzde puan") are no percentage: a translation may
 // write them as points ("15 puan"). Nor are percentiles ("25 и 75 процентилей", "yüzdelik").
@@ -332,7 +333,11 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     return tgtOpen < srcOpen || (srcOpen === count(src, close!) && tgtOpen !== count(tgt, close!));
   });
   const glued = GLUED.filter((re) => re.test(tgtPlain) && !re.test(srcPlain));
-  if (bracketsLost || glued.length) {
+  // A sentence the engine broke at a number ("2-3 курса" → "… görülüyor.3 Kurs …"): its meaning
+  // went with it, though every number is there.
+  if (BROKEN_AT_NUMBER.test(tgtPlain) && !BROKEN_AT_NUMBER.test(srcPlain))
+    err('PUNCTUATION_CHANGED', 'a sentence was broken at a number');
+  else if (bracketsLost || glued.length) {
     warn(
       'PUNCTUATION_CHANGED',
       bracketsLost ? 'brackets differ from the source' : 'sentences or words run together',

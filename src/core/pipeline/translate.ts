@@ -465,11 +465,14 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       // Translated sentence by sentence, each piece came back: fewer sentences counted is the
       // engine joining two, nothing left out.
       const joined = (i: ValidationIssue) => bySentence && i.code === 'SENTENCE_LOST';
+      // A sentence broken at a number on every try: the words are there, flagged for review.
+      const broken = (i: ValidationIssue) => i.code === 'PUNCTUATION_CHANGED';
       if (
         errors.length &&
         errors.every(
           (i) =>
             joined(i) ||
+            broken(i) ||
             (i.code === 'NUMBER_MISMATCH' && /^unexpected /u.test(i.detail) && small(i)),
         )
       )
