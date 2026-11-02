@@ -347,6 +347,83 @@ const ZERO_ONE: Record<string, string[]> = {
   tr: ['sıfır'],
 };
 
+/**
+ * Ordinals the target language writes out ("1-й группе" → "birinci grupta", "I цикл" → "ilk
+ * döngü", "the second group"), first to tenth.
+ */
+const ORDINALS: Record<string, RegExp[]> = {
+  tr: [
+    /^(?:birinci|ilk)/u,
+    /^ikinci/u,
+    /^üçüncü/u,
+    /^dördüncü/u,
+    /^beşinci/u,
+    /^altıncı/u,
+    /^yedinci/u,
+    /^sekizinci/u,
+    /^dokuzuncu/u,
+    /^onuncu/u,
+  ],
+  en: [
+    'first',
+    'second',
+    'third',
+    'fourth',
+    'fifth',
+    'sixth',
+    'seventh',
+    'eighth',
+    'ninth',
+    'tenth',
+  ].map((w) => new RegExp(`^${w}$`, 'u')),
+  de: [
+    'erst',
+    'zweit',
+    'dritt',
+    'viert',
+    'fünft',
+    'sechst',
+    'sieb(?:en)?t',
+    'acht',
+    'neunt',
+    'zehnt',
+  ].map((w) => new RegExp(`^${w}(?:e[nrms]?)$`, 'u')),
+  fr: [
+    /^premi(?:er|ère)s?$/u,
+    /^(?:deuxième|seconde?)s?$/u,
+    ...['trois', 'quatr', 'cinqu', 'six', 'sept', 'huit', 'neuv', 'dix'].map(
+      (w) => new RegExp(`^${w}ièmes?$`, 'u'),
+    ),
+  ],
+  es: [
+    'prim',
+    'segund',
+    'tercer',
+    'cuart',
+    'quint',
+    'sext',
+    'séptim',
+    'octav',
+    'noven',
+    'décim',
+  ].map((w) => new RegExp(`^${w}(?:o|a|os|as|er)?$`, 'u')),
+  it: ['prim', 'second', 'terz', 'quart', 'quint', 'sest', 'settim', 'ottav', 'non', 'decim'].map(
+    (w) => new RegExp(`^${w}[oaie]$`, 'u'),
+  ),
+  pt: [
+    'primeir',
+    'segund',
+    'terceir',
+    'quart',
+    'quint',
+    'sext',
+    'sétim',
+    'oitav',
+    'non',
+    'décim',
+  ].map((w) => new RegExp(`^${w}[oa]s?$`, 'u')),
+};
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
@@ -408,7 +485,9 @@ export function compareNumbers(
           const k = words.indexOf(lower);
           if (k >= 0) return [{ t: w, v: [k + 2], word: true }];
           const z = zeroOne.indexOf(lower);
-          return z >= 0 ? [{ t: w, v: [z], word: true }] : [];
+          if (z >= 0) return [{ t: w, v: [z], word: true }];
+          const o = (ORDINALS[targetLang ?? ''] ?? []).findIndex((re) => re.test(lower));
+          return o >= 0 ? [{ t: w, v: [o + 1], word: true }] : [];
         })
       : []),
   ];

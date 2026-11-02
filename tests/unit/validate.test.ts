@@ -262,6 +262,17 @@ describe('validateTranslation', () => {
         targetLang: 'de',
       }).filter((i) => i.code === 'NUMBER_MISMATCH'),
     ).toEqual([]);
+    // Ordinals written out ("2-й группы" → "İkinci gruptaki", "I циклом" → "ilk döngüsünden").
+    expect(
+      validateTranslation({
+        source:
+          'У пациентов 2-й группы, так же как и в 1-й группе, изменения наблюдались после III цикла и перед I циклом иммунотерапии.',
+        target:
+          'İkinci gruptaki hastalarda, tıpkı birinci grupta olduğu gibi, değişiklikler üçüncü döngüden sonra ve immünoterapinin ilk döngüsünden önce gözlemlendi.',
+        sourceLang: 'ru',
+        targetLang: 'tr',
+      }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+    ).toEqual([]);
     // A specialty code is matched whole: "19.00.01" made "19.00.2001" is another one.
     expect(
       validateTranslation({
