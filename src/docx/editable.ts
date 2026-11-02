@@ -273,7 +273,7 @@ class Package {
     const body = rows
       .map(
         (row, r) =>
-          `<w:tr>${row
+          `<w:tr><w:trPr><w:cantSplit/></w:trPr>${row
             .map((cell, c) => {
               // Cells under a span are part of it.
               if (row.slice(0, c).some((o, k) => (o.span ?? 1) > c - k)) return '';
@@ -292,7 +292,8 @@ class Package {
               return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}${under}</w:tcPr>${paragraphs
                 .map(
                   (p) =>
-                    `<w:p><w:pPr><w:pStyle w:val="TableText"/>${jc}</w:pPr>${this.runs(p)}</w:p>`,
+                    // Kept with what follows: a table does not end a column apart from its caption.
+                    `<w:p><w:pPr><w:pStyle w:val="TableText"/><w:keepNext/>${jc}</w:pPr>${this.runs(p)}</w:p>`,
                 )
                 .join('')}</w:tc>`;
             })
@@ -305,7 +306,7 @@ class Package {
       `<w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
       `<w:tblGrid>${widths.map((w) => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${body}</w:tbl>` +
       // Word needs a paragraph between two tables, and after a table at the end of the body.
-      `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="120" w:lineRule="exact"/></w:pPr></w:p>`
+      `<w:p><w:pPr><w:keepNext/><w:spacing w:before="0" w:after="0" w:line="120" w:lineRule="exact"/></w:pPr></w:p>`
     );
   }
 }
@@ -371,7 +372,8 @@ function stylesXml(locale: string, layout?: WordLayout): string {
       'paragraph',
       'Caption',
       'caption',
-      `<w:spacing ${space(0.3, 0.8)}/>`,
+      // A caption over its table or figure stays with it.
+      `<w:keepNext/><w:spacing ${space(0.3, 0.8)}/>`,
       // The PDF's captions keep their own emphasis ("Table 1:" in bold).
       `${layout ? '' : '<w:i/><w:iCs/>'}${sz(size('caption', 20))}`,
       based,

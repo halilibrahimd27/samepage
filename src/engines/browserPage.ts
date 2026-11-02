@@ -196,8 +196,16 @@ export function respacePlaceholders(source: string, target: string): string {
 export function confineTags(source: string, target: string): string {
   return target.replace(/<t(\d+)>([^<]*)<\/t\1>/gu, (whole, id: string, inner: string) => {
     const src = new RegExp(`<t${id}>([^<]*)</t${id}>`, 'u').exec(source)?.[1];
+    if (src === undefined) return whole;
+    // A name or a piece of code kept as written ("<t1>libraries.io</t1>") that took the rest of
+    // the sentence along: the span goes back to it.
+    const exact = src.trim();
+    const at = exact ? inner.indexOf(exact) : -1;
+    const words = (t: string) => (t.match(/\S+/gu) ?? []).length;
+    if (at >= 0 && words(inner) >= words(exact) + 3)
+      return `${inner.slice(0, at)}<t${id}>${exact}</t${id}>${inner.slice(at + exact.length)}`;
     const end = /[.!?;](?=\s+\S)/u;
-    if (src === undefined || end.test(src) || !end.test(inner)) return whole;
+    if (end.test(src) || !end.test(inner)) return whole;
     if (inner.length < 2 * src.trim().length + 15) return whole;
     const count = (src.trim().match(/\S+/gu) ?? []).length;
     const lead = /^\s*/u.exec(inner)![0];

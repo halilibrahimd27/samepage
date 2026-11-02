@@ -143,6 +143,15 @@ describe('headings with machine engines', () => {
     expect(confineTags(quote, 'Şöyle yazdı: <t1>Hayır. Başarısız oldu.</t1> iki kez.')).toBe(
       'Şöyle yazdı: <t1>Hayır. Başarısız oldu.</t1> iki kez.',
     );
+    // Code kept as written that took the rest of the sentence along.
+    expect(
+      confineTags(
+        'popularity information provided by <t1>libraries.io</t1> through the',
+        'projeleri <t1>libraries.io tarafından sağlanan popülerlik bilgilerini kullanmayı amaçlıyoruz.</t1>',
+      ),
+    ).toBe(
+      'projeleri <t1>libraries.io</t1> tarafından sağlanan popülerlik bilgilerini kullanmayı amaçlıyoruz.',
+    );
   });
 
   it('gives a structured abstract its labels in the field’s terms', async () => {

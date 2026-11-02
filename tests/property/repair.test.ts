@@ -182,6 +182,13 @@ describe('layout repair properties', () => {
         for (const u of first.units) {
           const block = page.blocks.find((b) => b.id === u.unitId)!;
           const grown = u.params.boxes[block.id]!;
+          // A box the column's flow moved takes its lines along.
+          const dy = grown.y0 - block.bbox.y0;
+          block.lines = block.lines.map((l) => ({
+            ...l,
+            baseline: l.baseline + dy,
+            bbox: { ...l.bbox, y0: l.bbox.y0 + dy, y1: l.bbox.y1 + dy },
+          }));
           block.bbox = grown;
         }
         const second = repairDocument(input);
