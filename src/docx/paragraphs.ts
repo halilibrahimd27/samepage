@@ -494,15 +494,17 @@ export function rebuild(
   // Detach everything except paragraph properties.
   const pPr = elementChildren(p.para).find((c) => c.namespaceURI === ns && c.localName === 'pPr');
   // Arabic or Hebrew translated into a left-to-right language reads left to right.
-  const turn =
-    p.dialect === 'w' &&
+  const turned =
     rightToLeft(p.plain) &&
     !rightToLeft(decoded.map((r) => (r.type === 'text' ? r.text : '')).join(''));
+  const turn = turned && p.dialect === 'w';
   if (turn && pPr) {
     setProperty(pPr, PPR_ORDER, 'bidi', '0');
     const mark = elementChildren(pPr).find((c) => is(c, W, 'rPr'));
     if (mark) turnLeftToRight(mark);
   }
+  // On a slide the paragraph says it: rtl="1".
+  if (turned && p.dialect === 'a' && pPr?.getAttribute('rtl') === '1') pPr.setAttribute('rtl', '0');
   while (p.para.firstChild) p.para.removeChild(p.para.firstChild);
   if (pPr) p.para.appendChild(pPr);
   for (const h of p.head) p.para.appendChild(h);

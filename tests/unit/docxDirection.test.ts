@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decode } from '../../src/core/segment/codec';
-import { extractW, rebuild } from '../../src/docx/paragraphs';
+import { extractA, extractW, rebuild } from '../../src/docx/paragraphs';
 import { NS, parseXml, serializeXml } from '../../src/docx/xml';
 
 const W = NS.w;
@@ -29,6 +29,21 @@ describe('right-to-left text in a Word document', () => {
     expect(xml).toContain('<w:bidi w:val="0"/><w:jc w:val="both"/>');
     // Bold as it was shown in, in schema order; the size stays the one for Latin letters.
     expect(xml).toMatch(/<w:b\/><w:bCs\/><w:szCs w:val="32"\/><w:rtl w:val="0"\/>/);
+    expect(xml).toContain('Arap şiiri');
+  });
+
+  it('reads left to right on a slide too', () => {
+    const A = NS.a;
+    const para = parseXml(
+      `<a:txBody xmlns:a="${A}"><a:p><a:pPr rtl="1" algn="r"/><a:r><a:rPr lang="ar-SA"/><a:t>الشعر العربي</a:t></a:r></a:p></a:txBody>`,
+    ).getElementsByTagNameNS(A, 'p')[0]!;
+    const p = extractA(para, 'body');
+    rebuild(p, decode(p.encoded.source.replace('الشعر العربي', 'Arap şiiri'), p.encoded), {
+      targetLang: 'tr',
+      breakLongTokens: false,
+    });
+    const xml = serializeXml(para as unknown as Parameters<typeof serializeXml>[0]);
+    expect(xml).toContain('rtl="0"');
     expect(xml).toContain('Arap şiiri');
   });
 
