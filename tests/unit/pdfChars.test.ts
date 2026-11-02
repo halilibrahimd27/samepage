@@ -22,6 +22,37 @@ describe('restoreChar', () => {
   });
 });
 
+describe('tidyLine', () => {
+  it('makes a giant blank at a line end a plain space, so the line keeps its own height', async () => {
+    const { tidyLine } = await import('../../src/pdf/engine/extract');
+    const ch = (c: string, x: number, size: number, bbox: [number, number, number, number]) => ({
+      c,
+      x,
+      y: 348,
+      bbox: { x0: bbox[0], y0: bbox[1], x1: bbox[2], y1: bbox[3] },
+      font: 'EBGaramond',
+      size,
+      color: [0, 0, 0] as [number, number, number],
+    });
+    // "Angeli." and two Calibri spaces of 1638 pt whose boxes cover the page.
+    const line = {
+      bbox: { x0: 189, y0: -881, x1: 942, y1: 757 },
+      dir: [1, 0] as [number, number],
+      wmode: 0,
+      chars: [
+        ch('i', 196, 11, [196, 337, 199, 351]),
+        ch('.', 199, 11, [199, 337, 201, 351]),
+        ch(' ', 201, 1638, [201, -881, 571, 757]),
+        ch(' ', 571, 1638, [571, -881, 942, 757]),
+      ],
+    };
+    tidyLine(line);
+    expect(line.bbox.y0).toBeGreaterThan(330);
+    expect(line.bbox.y1).toBeLessThan(360);
+    expect(line.bbox.x1).toBeLessThan(600);
+  });
+});
+
 describe('Windows-1251 read as Latin-1', () => {
   it('reads a misread Russian font as Cyrillic, and leaves French alone', async () => {
     const { fromCp1251, misreadCp1251, repairCp1251 } = await import('../../src/pdf/engine/cp1251');

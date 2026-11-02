@@ -33,6 +33,36 @@ const glyphBox = (box: Rect, y: number, size: number, horizontal: boolean): Rect
   horizontal && size > 0 && box.y1 - box.y0 < 0.6 * size
     ? { ...box, y0: Math.min(box.y0, y - 0.75 * size), y1: Math.max(box.y1, y + 0.2 * size) }
     : box;
+
+/**
+ * A line's boxes made sane, then its own box from them. A blank in a size far above its line's
+ * ("Angeli." then two Calibri spaces of 1638 pt, a word processor's leftover) is a plain space,
+ * and a glyph box taller than three times its size is cut to it: such a box covered the page,
+ * and redacting the line wiped every line under it.
+ */
+export function tidyLine(line: RawLine): void {
+  const sizes = line.chars
+    .filter((ch) => /\S/u.test(ch.c))
+    .map((ch) => ch.size)
+    .sort((a, b) => a - b);
+  const median = sizes[Math.floor(sizes.length / 2)];
+  const horizontal = line.wmode === 0 && line.dir[0] === 1 && line.dir[1] === 0;
+  for (const ch of line.chars) {
+    const blank = !/\S/u.test(ch.c) && !!median && ch.size > 3 * median;
+    const size = blank ? median : ch.size;
+    if (horizontal && (blank || ch.bbox.y1 - ch.bbox.y0 > 3 * size))
+      Object.assign(ch, {
+        size,
+        bbox: {
+          x0: ch.x,
+          y0: ch.y - 0.75 * size,
+          x1: blank ? ch.x + 0.25 * size : Math.min(ch.bbox.x1, ch.x + 2 * size),
+          y1: ch.y + 0.2 * size,
+        },
+      });
+  }
+  line.bbox = line.chars.slice(1).reduce((r, ch) => union(r, ch.bbox), line.chars[0]!.bbox);
+}
 const round = (n: number) => Math.round(n * 100) / 100;
 const rgb = (c: number[]): [number, number, number] =>
   c.length >= 3 ? [c[0]!, c[1]!, c[2]!] : c.length === 1 ? [c[0]!, c[0]!, c[0]!] : [0, 0, 0];
@@ -222,14 +252,18 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
           },
           endLine() {
             if (line && block && line.chars.length) {
-              line.bbox = line.chars.reduce((r, ch) => union(r, ch.bbox), line.bbox);
-              block.bbox = union(block.bbox, line.bbox);
+              tidyLine(line);
               block.lines.push(line);
             }
             line = null;
           },
           endTextBlock() {
-            if (block?.lines.length) blocks.push(block);
+            if (block?.lines.length) {
+              block.bbox = block.lines
+                .slice(1)
+                .reduce((r, l) => union(r, l.bbox), block.lines[0]!.bbox);
+              blocks.push(block);
+            }
             block = null;
           },
           onImageBlock(bbox, _transform, image) {

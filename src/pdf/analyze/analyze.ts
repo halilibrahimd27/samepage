@@ -502,6 +502,14 @@ function classify(
         role = 'formula';
       b.role = role;
       b.translatable = !['formula', 'code', 'page-number', 'reference'].includes(role);
+      // A box reaching far off the page cannot be redacted safely: it would take the page with it.
+      if (
+        b.bbox.y0 < -0.1 * raw.height ||
+        b.bbox.y1 > 1.1 * raw.height ||
+        b.bbox.x0 < -0.1 * raw.width ||
+        b.bbox.x1 > 1.1 * raw.width
+      )
+        b.translatable = false;
       // A one-word running head or foot is a journal or brand name ("sinergie", "Forest@"); one
       // with a year and a volume is the journal's citation line ("Journal of Health Monitoring ·
       // 2018 3(1)", "Forest@ (2019) 16: 3-9"). Both stay as they are.
