@@ -592,31 +592,39 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       const numbersChanged = lastIssues
         .get(req.id)
         ?.some((i) => i.code === 'NUMBER_MISMATCH' || i.code === 'CITATION_MISMATCH');
-      const results = await call(
-        parts,
-        undefined,
-        numbersChanged ? new Set(parts.map((p) => p.id)) : undefined,
-      );
-      attempts.set(req.id, (attempts.get(req.id) ?? 0) + 1);
-      const texts = parts.map((p) => results.get(p.id)?.text ?? '');
-      if (texts.some((t) => !t.trim())) {
+      const translate = async (freeze?: Set<string>) => {
+        const results = await call(parts, undefined, freeze);
+        attempts.set(req.id, (attempts.get(req.id) ?? 0) + 1);
+        const texts = parts.map((p) => results.get(p.id)?.text ?? '');
+        if (texts.some((t) => !t.trim())) return null;
+        const notes = [
+          ...new Set(['sentences', ...parts.flatMap((p) => results.get(p.id)?.notes ?? [])]),
+        ];
+        const text = texts.map((t) => t.trim()).join(' ');
+        return { r: { id: req.id, text, notes }, issues: validate(req, text, notes) };
+      };
+      const failed = (t: { issues: ValidationIssue[] } | null) =>
+        !t || t.issues.some((i) => i.severity === 'error');
+      // Plain first: one sentence alone rarely makes the engine change a number, and held numbers
+      // are translated around piece by piece. Held only when plain sentences still differ.
+      const plain = await translate();
+      const held =
+        failed(plain) && numbersChanged ? await translate(new Set(parts.map((p) => p.id))) : null;
+      const best = !failed(held) ? held : (plain ?? held);
+      if (!best) {
         unresolved.push(req);
         continue;
       }
-      const notes = [
-        ...new Set(['sentences', ...parts.flatMap((p) => results.get(p.id)?.notes ?? [])]),
-      ];
-      const text = texts.map((t) => t.trim()).join(' ');
-      const issues = validate(req, text, notes);
-      if (issues.some((i) => i.severity === 'error')) {
-        remember(req, { id: req.id, text, notes }, issues, true);
+      if (failed(best)) {
+        // The plain sentences are kept over held ones the engine pieced, when they may be.
+        for (const t of [held, plain]) if (t) remember(req, t.r, t.issues, true);
         // Reported against the original text that is kept: not "translated sentence by sentence".
         lastIssues.set(
           req.id,
-          issues.filter((i) => i.severity !== 'info'),
+          best.issues.filter((i) => i.severity !== 'info'),
         );
         unresolved.push(req);
-      } else accept(req, { id: req.id, text, notes }, issues);
+      } else accept(req, best.r, best.issues);
     }
     for (const req of unresolved.concat(
       batch.filter((b) => !outcomes.has(b.id) && !unresolved.includes(b)),

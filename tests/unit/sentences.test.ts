@@ -107,6 +107,36 @@ describe('sentence-by-sentence retry', () => {
     );
   });
 
+  it('tries the sentences plain before holding their numbers', async () => {
+    // Whole: a year changed. Held numbers: pieced. Sentence by sentence, plain: right.
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch) =>
+        Promise.resolve(
+          batch.map((b) => ({
+            id: b.id,
+            text: /⟦D\d+⟧/u.test(b.text)
+              ? b.text.replace(/⟦D(\d+)⟧/gu, '⟦D$1⟧Parça')
+              : (SENTENCES[b.text] ??
+                'This method was developed in 1981. The results are consistent.'),
+          })),
+        ),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [
+        {
+          id: 'p',
+          text: 'Bu yöntem 1980 yılında geliştirildi. Sonuçlar tutarlıdır.',
+          role: 'body',
+        },
+      ],
+      ctx: { pair: { source: 'tr', target: 'en' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(out!.text).toBe('This method was developed in 1980. The results are consistent.');
+  });
+
   it('keeps the source when an engine makes up years, even if no number is lost', async () => {
     const engine: TranslationEngine = {
       ...machineTranslator(),
