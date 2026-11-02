@@ -328,6 +328,34 @@ describe('ruled grids drawn cell by cell', () => {
     expect(tables[0]!.rect.y1).toBeGreaterThanOrEqual(250);
   });
 
+  it('keeps the row rules beside a merged cell whose fill touches them', () => {
+    // A merged first-column cell over three rows, filled white; its fill reaches half a point
+    // under the start of the inner row rules, drawn across the other columns only.
+    const p = cellPage(
+      [
+        [55, 150, 85, 159, '1. Ideia'],
+        [100, 110, 240, 119, '1.1. Definição'],
+        [100, 150, 240, 159, '1.2. Ampliação'],
+        [100, 190, 240, 199, '1.3. Ausência'],
+      ],
+      [],
+    );
+    const v = (x0: number, y0: number, x1: number, y1: number, fill = false) => ({
+      bbox: { x0, y0, x1, y1 },
+      isRectangle: true,
+      isStroked: !fill,
+      color: (fill ? [1, 1, 1] : [0, 0, 0]) as [number, number, number],
+    });
+    p.vectors.push(
+      v(50, 100, 90.5, 220, true),
+      ...[100, 220].map((y) => v(50, y, 300, y + 0.5)),
+      ...[140, 180].map((y) => v(90, y, 300, y + 0.5)),
+      ...[50, 90, 299].map((x) => v(x, 100, x + 0.5, 220)),
+    );
+    const [t] = detectTables(p);
+    expect(t!.rows.filter((y) => y > 130 && y < 190)).toHaveLength(2);
+  });
+
   it('takes the rows of a ruled grid from its rules, not from where the lines fall', async () => {
     const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
     // Rows 50 pt tall: a cell of four lines beside a centred one and one split in two blocks.

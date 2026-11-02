@@ -27,9 +27,10 @@ export function detectTables(page: RawPage): TableRegion[] {
     .map((v) => v.bbox)
     .filter((b) => b.y1 - b.y0 > 3 && b.x1 - b.x0 > 2);
   // A rule that a shape runs across (a bar across a chart's grid line) is no table rule; cell
-  // borders are thinner than a shape.
+  // borders are thinner than a shape. A merged cell's fill that only touches a row rule beside it
+  // (half a point at the shared border) does not cross it.
   const crossed = (r: Rect) =>
-    graphics.some((g) => g.y0 < r.y0 - 1 && g.y1 > r.y1 + 1 && xOverlap(g, r) > 0);
+    graphics.some((g) => g.y0 < r.y0 - 1 && g.y1 > r.y1 + 1 && xOverlap(g, r) > 2);
   const hrules = stitchRules(
     page.vectors
       .filter((v) => v.bbox.y1 - v.bbox.y0 < 2 && v.bbox.x1 - v.bbox.x0 > 8)
