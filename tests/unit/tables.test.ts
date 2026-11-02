@@ -344,7 +344,7 @@ describe('ruled grids drawn cell by cell', () => {
       bbox: { x0, y0, x1, y1 },
       isRectangle: true,
       isStroked: !fill,
-      color: (fill ? [1, 1, 1] : [0, 0, 0]) as [number, number, number],
+      color: [Number(fill), Number(fill), Number(fill)] as [number, number, number],
     });
     p.vectors.push(
       v(50, 100, 90.5, 220, true),
