@@ -11,8 +11,10 @@ const MATH_FONT =
 const MATH_LETTER = /[\u{1d400}-\u{1d7ff}]/u;
 const MONO_FONT =
   /(Mono|Courier|CMTT|LMMono|Consolas|Inconsolata|Menlo|Monaco|Typewriter|SFTT|TXTT|SourceCode|FiraCode|LucidaConsole|Cursor)/i;
-const SANS_FONT = /(Sans|Arial|Helvetica|CMSS|LMSans|Calibri|Verdana|Segoe|Roboto)/i;
-const BOLD_FONT = /(Bold|Black|Heavy|Semibold|Demi|CMBX|-Bd|BX\d)/i;
+const SANS_FONT =
+  /(Sans|Arial|Helvetica|CMSS|LMSans|Calibri|Verdana|Segoe|Roboto|Poppins|Inter(?![a-z])|Montserrat|Lato|Ubuntu|Raleway|Nunito|Myriad|Frutiger|Futura|Gill|Tahoma|Trebuchet|Avenir|Proxima|Univers|Optima|Candara|Corbel|Franklin|Gothic|Grotesk|Grotesque|Bungee|Oswald|Rubik|Manrope|Mulish|Karla|Barlow|Josefin|Quicksand|Cabin|Titillium|Heebo|Sora|Outfit|Jakarta|Archivo|Overpass|Asap|Arimo|Carlito|Aptos|Lexend|Figtree|Geist|Impact)/i;
+// Display faces are heavy whatever their name says ("Bungee-Regular").
+const BOLD_FONT = /(Bold|Black|Heavy|Semibold|Demi|CMBX|-Bd|BX\d|Bungee|Impact)/i;
 const ITALIC_FONT = /(Italic|Oblique|CMTI|CMSL|Slanted|-It)/i;
 
 export function fontInfo(name: string, flags?: RawFont): SpanIR['font'] {

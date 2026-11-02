@@ -4,7 +4,7 @@ import {
   REFERENCES_HEADING as REFERENCES,
   SELF_CITATION_LABEL,
 } from '../../core/references';
-import type { BlockIR, PageIR, Rect, Role } from '../../core/ir/types';
+import type { BlockIR, LineIR, PageIR, Rect, Role } from '../../core/ir/types';
 import type { RawPage } from '../extract/raw';
 import { blockText, buildBlocks } from './blocks';
 import { cluster, detectTables, type TableRegion } from './tables';
@@ -75,6 +75,68 @@ const allBold = (b: BlockIR) =>
   b.lines.every((l) => l.spans.every((s) => s.font.bold || !s.text.trim() || s.font.isMath));
 const allMono = (b: BlockIR) =>
   b.lines.every((l) => l.spans.every((s) => s.font.family === 'mono' || !s.text.trim()));
+/**
+ * Text in a typewriter font that reads as language, not code: a slide's labels ("TEMEL",
+ * "BİLMEN GEREKEN", "1. HAFTA") are set in JetBrains Mono like its code, and stayed untranslated.
+ * Code has its signs ({ } = $ < > |), paths and names (a.b, snake_case, camelCase, --flags).
+ */
+export const monoProse = (text: string): boolean => {
+  const t = text.trim();
+  if (!/\p{L}{2}/u.test(t)) return false;
+  if (/[{}=$<>|`;@[\]]|::|=>|&&|\/\/|^\s*#|--\w|\w\.\w|\w_\w|\p{Ll}\p{Lu}|\w\(/u.test(t))
+    return false;
+  // Words, with the punctuation of prose.
+  const words = t.match(/\p{L}[\p{L}\p{M}'’-]*/gu) ?? [];
+  const signs = t.replace(/[\p{L}\p{M}\p{N}\s.,:;!?'’"“”()\-–—&%·•/+*]/gu, '');
+  // One lower-case word is a name ("requests", "colors" in a package table), not a label.
+  if (words.length === 1 && /^\p{Ll}/u.test(t)) return false;
+  return words.length > 0 && signs.length <= 1;
+};
+/** A comment of a code listing, after its sign ("# ", "// ", "-- "). */
+const COMMENT = /^\s*(?:#|\/\/|--|%)\s*(.*)$/u;
+
+/**
+ * A comment line in words ("# KOTU: kalici erisim anahtari", "// the attacker's code") is
+ * language: it is translated in its own place, and the code around it stays as written.
+ */
+function splitCodeComments(blocks: BlockIR[]): BlockIR[] {
+  const comment = (l: LineIR) => {
+    const m = COMMENT.exec(l.spans.map((s) => s.text).join(''));
+    return !!m && (m[1]!.match(/\p{L}{2,}/gu)?.length ?? 0) >= 2 && !/[{}=$<>|@]/u.test(m[1]!);
+  };
+  const out: BlockIR[] = [];
+  for (const b of blocks) {
+    if (b.role !== 'code' || b.chain || !b.lines.some(comment)) {
+      out.push(b);
+      continue;
+    }
+    let k = 0;
+    let run: LineIR[] = [];
+    let words = comment(b.lines[0]!);
+    const flush = () => {
+      if (!run.length) return;
+      out.push({
+        ...b,
+        id: `${b.id}c${k++}`,
+        lines: run,
+        bbox: unionAll(run.map((l) => l.bbox)),
+        role: words ? 'label' : 'code',
+        translatable: words,
+      });
+      run = [];
+    };
+    for (const l of b.lines) {
+      if (comment(l) !== words) {
+        flush();
+        words = !words;
+      }
+      run.push(l);
+    }
+    flush();
+  }
+  return out;
+}
+
 /**
  * Running heads/feet compared by their letters only: page numbers differ per page, and fonts
  * with a broken text mapping turn them into a different invisible character on every page.
@@ -428,7 +490,7 @@ function classify(
     for (const b of blocks) {
       if (b.role === 'table-cell') {
         // Code listings framed by rules are not tables to translate.
-        if (allMono(b)) {
+        if (allMono(b) && !monoProse(blockText(b))) {
           b.role = 'code';
           b.translatable = false;
         }
@@ -469,7 +531,7 @@ function classify(
         role = inTopBand ? 'header' : 'footer';
       else if (marked(b)) role = 'header';
       else if (mathRatio(b) >= 0.3 && !worded) role = 'formula';
-      else if (allMono(b)) role = 'code';
+      else if (allMono(b) && !monoProse(text)) role = 'code';
       // A large ornament (a brace beside the title) is the page's decoration, not its title.
       else if (!/[\p{L}\p{N}]/u.test(text) && text.trim().length <= 2 && size >= 2 * stats.bodySize)
         role = 'header';
@@ -1455,6 +1517,7 @@ export function analyzeDocument(raw: RawPage[]): PageIR[] {
   for (const p of pages) p.blocks = absorbDropCaps(p.blocks, stats.bodySize, words);
   classify(pages, stats);
   for (const p of pages) {
+    p.blocks = splitCodeComments(p.blocks);
     formulaPieces(p.blocks);
     p.blocks = joinScripts(p.blocks);
   }

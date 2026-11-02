@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CAPTION } from '../../src/core/references';
 import type { BlockIR, SpanIR } from '../../src/core/ir/types';
+import type { RawLine, RawPage } from '../../src/pdf/extract/raw';
 import {
+  analyzeDocument,
+  blockText,
   equationBlock,
   equationLike,
   mathFragments,
   mathLike,
+  monoProse,
 } from '../../src/pdf/analyze/analyze';
 
 describe('mathFragments', () => {
@@ -122,5 +126,58 @@ describe('mathFragments', () => {
       'Рис. 1 демонстрирует',
     ])
       expect(CAPTION.test(t), t).toBe(false);
+  });
+});
+
+describe('text in a typewriter font', () => {
+  it('reads labels as language and code as code', () => {
+    for (const t of ['TEMEL', 'BİLMEN GEREKEN', '1. HAFTA', 'Uzun ömürlü anahtar yerine OIDC'])
+      expect(monoProse(t), t).toBe(true);
+    for (const t of [
+      'requests',
+      '$ git log -p',
+      'uses: actions/checkout@v4',
+      'x = 1',
+      'pull_request',
+    ])
+      expect(monoProse(t), t).toBe(false);
+  });
+
+  it("translates a code listing's comments in words, not its code", () => {
+    const line = (y: number, text: string): RawLine => ({
+      bbox: { x0: 60, y0: y, x1: 60 + 6 * text.length, y1: y + 10 },
+      dir: [1, 0],
+      wmode: 0,
+      chars: [...text].map((c, i) => ({
+        c,
+        x: 60 + 6 * i,
+        y: y + 8,
+        bbox: { x0: 60 + 6 * i, y0: y, x1: 66 + 6 * i, y1: y + 10 },
+        font: 'JetBrainsMono-Regular',
+        size: 9,
+        color: [0, 0, 0] as [number, number, number],
+      })),
+    });
+    const lines = [
+      line(100, '$ git log -p --all -S AKIA | head'),
+      line(112, '# gecmisin tamaminda arar, saldirgan da boyle arar'),
+      line(124, '# v4.1.7'),
+    ];
+    const page: RawPage = {
+      index: 0,
+      width: 600,
+      height: 800,
+      rotation: 0,
+      blocks: [{ bbox: { x0: 60, y0: 100, x1: 400, y1: 134 }, lines }],
+      images: [],
+      vectors: [],
+      links: [],
+      fonts: {},
+    };
+    const [p] = analyzeDocument([page]);
+    const of = (t: string) => p!.blocks.find((b) => blockText(b).includes(t))!;
+    expect(of('git log').translatable).toBe(false);
+    expect(of('gecmisin').translatable).toBe(true);
+    expect(of('v4.1.7').translatable).toBe(false);
   });
 });
