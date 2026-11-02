@@ -4,6 +4,40 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] — 2026-11-02
+
+Fixes found by translating 28 further papers in eight languages and reading every result.
+
+### Fixed
+
+- A reference page could come out blank: two invisible spaces of 1638 pt at a line end stretched
+  the line over the page, and rewriting it removed everything under it. Boxes reaching off the
+  page are no longer rewritten at all.
+- Pages set in a font with a tiny declared ascent (TeX Gyre Termes X) were left untranslated with
+  the translation in PDF notes; their paragraphs no longer split after "et al.".
+- Tables ruled cell by cell keep the room of their rows: cells were shrunk to two thirds or kept
+  in the original when their lines did not line up. A cell of a table without row rules has its
+  own height and the room down to the next cell; a merged cell's fill no longer hides the row
+  rules beside it, so such a table stays one table (also in Word).
+- Russian set in a font mapped as Windows-1251 ("ÀÍÒÈÊÐÈÇÈÑÍÛÅ") is read as Cyrillic, so its
+  language is detected and it is translated.
+- Accents TeX draws apart ("Bouall`egue", "B¨ulte") are composed; variation selectors no longer
+  reported as missing glyphs; a formula's index set in the text font stays in the formula.
+- Fewer paragraphs left in the original: academic years broken at a line end ("2020- 21"),
+  percentiles, ordinals and numbers written in words ("2-й группы" → "ikinci grupta", "yedi
+  boyutun dördü", "yirmi iki makale", "twenty-two") and one-word labels ("Acidente vascular
+  cerebral" → "İnme") no longer fail the checks; a paragraph with formatting across a sentence
+  end is retried sentence by sentence, plain before its numbers are held.
+- A label the translation leaves as written ("SECURICOM") stays without a PDF note; zero-width
+  spaces Google writes into terms are dropped.
+- Meaning kept where Google garbled it: such false alarms had made the retries hold every
+  number in place, and Google then translated the words between them apart ("IgM V 1,9 Ve 2,9");
+  words translated piece by piece and a sentence broken at a number ("2-3 курса") are now retried
+  sentence by sentence. A code such as "19.00.01" turned into "19.00.2001" is caught; statistics
+  heads, legal forms and the paper's acronyms stay as written ("Sig." was "Sonraki", "Inc" was
+  "Inch", "Confirmed USPs" was "Unique Selling Points"); pre/post columns and an English
+  "Abstract" in a non-English paper in the field's terms.
+
 ## [1.0.0] — 2026-11-02
 
 ### Added
