@@ -283,6 +283,10 @@ const NUMBER_WORDS: Record<string, string[]> = {
   ],
   bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', '', '', '', ''],
 };
+/** A full hour of the clock: "14 órakor", "um 9 Uhr", "à 10 heures", "в 5 часов". */
+const HOUR =
+  /(?<![\d.,:])(\d{1,2})\s*(?:órakor|órától|óráig|óra|Uhr|heures?|horas?|ore|часов|часа|час|godz\.?|hodin|uur|o'clock)(?!\p{L})/giu;
+
 /** A number and a half, a word apart: "4 heures et demie", "2 horas y media", "3 and a half". */
 const HALF =
   /(?<![\d.,])(\d+)\s+(?:\p{L}+\s+)?(?:et demie?|y medi[ao]|e mezz[ao]|e mei[ao]|and a half|buçuk|és fél)(?!\p{L})/giu;
@@ -540,6 +544,8 @@ export function compareNumbers(
   /** Target language: small numbers it writes in words ("5 madde" → "fünf Items"). */
   targetLang?: string,
 ): { missing: string[]; extra: string[] } {
+  // A full hour the translation writes as a time ("3 órakor" → "03:00"): its ":00" is no number.
+  if (!/:00(?!\d)/u.test(source)) target = target.replace(/(?<=\d):00(?!\d)/gu, '');
   // A Roman numeral may become digits ("siglo XX" → "20th century"); one the target keeps as
   // is needs no match.
   // Cyrillic papers set them in look-alike letters ("у ХХІ столітті" → "21. yüzyılda").
@@ -579,13 +585,19 @@ export function compareNumbers(
   };
   // "4 heures et demie" → "4,5 saat": the number and a half.
   const halves = new Set([...source.matchAll(HALF)].map((m) => m[1]!));
+  const hours = new Set([...source.matchAll(HOUR)].map((m) => m[1]!));
   const src = [
     ...extractNumbers(source).flatMap(
       (t) =>
         date(t) ?? [
           {
             t,
-            v: decade(t, candidateValues(t)).flatMap((v) => (halves.has(t) ? [v, v + 0.5] : [v])),
+            v: decade(t, candidateValues(t)).flatMap((v) => [
+              v,
+              ...(halves.has(t) ? [v + 0.5] : []),
+              // An hour of the 24-hour clock read on the 12-hour one ("14 órakor" → "saat 2'de").
+              ...(hours.has(t) ? [v > 12 ? v - 12 : v + 12] : []),
+            ]),
             optional: false,
           },
         ],

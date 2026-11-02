@@ -407,6 +407,15 @@ describe('validateTranslation', () => {
       targetLang: 'tr',
     }).filter((i) => i.code === 'PUNCTUATION_CHANGED');
     expect(own.map((i) => i.severity)).toEqual(['warning']);
+    // Hours of the clock, as a time or on the 12-hour clock.
+    expect(
+      validateTranslation({
+        source: 'Hajnali 3 órakor megérkezett a dandár, 14 órakor pedig a polgárok gyülekeztek.',
+        target: "Tugay saat 03:00'te geldi, öğleden sonra saat 2'de ise vatandaşlar toplandı.",
+        sourceLang: 'hu',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).toEqual([]);
     // A number and a half.
     expect(
       validateTranslation({
