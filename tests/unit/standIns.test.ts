@@ -320,11 +320,25 @@ describe('headings with machine engines', () => {
         'Ancak, eğer ⟦D7⟧Üçüncü döngüden sonraki IgA değerlerine göre -inci hasta grubu,⟦U5⟧Ve ⟦U6⟧standart parametrelere döner.',
       ),
     ).toBe(true);
-    // A held number at a sentence start, or a name after one, is no piece.
+    // A sentence ended before a number the source has inside one.
     expect(
       piecewise(
-        sent,
-        'Ancak ⟦D7⟧. grupta III. döngüden sonra IgA, ⟦U5⟧ ve ⟦U6⟧ değerleri normale döner. ⟦D8⟧ Hasta',
+        'RESULTADOS: Foram analisados ⟦D1⟧ estudos, a maioria nos Estados Unidos.',
+        'BULGULAR: Aşağıdakiler analiz edildi. ⟦D1⟧ Çoğunluğu Amerika Birleşik Devletleri.',
+      ),
+    ).toBe(true);
+    // Days before their month are no pieces.
+    expect(
+      piecewise(
+        'Recebido em ⟦D1⟧ de março e aprovado em ⟦D2⟧ de abril.',
+        '⟦D1⟧ Mart tarihinde alındı ve ⟦D2⟧ Nisan tarihinde onaylandı.',
+      ),
+    ).toBe(false);
+    // A held number opening a sentence in both, lower case after it, is no piece.
+    expect(
+      piecewise(
+        `${sent} ⟦D8⟧ пациентов выбыли.`,
+        'Ancak ⟦D7⟧. grupta III. döngüden sonra IgA, ⟦U5⟧ ve ⟦U6⟧ değerleri normale döner. ⟦D8⟧ hasta ayrıldı.',
       ),
     ).toBe(false);
   });

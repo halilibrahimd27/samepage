@@ -30,15 +30,26 @@ function inlineIdentifiers(
 }
 
 /**
- * Text Google translated piece by piece between no-translate spans: the pieces open with a
- * capital mid-sentence ("eğer ⟦D7⟧Üçüncü", "⟦U5⟧Ve ⟦U6⟧standart") — word salad that keeps every
- * number.
+ * Month names a target capitalises after a day ("29 Mart", "3 January") and units after a
+ * number ("50 Hz"): no new piece.
+ */
+const MONTH =
+  /^(?:Hz|Pa|Gy|Bq|Da|Wb|Sv|Wh|Ma|Ga|Mb|Gb|Kb|Tb)$|^(?:Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık|January|February|March|April|May|June|July|August|September|October|November|December|Januar|Februar|März|Juni|Juli|Oktober|Dezember)/u;
+
+/**
+ * Text Google translated piece by piece around no-translate spans: the pieces open with a capital
+ * mid-sentence ("eğer ⟦D7⟧Üçüncü", "⟦U5⟧Ve ⟦U6⟧standart"), or a sentence ends before a number the
+ * source has inside one ("Foram analisados 22 estudos" → "analiz edildi. 22 Çoğunluğu") — word
+ * salad that keeps every number.
  */
 export function piecewise(sent: string, received: string): boolean {
-  const opens = (t: string) =>
-    [...t.matchAll(/(?<![.!?:]\s*)⟦[A-Z]\d+⟧\s*(?:<\/?t\d+>\s*)*\p{Lu}\p{Ll}/gu)].length;
-  const n = opens(received);
-  return n >= 2 && n > opens(sent);
+  const SPAN = String.raw`⟦[A-Z]\d+⟧\s*(?:<\/?t\d+>\s*)*`;
+  const count = (t: string, re: RegExp) =>
+    [...t.matchAll(re)].filter((m) => !MONTH.test(m[1]!)).length;
+  const inside = new RegExp(String.raw`(?<![.!?:]\s*)${SPAN}(\p{Lu}\p{Ll}+)`, 'gu');
+  const after = new RegExp(String.raw`[.!?:]\s*${SPAN}(\p{Lu}\p{Ll}+)`, 'gu');
+  const n = count(received, inside);
+  return (n >= 2 && n > count(sent, inside)) || count(received, after) > count(sent, after);
 }
 
 /**
