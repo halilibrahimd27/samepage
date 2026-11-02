@@ -150,7 +150,8 @@ Besides unit, golden and end-to-end tests on synthetic documents, samepage is ch
 [quality page](https://halilibrahimd27.github.io/samepage/#quality) — engineering, mathematics, physics, chemistry,
 medicine, nursing, public health, computer science, biology, economics and law — plus round
 trips (a paper translated into another language and back) to measure meaning drift. In live
-runs with the free Google engine on 27 papers in all 17 languages (about 7,700 paragraphs),
+runs with the free Google engine on 29 papers in all 17 languages (about 8,100 paragraphs,
+including chemistry, law and mathematical physics),
 99.9 % of the paragraphs came out translated with their numbers intact; the rest, OCR noise of a
 1979 scan, were kept in the original and reported. About 2 % carried a warning to review. Those
 papers are not part of this repository; [`media/demo-paper.pdf`](media/demo-paper.pdf) is a
@@ -167,8 +168,17 @@ fictional paper written for the demo, so you can try samepage with it.
 - Private-use symbols without a Unicode meaning can be lost (reported per page). A page whose
   text cannot be removed without moving the text around it is rewritten from a normalised copy,
   or kept as it is with the translations as PDF notes (reported).
+- On pages dense with display formulas, a longer translation may not fit between two formulas;
+  the lines then touch and the page is marked "Needs review". The Word file is not affected.
+- A math glyph the PDF gives no character for (often a large ∑ or √) is printed as "�" in the
+  translated PDF rather than guessed, and in the Word file such a small symbol comes after its
+  paragraph as a picture instead of inside the line.
+- The Word file uses fonts every computer has (Times New Roman for an unknown serif), so its
+  pages run longer than the PDF's, and figures follow the reading order.
 - Very long PDFs (hundreds of pages) need a lot of memory; translate them in page ranges.
-- Translation quality depends on the engine. Always review academic text before publishing.
+- Translation quality depends on the engine. The meaning check flags paragraphs where a
+  negation, a hedge, a quantity or a number may have changed, and repairs what it can; always
+  review academic text before publishing.
 
 ## Development
 
