@@ -16,6 +16,22 @@ const quadToRect = (q: number[]): Rect => ({
   y1: Math.max(q[1]!, q[3]!, q[5]!, q[7]!),
 });
 const toRect = (r: number[]): Rect => ({ x0: r[0]!, y0: r[1]!, x1: r[2]!, y1: r[3]! });
+const union = (a: Rect, b: Rect): Rect => ({
+  x0: Math.min(a.x0, b.x0),
+  y0: Math.min(a.y0, b.y0),
+  x1: Math.max(a.x1, b.x1),
+  y1: Math.max(a.y1, b.y1),
+});
+/**
+ * A glyph box of a horizontal line, from the baseline `y`. Some embedded fonts declare a tiny
+ * ascent and no descent (TeX Gyre Termes X: boxes 0.45 of the size, over the x-height only);
+ * such a box gets a common font's ascent and descent, or the gaps between lines look three
+ * times their height and the paragraphs split, and redaction checks miss the letters' tops.
+ */
+const glyphBox = (box: Rect, y: number, size: number, horizontal: boolean): Rect =>
+  horizontal && size > 0 && box.y1 - box.y0 < 0.6 * size
+    ? { ...box, y0: Math.min(box.y0, y - 0.75 * size), y1: Math.max(box.y1, y + 0.2 * size) }
+    : box;
 const round = (n: number) => Math.round(n * 100) / 100;
 const rgb = (c: number[]): [number, number, number] =>
   c.length >= 3 ? [c[0]!, c[1]!, c[2]!] : c.length === 1 ? [c[0]!, c[0]!, c[0]!] : [0, 0, 0];
@@ -191,11 +207,12 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
               serif: font.isSerif(),
               mono: font.isMono(),
             };
+            const horizontal = line?.wmode === 0 && line.dir[0] === 1 && line.dir[1] === 0;
             const ch: RawChar = {
               c: restoreChar(c, name),
               x: round(origin[0]),
               y: round(origin[1]),
-              bbox: quadToRect(quad),
+              bbox: glyphBox(quadToRect(quad), origin[1], size, horizontal),
               font: name,
               size: round(size),
               color: rgb(color),
@@ -203,7 +220,11 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
             line?.chars.push(ch);
           },
           endLine() {
-            if (line && block && line.chars.length) block.lines.push(line);
+            if (line && block && line.chars.length) {
+              line.bbox = line.chars.reduce((r, ch) => union(r, ch.bbox), line.bbox);
+              block.bbox = union(block.bbox, line.bbox);
+              block.lines.push(line);
+            }
             line = null;
           },
           endTextBlock() {

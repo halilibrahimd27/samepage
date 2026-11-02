@@ -81,22 +81,55 @@ const COMBINING: Record<string, { mark: string; above: boolean }> = {
   '˝': { mark: '\u030B', above: true },
   '˛': { mark: '\u0328', above: false },
   '¸': { mark: '\u0327', above: false },
+  ˆ: { mark: '\u0302', above: true },
+  '˜': { mark: '\u0303', above: true },
+  '¯': { mark: '\u0304', above: true },
+  '˘': { mark: '\u0306', above: true },
 };
 
 /**
- * An accent drawn as a glyph of its own over the letter before it ("z" + a raised "." for "ż"):
- * it becomes the combining mark, composed with its letter when the span's text is normalised.
+ * An accent drawn as a glyph of its own over a letter becomes the combining mark, composed with
+ * its letter when the span's text is normalised: over the letter before it ("z" + a raised "."
+ * for "ż"), or, as TeX sets it, first and on the baseline, the letter drawn under it next
+ * ("Bouall`egue" → "Bouallègue", "B¨ulte" → "Bülte").
  */
 export function composeAccents(chars: RawChar[]): RawChar[] {
-  return chars.map((c, i) => {
+  const out: RawChar[] = [];
+  const centreIn = (c: RawChar, l: RawChar) => {
+    const centre = (c.bbox.x0 + c.bbox.x1) / 2;
+    return centre > l.bbox.x0 && centre < l.bbox.x1;
+  };
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i]!;
     const accent = COMBINING[c.c];
     const prev = chars[i - 1];
-    if (!accent || !prev || !/\p{L}/u.test(prev.c)) return c;
-    const centre = (c.bbox.x0 + c.bbox.x1) / 2;
-    const over = centre > prev.bbox.x0 && centre < prev.bbox.x1;
-    const placed = accent.above ? c.y < prev.y - 0.3 * prev.size : true;
-    return over && placed ? { ...prev, c: accent.mark, bbox: prev.bbox } : c;
-  });
+    const next = chars[i + 1];
+    if (
+      accent &&
+      prev &&
+      /\p{L}/u.test(prev.c) &&
+      centreIn(c, prev) &&
+      (!accent.above || c.y < prev.y - 0.3 * prev.size)
+    ) {
+      out.push({ ...prev, c: accent.mark, bbox: prev.bbox });
+      continue;
+    }
+    if (
+      accent?.above &&
+      c.c !== '.' &&
+      next &&
+      /\p{L}/u.test(next.c) &&
+      centreIn(c, next) &&
+      c.y < next.y + 0.1 * next.size
+    ) {
+      // A dotless "ı" under an accent is the "i" of "í", "ï".
+      out.push({ ...next, c: next.c === 'ı' ? 'i' : next.c }, { ...next, c: accent.mark });
+      i++;
+      continue;
+    }
+    out.push(c);
+  }
+  return out;
 }
 
 function toLine(rawChars: RawChar[], page: RawPage): LineIR {
@@ -652,6 +685,11 @@ function dropDuplicates(blocks: BlockIR[]): BlockIR[] {
 const mainSpan = (line: LineIR) =>
   line.spans.reduce((best, sp) => (sp.text.length > best.text.length ? sp : best), line.spans[0]!);
 
+/** A line ending in a sentence end, not in an abbreviation of a citation ("Lang et al."). */
+const endsSentence = (text: string) =>
+  /[.!?…:]["”»’)\]]*$/u.test(text) &&
+  !/(?<!\p{L})(?:et al|e\.\s?g|i\.\s?e|cf|vs|vgl|bzw|z\.\s?B|d\.\s?h|bkz|vd)\.$/u.test(text);
+
 function mergeSplitParagraphs(
   blocks: BlockIR[],
   layout: PageLayout,
@@ -721,7 +759,7 @@ function mergeSplitParagraphs(
         MARK_ONLY.test(lead.text.trim()) &&
         lead.size < 0.8 * Math.max(...bFirst.spans.map((x) => x.size));
       if (
-        !/[.!?…:]["”»’)\]]*$/.test(aText) &&
+        !endsSentence(aText) &&
         !opensWithMark &&
         (continuesLeft || continuesFull || continuesCentred) &&
         step > 0.5 * size &&

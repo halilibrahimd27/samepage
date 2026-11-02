@@ -281,6 +281,27 @@ describe('a line in pieces', () => {
     expect(blockText(host)).toContain('and item latent vector');
     expect(blockText(host)).toContain('mapping function');
   });
+
+  it('keeps a paragraph whole that MuPDF split after "et al." at the text edge', () => {
+    // Justified lines of 50 characters; MuPDF ended the block before the citation's year.
+    const full = (end: string) =>
+      'The quick brown fox jumps over the lazy dog again.'.slice(end.length) + end;
+    const split = (end: string) => {
+      const raw = page(0, [...body(100), ...body(200)]);
+      const a = [line([72, 140, full('over the')]), line([72, 152, full(` (Ben Bou ${end}`)])];
+      const b = line([72, 164, '2024). The fox rests.']);
+      raw.blocks.push(
+        { bbox: { ...a[0]!.bbox, y1: a[1]!.bbox.y1 }, lines: a },
+        { bbox: b.bbox, lines: [b] },
+      );
+      return analyzeDocument([raw])[0]!.blocks.map((x) => blockText(x));
+    };
+    expect(split('et al.')).toContain(
+      `${full('over the')} ${full(' (Ben Bou et al.')} 2024). The fox rests.`,
+    );
+    // A sentence end does end the paragraph.
+    expect(split('end ab.')).toContain('2024). The fox rests.');
+  });
 });
 
 describe('footnotes', () => {

@@ -50,5 +50,14 @@ describe('composeAccents', () => {
     // A full stop on the line after a word stays one.
     const end = [ch('a', 0, 6), ch('.', 6, 9)];
     expect(composeAccents(end).map((c) => c.c)).toEqual(['a', '.']);
+    // TeX sets the accent first, on the baseline, and the letter under it next.
+    const tex = [ch('l', 0, 3), ch('`', 4, 9), ch('e', 3, 9), ch('B', 9, 17), ch('¨', 18, 23)];
+    tex.push(ch('u', 17, 23), ch('`', 23, 28), ch('a', 29, 35));
+    expect(
+      composeAccents(tex)
+        .map((c) => c.c)
+        .join('')
+        .normalize('NFC'),
+    ).toBe('lèBü`a');
   });
 });

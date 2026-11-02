@@ -94,6 +94,8 @@ export async function writePdf(
           if (cp < 0x20 || cp === 0x200b || cp === 0xad) continue;
           const gid = font.encodeCharacter(cp);
           if (gid === 0) {
+            // Variation selectors and other invisible format characters draw nothing anyway.
+            if (/\p{Default_Ignorable_Code_Point}/u.test(ch)) continue;
             if (!missing.has(pageIndex)) missing.set(pageIndex, new Set());
             missing.get(pageIndex)!.add(ch);
             continue;
