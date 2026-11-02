@@ -336,6 +336,22 @@ const SMALL_WORDS: Record<string, string[]> = {
 };
 
 /** Zero and one in words where they are no article ("zwischen null und eins"). */
+/**
+ * "One" as the target writes a count of one ("behalve 1 groter stuk" → "bir büyük parça hariç").
+ * Also the indefinite article in most of these languages, so it stands for a source "1" only
+ * where that 1 counts the word after it.
+ */
+const ONE: Record<string, RegExp> = {
+  tr: /^bir$/u,
+  en: /^one$/u,
+  de: /^(?:ein|eine|einen|einem|einer|eines|eins)$/u,
+  fr: /^(?:un|une)$/u,
+  es: /^(?:un|una|uno)$/u,
+  it: /^(?:un|uno|una)$/u,
+  pt: /^(?:um|uma)$/u,
+  nl: /^(?:een|één)$/u,
+};
+
 const ZERO_ONE: Record<string, string[]> = {
   en: ['zero'],
   de: ['null', 'eins'],
@@ -590,6 +606,12 @@ export function compareNumbers(
         })
       : []),
     ...numberPhrases(target, targetLang ?? '').map((p) => ({ ...p, word: true })),
+    ...(ONE[targetLang ?? ''] && /(?<![\d.,])1\s+\p{L}/u.test(source)
+      ? target
+          .split(/[^\p{L}]+/u)
+          .filter((w) => ONE[targetLang!]!.test(w.toLocaleLowerCase(targetLang)))
+          .map((w) => ({ t: w, v: [1], word: true }))
+      : []),
   ];
   const matchOf = new Array<number>(tgt.length).fill(-1);
   const compatible = (i: number, j: number) => src[i]!.v.some((x) => tgt[j]!.v.includes(x));

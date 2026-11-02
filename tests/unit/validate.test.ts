@@ -392,6 +392,22 @@ describe('validateTranslation', () => {
     expect(
       codes('Наказ від 09.03.2016 р. діє.', 'The order of 9 March 2018 is in force.', 'uk'),
     ).toEqual(['missing 2016; unexpected 2018']);
+    // A count of one written as a word; the count left out is still missing.
+    const one = (target: string) =>
+      validateTranslation({
+        source: 'Het glas is zeer gefragmenteerd, behalve 1 groter stuk groen glas van een fles.',
+        target,
+        sourceLang: 'nl',
+        targetLang: 'tr',
+      })
+        .filter((i) => i.code === 'NUMBER_MISMATCH')
+        .map((i) => i.detail);
+    expect(
+      one('Bir şişeye ait daha büyük bir yeşil cam parçası dışında cam oldukça parçalanmış.'),
+    ).toEqual([]);
+    expect(one('Şişeye ait daha büyük yeşil cam parçası dışında cam oldukça parçalanmış.')).toEqual(
+      ['missing 1'],
+    );
     // An ISO date written the target's way.
     expect(
       codes(
