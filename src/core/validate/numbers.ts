@@ -283,14 +283,32 @@ const NUMBER_WORDS: Record<string, string[]> = {
   ],
   bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', '', '', '', ''],
 };
+/** A number and a half, a word apart: "4 heures et demie", "2 horas y media", "3 and a half". */
+const HALF =
+  /(?<![\d.,])(\d+)\s+(?:\p{L}+\s+)?(?:et demie?|y medi[ao]|e mezz[ao]|e mei[ao]|and a half|buçuk|és fél)(?!\p{L})/giu;
+
 const WORD_VALUES = [2, 3, 4, 5, 10, 100, 1000, 1960, 1980, 1990, 1940, 1950, 1970];
 
 /** Values the source writes in words, in the source language. */
 function wordNumbers(text: string, lang: string): { t: string; v: number[]; optional: true }[] {
   const words = NUMBER_WORDS[lang];
   if (!words) return [];
-  return text.split(/[^\p{L}']+/u).flatMap((w) =>
-    words.flatMap((pattern, k) =>
+  const valueOf = (w: string) => {
+    const k = words.findIndex((p) => p && new RegExp(`^(?:${p})$`, 'iu').test(w));
+    return k >= 0 && WORD_VALUES[k]! < 1900 ? WORD_VALUES[k]! : null;
+  };
+  // A number and "hundred" or "thousand" in one word: "százezer", "hunderttausend", "tiotusen".
+  const compound = (w: string) => {
+    for (let i = 2; i <= w.length - 3; i++) {
+      const [a, b] = [valueOf(w.slice(0, i)), valueOf(w.slice(i))];
+      if (a && (b === 100 || b === 1000)) return a * b;
+    }
+    return null;
+  };
+  return text.split(/[^\p{L}']+/u).flatMap((w) => {
+    const product = compound(w);
+    if (product) return [{ t: w, v: [product], optional: true as const }];
+    return words.flatMap((pattern, k) =>
       pattern && new RegExp(`^(?:${pattern})$`, 'iu').test(w)
         ? [
             {
@@ -304,8 +322,8 @@ function wordNumbers(text: string, lang: string): { t: string; v: number[]; opti
             },
           ]
         : [],
-    ),
-  );
+    );
+  });
 }
 
 /**
@@ -559,9 +577,18 @@ export function compareNumbers(
       { t: m[3]!, v: [Number(m[3])], optional: false },
     ];
   };
+  // "4 heures et demie" → "4,5 saat": the number and a half.
+  const halves = new Set([...source.matchAll(HALF)].map((m) => m[1]!));
   const src = [
     ...extractNumbers(source).flatMap(
-      (t) => date(t) ?? [{ t, v: decade(t, candidateValues(t)), optional: false }],
+      (t) =>
+        date(t) ?? [
+          {
+            t,
+            v: decade(t, candidateValues(t)).flatMap((v) => (halves.has(t) ? [v, v + 0.5] : [v])),
+            optional: false,
+          },
+        ],
     ),
     ...romans.map((t) => ({ t, v: [romanValue(t)], optional: true })),
     ...(lang ? wordNumbers(source, lang) : []),

@@ -407,6 +407,25 @@ describe('validateTranslation', () => {
       targetLang: 'tr',
     }).filter((i) => i.code === 'PUNCTUATION_CHANGED');
     expect(own.map((i) => i.severity)).toEqual(['warning']);
+    // A number and a half.
+    expect(
+      validateTranslation({
+        source: 'Le pic dure de 30 minutes avant à 4 heures et demie après le lever du soleil.',
+        target: 'Zirve, gün doğumundan 30 dakika önceden 4,5 saat sonrasına kadar sürer.',
+        sourceLang: 'fr',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).toEqual([]);
+    // A number and "thousand" in one word.
+    expect(
+      validateTranslation({
+        source:
+          'Minden betegségre vonatkozóan százezer szimuláció alapján határoztuk meg az átlagot.',
+        target: 'Her hastalık için ortalamayı 100.000 simülasyona dayanarak belirledik.',
+        sourceLang: 'hu',
+        targetLang: 'tr',
+      }).map((i) => i.code),
+    ).toEqual([]);
     // A count of one written as a word; the count left out is still missing.
     const one = (target: string) =>
       validateTranslation({
