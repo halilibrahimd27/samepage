@@ -80,6 +80,36 @@ describe('PDF translation units', () => {
     expect(list!.encoded.source).toBe('the factors of [8, 16, 32].');
   });
 
+  it('keeps a chemical formula whole, its subscripts as one formula', () => {
+    // "Center on CO₂ and salts CH₃NH₃I, NaNO₂": the counts are small and set below the line.
+    const b = block('p0-b2', [
+      [
+        span('Center on CO', 50),
+        span('2', 122),
+        span(' and salts CH', 128),
+        span('3', 206),
+        span('NH', 212),
+        span('3', 224),
+        span('I, NaNO', 230),
+        span('2', 272),
+        span('.', 278),
+      ],
+    ]);
+    for (const s of b.lines[0]!.spans)
+      if (/^\d$/.test(s.text)) Object.assign(s, { size: 7, baseline: 102.5 });
+    const [unit] = buildPdfUnits([page([b])]);
+    expect(unit!.encoded.source).toBe('Center on ⟦F1⟧ and salts ⟦F2⟧, ⟦F3⟧.');
+    expect(unit!.encoded.placeholders.map((p) => p.text)).toEqual(['CO2', 'CH3NH3I', 'NaNO2']);
+    const parts = JSON.parse(unit!.encoded.placeholders[1]!.ref!) as { t: string; d: number }[];
+    expect(parts.map((p) => [p.t, p.d < 0])).toEqual([
+      ['CH', false],
+      ['3', true],
+      ['NH', false],
+      ['3', true],
+      ['I', false],
+    ]);
+  });
+
   it('reads lines set a hair apart in size as one style, without tags', () => {
     const at = (s: SpanIR, size: number) => ({ ...s, size });
     const [unit] = buildPdfUnits([

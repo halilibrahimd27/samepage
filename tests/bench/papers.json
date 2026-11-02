@@ -42,6 +42,12 @@
     "url": "https://arxiv.org/pdf/1708.05031"
   },
   {
+    "slug": "en-arxiv-chem",
+    "source": "en",
+    "layout": "single column, 26 pages, chemistry: sub/superscripts, units, superscript citations (arXiv physics.chem-ph, CC BY)",
+    "url": "https://arxiv.org/pdf/2610.39997v1"
+  },
+  {
     "slug": "en-arxiv-qinfo",
     "source": "en",
     "layout": "single column, 11 pages, dense inline and display formulas (arXiv math-ph, CC BY)",

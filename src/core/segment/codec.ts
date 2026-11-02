@@ -157,6 +157,9 @@ function inlineFormula(text: string, pair?: { source: string; target: string }):
   // So is punctuation set in a math font: a bullet, a bracket, the commas of a list ("𝛷
   // Economic losses …", "[8𝛩 16𝛬 32]" read as words to Google).
   if (/^(?=.*\S)[()[\]{},;:.…•·\s]{1,12}$/u.test(text)) return true;
+  // A chemical formula is no word either ("NaNO2", "CH3NH3I").
+  if (/^(?:[A-Z][a-z]?\d{0,2}){2,}$/u.test(text) && /\d/u.test(text) && text.length <= 16)
+    return true;
   if (!/^\S{1,12}$/u.test(text) || [...text].length > 12 || !/\p{L}/u.test(text)) return false;
   // eslint-disable-next-line no-control-regex
   if (/^[\x00-\x7f]+$/.test(text)) return /^(?:[B-HJ-NP-XZ]|[A-Za-z]{1,3}\d+)$/.test(text);

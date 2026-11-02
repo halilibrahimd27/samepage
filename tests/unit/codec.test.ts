@@ -139,6 +139,11 @@ describe('tag/placeholder codec', () => {
       F2: '[',
       F3: ', . . . ,',
     });
+    // A chemical formula travels as text.
+    expect(verbatimOf([ph('F1', 'CH3NH3I'), ph('F2', 'NaNO2')], tr).verbatim).toEqual({
+      F1: 'CH3NH3I',
+      F2: 'NaNO2',
+    });
     // A display formula's marker reads as a formula symbol.
     expect(
       verbatimOf([{ id: 'I1', kind: 'I', text: '', ref: DISPLAY_FORMULA }], tr).verbatim,

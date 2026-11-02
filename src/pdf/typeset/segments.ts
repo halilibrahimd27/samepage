@@ -141,6 +141,11 @@ function isSuperscript(span: SpanIR, lineSize: number, baseline: number): boolea
   );
 }
 
+/** Element symbols at the end of a text, not inside a word ("on CO", "salts a, KF, b, CH"). */
+const ELEMENT_TAIL = /(?<![\p{L}\d])((?:[A-Z][a-z]?){1,6})$/u;
+/** A chemical formula atom: element symbols and their counts. */
+const CHEM_ATOM = /^(?:[A-Z][a-z]?\d{0,2})+$/u;
+
 function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[], evidence?: HyphenEvidence): void {
   // Spaces at the edges of a formula belong to the text around it ("katsayısı ⟦F1⟧ = 0,81"):
   // a formula that carries them reads as glued to its neighbours, and cannot travel as text.
@@ -189,6 +194,57 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[], evidence?: Hyphe
         // piece it would split "0,81" in two, and an engine may tear the halves apart. So does
         // the comma of a list of numbers ("[8, 16, 32, 64]" became "[8𝛩 16𝛬 32𝛱 64]").
         before.text += text;
+        return;
+      }
+      const shift = (s: SpanIR) =>
+        Math.round(((line.baseline - (s.baseline ?? line.baseline)) / lineSize) * 100) / 100;
+      const rel = (s: SpanIR) => Math.round((s.size / lineSize) * 100) / 100;
+      // A chemical formula ("CO₂", "CH₃NH₃I", "NaNO₂"): its subscript digits are no number of
+      // the sentence, and its letters no words ("I" became "Ben"). Set apart, Google moved the
+      // digits ("CO Araştırma Merkezi2"). It goes as one formula, its subscripts kept.
+      const chem = runs[runs.length - 1];
+      const chemAtom =
+        chem?.type === 'atom' && chem.kind === 'F' && !!chem.ref && CHEM_ATOM.test(chem.text);
+      if (
+        !span.font.isMath &&
+        /^\d{1,2}$/.test(text) &&
+        span.size < lineSize * 0.86 &&
+        shift(span) < -0.08 &&
+        (chemAtom || (before?.type === 'text' && ELEMENT_TAIL.test(before.text)))
+      ) {
+        const part: MathPart = { t: text, r: rel(span), d: shift(span) };
+        if (chemAtom && chem.type === 'atom') {
+          const parts = JSON.parse(chem.ref!) as MathPart[];
+          runs[runs.length - 1] = {
+            ...chem,
+            text: chem.text + text,
+            ref: JSON.stringify([...parts, part]),
+          };
+        } else if (before?.type === 'text') {
+          const head = ELEMENT_TAIL.exec(before.text)![1]!;
+          before.text = before.text.slice(0, before.text.length - head.length);
+          if (!before.text) runs.pop();
+          runs.push({
+            type: 'atom',
+            kind: 'F',
+            text: head + text,
+            ref: JSON.stringify([{ t: head, r: 1, d: 0 }, part]),
+          });
+        }
+        return;
+      }
+      // Its element symbols after a subscript ("NH" in "CH₃NH₃I") go on with it.
+      const lead = chemAtom && !span.font.isMath ? /^(?:[A-Z][a-z]?)+/u.exec(text)?.[0] : undefined;
+      if (lead && chem?.type === 'atom' && /\d$/.test(chem.text)) {
+        const parts = JSON.parse(chem.ref!) as MathPart[];
+        runs[runs.length - 1] = {
+          ...chem,
+          text: chem.text + lead,
+          ref: JSON.stringify([...parts, { t: lead, r: 1, d: 0 }]),
+        };
+        text = text.slice(lead.length);
+        if (!text) return;
+        runs.push({ type: 'text', text, style: styleOf(span) });
         return;
       }
       if (span.font.isMath) {
