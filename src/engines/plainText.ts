@@ -264,10 +264,13 @@ const ABBREVIATION =
 export function splitSentences(text: string): string[] {
   const out: string[] = [];
   let start = 0;
-  // A tag or placeholder may open the next sentence ("<t1>Results</t1> show …").
-  for (const m of text.matchAll(/[.!?]["”’)]?\s+(?=(?:<t\d+>|⟦[A-Z]\d+⟧)*[\p{Lu}\d[(“"])/gu)) {
+  // A tag or placeholder may open the next sentence ("<t1>Results</t1> show …"), and a run may
+  // close after the full stop ("<t1>Figure 2.</t1> Bars …").
+  for (const m of text.matchAll(
+    /[.!?]["”’)]?(?:<\/t\d+>)*\s+(?=(?:<t\d+>|⟦[A-Z]\d+⟧)*[\p{Lu}\d[(“"])/gu,
+  )) {
     const end = m.index + m[0].trimEnd().length;
-    if (ABBREVIATION.test(text.slice(start, end).trimEnd())) continue;
+    if (ABBREVIATION.test(text.slice(start, end).replace(/(?:<\/t\d+>)+$/u, ''))) continue;
     out.push(text.slice(start, end));
     start = m.index + m[0].length;
   }

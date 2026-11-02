@@ -39,6 +39,16 @@ describe('sentence-by-sentence retry', () => {
     ]);
     expect(sentencePieces('<t1>Bir cümle. İkinci</t1> cümle.')).toBeNull();
     expect(sentencePieces('Tek cümle.')).toBeNull();
+    // The sentences a run crosses stay together; the rest are split.
+    expect(
+      sentencePieces(
+        '<t1>Figure S2. Supply curves.</t1> Bars show the potential. The rest is used.',
+      ),
+    ).toEqual([
+      '<t1>Figure S2. Supply curves.</t1>',
+      'Bars show the potential.',
+      'The rest is used.',
+    ]);
   });
 
   it('translates a paragraph the engine keeps rewriting sentence by sentence', async () => {

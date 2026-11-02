@@ -882,16 +882,23 @@ export function sentencePieces(tagged: string): string[] | null {
   const pieces = splitSentences(tagged)
     .map((t) => t.trim())
     .filter(Boolean);
-  if (pieces.length < 2) return null;
+  // A run of formatting across a sentence end keeps those sentences together.
+  const groups: string[] = [];
+  const open: string[] = [];
+  let group = '';
   for (const piece of pieces) {
-    const open: string[] = [];
     for (const t of tokenize(piece)) {
       if (t.type === 'open') open.push(t.id);
       else if (t.type === 'close' && open.pop() !== t.id) return null;
     }
-    if (open.length) return null;
+    group = group ? `${group} ${piece}` : piece;
+    if (!open.length) {
+      groups.push(group);
+      group = '';
+    }
   }
-  return pieces;
+  if (open.length || groups.length < 2) return null;
+  return groups;
 }
 
 export interface CostEstimate {
