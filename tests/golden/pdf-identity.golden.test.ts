@@ -98,7 +98,59 @@ describe.each(FIXTURES)('PDF identity check: %s', (name) => {
     };
     const unitText = (raw: RawPage[], members: { p: number; b: BlockIR }[]) => norm(members.map(({ p, b }) => charsIn(raw[p]!, region(p, b))).join(''));
     const all = [...units.entries()];
-    const red = all.filter(([, m]) => unitText(rawAfter, m) !== unitText(rawBefore, m));
+    // Paragraphs set in a column's flow (R0) move within their part of the column: they are
+    // compared together, over the same area before and after.
+    const flowedIds = new Set(
+      report.units.filter((u) => u.repairs.some((r) => r.code === 'R0_FLOW')).map((u) => u.id),
+    );
+    const flowArea = new Map<string, { p: number; rect: BlockIR['bbox'] }>();
+    for (const [k, m] of all) {
+      if (!flowedIds.has(k)) continue;
+      for (const { p, b } of m) {
+        const key = `${p}|${b.columnIndex}`;
+        const cur = flowArea.get(key)?.rect ?? b.bbox;
+        flowArea.set(key, {
+          p,
+          rect: {
+            x0: Math.min(cur.x0, b.bbox.x0),
+            y0: Math.min(cur.y0, b.bbox.y0),
+            x1: Math.max(cur.x1, b.bbox.x1),
+            y1: before[p]!.height,
+          },
+        });
+      }
+    }
+    // The area ends at the first other paragraph below it (a chained one may hand text on to
+    // the next page).
+    for (const [key, area] of flowArea) {
+      const [pIndex, col] = key.split('|').map(Number) as [number, number];
+      const others = before[pIndex]!.blocks.filter(
+        (b) =>
+          b.translatable &&
+          !flowedIds.has(b.chain?.paragraphId ?? b.id) &&
+          b.bbox.y0 > area.rect.y0 &&
+          Math.min(b.bbox.x1, area.rect.x1) - Math.max(b.bbox.x0, area.rect.x0) > 2,
+      );
+      const lowest = Math.max(
+        ...all
+          .filter(([k]) => flowedIds.has(k))
+          .flatMap(([, m]) => m.filter((x) => x.p === pIndex && x.b.columnIndex === col))
+          .map((x) => x.b.bbox.y1),
+      );
+      const next = others.filter((b) => b.bbox.y0 >= lowest - 0.5).map((b) => b.bbox.y0);
+      if (next.length) area.rect = { ...area.rect, y1: Math.min(...next) };
+    }
+    const flowSame = new Map(
+      [...flowArea].map(([key, { p, rect }]) => [
+        key,
+        norm(charsIn(rawAfter[p]!, rect)) === norm(charsIn(rawBefore[p]!, rect)),
+      ]),
+    );
+    const red = all.filter(([k, m]) =>
+      flowedIds.has(k)
+        ? !m.every(({ p, b }) => flowSame.get(`${p}|${b.columnIndex}`))
+        : unitText(rawAfter, m) !== unitText(rawBefore, m),
+    );
     const ratio = (all.length - red.length) / all.length;
     const redList = red.map(([k, m]) => {
       const x = unitText(rawBefore, m);

@@ -377,7 +377,9 @@ export function layoutUnit(
       const lead = leading(block, baseStyle.size * 1.2) * lineFactor;
       // Original line slots keep indents; with a smaller line advance they are recomputed (the first
       // baseline moves up with the smaller ascent so the block keeps its top edge).
-      const original = slots(block);
+      // A box moved down the column (a paragraph above grew) takes its lines with it.
+      const shift = box.y0 - block.bbox.y0;
+      const original = slots(block).map((s) => ({ ...s, baseline: s.baseline + shift }));
       const first = original[0]!;
       const firstBaseline = first.baseline - (1 - scale) * baseStyle.size * 0.7;
       const boxSlots =

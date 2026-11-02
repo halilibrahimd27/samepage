@@ -24,7 +24,13 @@ export interface RepairInput {
   sizeFactor: (fontName: string) => number;
   policy: Policy;
   /** Enabled strategies (all by default); used to measure baselines and each strategy's effect. */
-  strategies?: { r1?: boolean; r2?: boolean; scale?: boolean; fallbacks?: boolean };
+  strategies?: {
+    flow?: boolean;
+    r1?: boolean;
+    r2?: boolean;
+    scale?: boolean;
+    fallbacks?: boolean;
+  };
 }
 
 export interface UnitResult {
@@ -125,7 +131,7 @@ function contentBounds(page: PageIR): Rect {
 
 export function repairDocument(input: RepairInput): RepairOutput {
   const { pages, measurer, policy } = input;
-  const use = { r1: true, r2: true, scale: true, fallbacks: true, ...input.strategies };
+  const use = { flow: true, r1: true, r2: true, scale: true, fallbacks: true, ...input.strategies };
   const clearance = policy.expansion.minClearancePt;
 
   const states: State[] = input.units
@@ -413,6 +419,154 @@ export function repairDocument(input: RepairInput): RepairOutput {
   // ---- Base layout -----------------------------------------------------------------------
   for (const s of states) relayout(s);
 
+  // ---- R0: column flow -------------------------------------------------------------------
+  // Consecutive paragraphs of a column are set one after another, as a typesetter would: each
+  // takes the height its translation needs, the original gaps between them stay, and a column
+  // part that still overflows gets one scale for all its paragraphs. Fitting each paragraph in
+  // its own box left gaps under the short ones and shrank the long ones.
+  const flowed = new Set<State>();
+  if (use.flow) flowColumns();
+
+  function flowColumns(): void {
+    const single = states.filter(
+      (s) =>
+        (s.role === 'body' || s.role === 'heading') &&
+        s.blocks.length === 1 &&
+        s.blocks[0]!.direction[1] === 0 &&
+        !s.blocks[0]!.tableCell &&
+        s.blocks[0]!.lines.length > 0,
+    );
+    const lineStep = (b: BlockIR) => {
+      const steps = b.lines
+        .slice(1)
+        .map((l, k) => l.baseline - b.lines[k]!.baseline)
+        .filter((g) => g > 0)
+        .sort((x, y) => x - y);
+      return steps.length ? steps[Math.floor(steps.length / 2)]! : (b.bbox.y1 - b.bbox.y0) * 1.2;
+    };
+    // A one-line heading or label may take its column's width (bold type runs wider).
+    const widths = new Map<State, { x0: number; x1: number }>();
+    const needed = (s: State, scale: number): number => {
+      const b = s.blocks[0]!;
+      const w = widths.get(s) ?? b.bbox;
+      const tall = { ...b.bbox, x0: w.x0, x1: w.x1, y1: b.bbox.y0 + 5000 };
+      const [l] = layoutWith(s, { ...s.params, scale, boxes: { [b.id]: tall } });
+      if (!l || l.overflow) return Infinity;
+      if (!l.lines.length) return b.bbox.y1 - b.bbox.y0;
+      const lastLine = b.lines[b.lines.length - 1]!;
+      const descent = (lastLine.bbox.y1 - lastLine.baseline) * scale;
+      return l.lines[l.lines.length - 1]!.baseline + descent - b.bbox.y0 + 0.5;
+    };
+    const overlapX = (a: Rect, b: Rect) =>
+      Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) >= 0.5 * Math.min(a.x1 - a.x0, b.x1 - b.x0);
+    const byPage = new Map<number, State[]>();
+    for (const s of single) byPage.set(s.pageIndex, [...(byPage.get(s.pageIndex) ?? []), s]);
+    for (const [pageIndex, members] of byPage) {
+      const page = pages[pageIndex]!;
+      const ids = new Set(members.map((m) => m.blocks[0]!.id));
+      const backgrounds = backgroundsOf(pageIndex);
+      const fixed: Rect[] = [
+        ...page.blocks.filter((b) => !ids.has(b.id)).map((b) => b.bbox),
+        ...page.images.map((i) => i.bbox),
+        ...page.vectors.filter((v) => !backgrounds.has(v)).map((v) => v.bbox),
+      ];
+      const sorted = [...members].sort((a, b) => a.blocks[0]!.bbox.y0 - b.blocks[0]!.bbox.y0);
+      const taken = new Set<State>();
+      for (const start of sorted) {
+        if (taken.has(start)) continue;
+        const region = [start];
+        taken.add(start);
+        for (;;) {
+          const last = region[region.length - 1]!.blocks[0]!;
+          const next = sorted.find(
+            (o) =>
+              !taken.has(o) &&
+              o.blocks[0]!.columnIndex === last.columnIndex &&
+              o.blocks[0]!.bbox.y0 >= last.bbox.y1 - 1 &&
+              overlapX(o.blocks[0]!.bbox, last.bbox),
+          );
+          if (!next) break;
+          const b = next.blocks[0]!;
+          const between = fixed.some(
+            (r) =>
+              r.y1 > last.bbox.y1 + 0.5 &&
+              r.y0 < b.bbox.y0 - 0.5 &&
+              Math.min(r.x1, last.bbox.x1) - Math.max(r.x0, last.bbox.x0) > 2,
+          );
+          if (between || b.bbox.y0 - last.bbox.y1 > 2.5 * lineStep(last)) break;
+          region.push(next);
+          taken.add(next);
+        }
+        if (region.length < 2) continue;
+        const span = region.reduce(
+          (r, s) => union(r, s.blocks[0]!.bbox),
+          region[0]!.blocks[0]!.bbox,
+        );
+        for (const s of region) {
+          const b = s.blocks[0]!;
+          if (b.lines.length === 1 && (s.role === 'heading' || b.align !== 'justify'))
+            widths.set(s, { x0: b.align === 'center' ? span.x0 : b.bbox.x0, x1: span.x1 });
+        }
+        // Only where the boxes do not serve: a paragraph that needs more than a slight shrink, or
+        // one that leaves a line and a half empty under it. Text about as long as the original
+        // keeps its place.
+        const slight = (s: State) =>
+          fits(s.layouts) || fits(layoutWith(s, { ...s.params, scale: 0.95 }));
+        const gapping = (s: State) => {
+          const b = s.blocks[0]!;
+          return needed(s, 1) < b.bbox.y1 - b.bbox.y0 - 1.5 * lineStep(b);
+        };
+        if (region.every(slight) && !region.some(gapping)) continue;
+        const blocks = region.map((s) => s.blocks[0]!);
+        const top = blocks[0]!.bbox.y0;
+        const lastBox = blocks[blocks.length - 1]!.bbox;
+        // Room down to whatever stands below this part of the column, or the page's content end.
+        const below = fixed
+          .filter(
+            (r) =>
+              r.y0 >= lastBox.y1 - 0.5 && Math.min(r.x1, span.x1) - Math.max(r.x0, span.x0) > 2,
+          )
+          .map((r) => r.y0 - clearance);
+        const limit = Math.max(lastBox.y1, Math.min(contentBounds(page).y1, ...below));
+        const gaps = blocks.map((b, k) =>
+          k ? Math.max(0, b.bbox.y0 - blocks[k - 1]!.bbox.y1) : 0,
+        );
+        const total = (scale: number) =>
+          region.reduce((sum, s, k) => sum + needed(s, scale) + gaps[k]!, 0);
+        const floor = minScaleFor(policy, 'body');
+        let scale = 1;
+        if (top + total(1) > limit) {
+          if (top + total(floor) > limit) continue;
+          let lo = floor;
+          let hi = 1;
+          while (hi - lo > 0.005) {
+            const mid = round((lo + hi) / 2);
+            if (top + total(mid) <= limit) lo = mid;
+            else hi = mid;
+          }
+          scale = round(lo);
+        }
+        let cursor = top;
+        region.forEach((s, k) => {
+          const b = s.blocks[0]!;
+          const y0 = k ? cursor + gaps[k]! : top;
+          const w = widths.get(s) ?? b.bbox;
+          const box = { x0: w.x0, x1: w.x1, y0, y1: y0 + needed(s, scale) };
+          cursor = box.y1;
+          s.params = { ...s.params, scale, boxes: { [b.id]: box } };
+          s.noExpand = true;
+          relayout(s);
+          flowed.add(s);
+          s.steps.push({
+            code: 'R0_FLOW',
+            unitId: s.input.unit.id,
+            note: `set in the column's flow${scale < 1 ? `, scale ${scale}` : ''}`,
+          });
+        });
+      }
+    }
+  }
+
   // ---- Repair passes -------------------------------------------------------------------------
   for (let pass = 0; pass < policy.maxPassesPerPage; pass++) {
     const failing = states.filter((s) => !s.fallback && !fits(s.layouts));
@@ -427,7 +581,7 @@ export function repairDocument(input: RepairInput): RepairOutput {
     // R3: consistency groups — same page, same role, same original size (± tolerance).
     const groups = new Map<string, State[]>();
     for (const s of states) {
-      if (s.fallback) continue;
+      if (s.fallback || flowed.has(s)) continue;
       const key = groupKey(s);
       groups.set(key, [...(groups.get(key) ?? []), s]);
     }
@@ -451,7 +605,8 @@ export function repairDocument(input: RepairInput): RepairOutput {
       }
       if (best >= 1) continue;
       for (const m of members) {
-        if (m.params.scale <= best) continue;
+        // A paragraph that fits keeps its size: shrinking it too left a gap under it.
+        if (m.params.scale <= best || fits(m.layouts)) continue;
         m.params = { ...m.params, scale: best };
         relayout(m);
         m.steps.push({
@@ -473,7 +628,7 @@ export function repairDocument(input: RepairInput): RepairOutput {
 
     // Collisions created by expansion: revert the later unit's growth and retry next pass.
     for (const s of states) {
-      if (s.fallback) continue;
+      if (s.fallback || flowed.has(s)) continue;
       const collision = s.layouts.some((l) => {
         const ink = inkBox(l);
         if (!ink) return false;

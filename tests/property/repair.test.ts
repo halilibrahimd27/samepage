@@ -140,6 +140,27 @@ describe('layout repair properties', () => {
     );
   });
 
+  it("sets a column's paragraphs one after another at full size when the column has the room", () => {
+    // The first translation runs half again as long, the next two are shorter.
+    const input = build([
+      { role: 'body', lines: 4, width: 300, factor: 1.5 },
+      { role: 'body', lines: 4, width: 300, factor: 0.6 },
+      { role: 'body', lines: 4, width: 300, factor: 0.6 },
+    ]);
+    const out = repairDocument(input);
+    const boxes = out.units.map((u) => Object.values(u.params.boxes)[0]!);
+    for (const u of out.units) {
+      expect(u.fallback).toBeUndefined();
+      expect(u.params.scale).toBe(1);
+      expect(u.steps.map((st) => st.code)).toContain('R0_FLOW');
+      expect(u.layouts.every((l) => !l.overflow)).toBe(true);
+    }
+    // In order, none over the next, and the second moved down under the longer first one.
+    for (let k = 1; k < boxes.length; k++)
+      expect(boxes[k]!.y0).toBeGreaterThanOrEqual(boxes[k - 1]!.y1);
+    expect(boxes[1]!.y0).toBeGreaterThan(input.pages[0]!.blocks[1]!.bbox.y0);
+  });
+
   it('keeps a label its translation leaves as it is, without a note', () => {
     // A name in a narrow cell that does not fit in the substitute font ("SECURICOM").
     const input = build([{ role: 'label', lines: 1, width: 60, factor: 30 }]);

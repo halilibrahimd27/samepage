@@ -3,6 +3,7 @@ import type { Issue, RepairStep, Severity } from './types';
 /** LAYOUT_REPAIR.md §8: block (unit) score, page score, document score and status. */
 const SEVERITY_COST: Record<Severity, number> = { error: 40, warning: 8, info: 1 };
 const REPAIR_COST: Record<string, number> = {
+  R0_FLOW: 0,
   R1_MICRO: 0,
   R2_EXPAND: 1,
   R3_GROUP_SCALE: 1,

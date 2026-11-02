@@ -19,7 +19,13 @@ export type IssueCode =
   | 'COLLATERAL_DAMAGE';
 
 export type RepairCode =
-  'R1_MICRO' | 'R2_EXPAND' | 'R3_GROUP_SCALE' | 'R4_BLOCK_SCALE' | 'R5_CONDENSE' | 'R6_FALLBACK';
+  | 'R0_FLOW'
+  | 'R1_MICRO'
+  | 'R2_EXPAND'
+  | 'R3_GROUP_SCALE'
+  | 'R4_BLOCK_SCALE'
+  | 'R5_CONDENSE'
+  | 'R6_FALLBACK';
 export type FallbackKind = 'relaxed-min' | 'annotation' | 'overflow-note' | 'keep-original';
 
 export interface Issue {
