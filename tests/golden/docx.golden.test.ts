@@ -205,3 +205,39 @@ describe('a paper with other languages in it', () => {
     expect(texts).toContain('30.08., 19:00 UTC');
   });
 });
+
+describe('a document in Arabic', () => {
+  it('reads left to right once translated, its sections and tables too', async () => {
+    const zip = new JSZip();
+    zip.file(
+      '[Content_Types].xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+    );
+    zip.file(
+      '_rels/.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+    );
+    const para = (text: string) =>
+      `<w:p><w:pPr><w:bidi/></w:pPr><w:r><w:rPr><w:rtl/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+    zip.file(
+      'word/document.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${NS.w}"><w:body>` +
+        para('لم يكن الشعر العربي مجرد لون من ألوان الأدب، بل كان مؤسسة ثقافية.') +
+        `<w:tbl><w:tblPr><w:bidiVisual/></w:tblPr><w:tr><w:tc>${para('الشعر')}</w:tc><w:tc>${para('المجتمع')}</w:tc></w:tr></w:tbl>` +
+        '<w:sectPr><w:bidi/></w:sectPr></w:body></w:document>',
+    );
+    const input = await zip.generateAsync({ type: 'uint8array' });
+    const pseudo = createPseudoEngine({ factor: 1, substitute: false });
+    const engine: TranslationEngine = {
+      ...pseudo,
+      translate: (batch) =>
+        Promise.resolve(batch.map((s) => ({ id: s.id, text: s.text.replace(/\p{Script=Arabic}+/gu, 'şiir') }))),
+    };
+    const { bytes } = await translateDocx(input, options(engine));
+    const xml = await (await JSZip.loadAsync(bytes)).file('word/document.xml')!.async('string');
+    expect(xml).not.toMatch(/\p{Script=Arabic}/u);
+    expect(xml).not.toMatch(/<w:(?:bidi|bidiVisual|rtl)\/>/);
+    expect(xml).toContain('<w:bidiVisual w:val="0"/>');
+    expect(xml).toMatch(/<w:sectPr><w:bidi w:val="0"\/><\/w:sectPr>/);
+  });
+});

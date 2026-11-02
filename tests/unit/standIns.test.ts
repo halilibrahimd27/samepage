@@ -7,6 +7,7 @@ import {
   spellYears,
   closeBrackets,
   confineTags,
+  reattachTags,
   createBrowserPageEngine,
   piecewise,
   unglue,
@@ -127,6 +128,19 @@ describe('headings with machine engines', () => {
     expect(sent).toEqual(['<t1>How accurate is our approach?</t1> We developed six classifiers.']);
     expect(out!.text).toBe(
       '<t1>RQ1: Yaklaşımımız ne kadar doğru?</t1> Altı sınıflandırıcı geliştirdik.',
+    );
+  });
+
+  it('puts a superscript or subscript back on its character', () => {
+    expect(
+      reattachTags(
+        'διαπερατότητα k<t1>p </t1>(mm<t2>2</t2>) ρυθμό -32 W/m<t3>2</t3>, ενώ',
+        'geçirgenlik k <t1>p</t1> (mm <t2>2</t2>) -32 W/m <t3>2</t3> oranında',
+      ),
+    ).toBe('geçirgenlik k<t1>p</t1> (mm<t2>2</t2>) -32 W/m<t3>2</t3> oranında');
+    // A span a space apart in the source stays so.
+    expect(reattachTags('the <t1>new</t1> model', 'yeni <t1>yeni</t1> model')).toBe(
+      'yeni <t1>yeni</t1> model',
     );
   });
 

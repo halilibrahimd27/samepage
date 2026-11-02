@@ -218,6 +218,18 @@ export function confineTags(source: string, target: string): string {
   });
 }
 
+/**
+ * A short span set on its character in the source — a superscript or subscript ("W/m<t3>2</t3>",
+ * "CO<t1>2</t1>", "k<t1>p</t1>") — that Google set a space apart ("W/m <t3>2</t3>") goes back on it.
+ */
+export function reattachTags(source: string, target: string): string {
+  let out = target;
+  for (const m of source.matchAll(/(?<=[\p{L}\p{N})\]/])<t(\d+)>([^<]{1,4})<\/t\1>/gu)) {
+    out = out.replace(new RegExp(`(?<=[\\p{L}\\p{N})\\]/])[ \\t]+(?=<t${m[1]}>)`, 'u'), '');
+  }
+  return out;
+}
+
 /** A label or cell without a full stop gets none ("Anlam korunmuş" → "The meaning has been preserved."). */
 export function dropAddedFullStop(source: string, target: string): string {
   const src = untagged(source)
@@ -448,7 +460,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
     // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused).
-    model: 'browser-page-29',
+    model: 'browser-page-30',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -533,7 +545,13 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
       return batch.map((s, i) => ({
         id: s.id,
         text: visible(
-          unpin(dropAddedFullStop(s.text, confineTags(s.text, fix(out[i]!, s.text))), pinned[i]!),
+          unpin(
+            dropAddedFullStop(
+              s.text,
+              reattachTags(s.text, confineTags(s.text, fix(out[i]!, s.text))),
+            ),
+            pinned[i]!,
+          ),
           s.text,
         ),
         ...(held.has(i) || pieced.has(i)

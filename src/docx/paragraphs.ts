@@ -429,18 +429,20 @@ function setProperty(props: XElement, order: string[], local: string, val: strin
 const on = (el: XElement | undefined) =>
   !!el && !/^(?:0|false|off)$/u.test(el.getAttributeNS(W, 'val') ?? '');
 
-/** Most letters Arabic or Hebrew. */
-const rightToLeft = (text: string) => {
+/** Share of the letters that are Arabic or Hebrew (0 without letters). */
+export function rightToLeftShare(text: string): number {
   const letters = text.match(/\p{L}/gu)?.length ?? 0;
-  return (
-    letters > 0 &&
-    (text.match(/[\p{Script=Arabic}\p{Script=Hebrew}]/gu)?.length ?? 0) >= 0.5 * letters
-  );
-};
+  return letters
+    ? (text.match(/[\p{Script=Arabic}\p{Script=Hebrew}]/gu)?.length ?? 0) / letters
+    : 0;
+}
+/** Most letters Arabic or Hebrew. */
+const rightToLeft = (text: string) => rightToLeftShare(text) >= 0.5;
 
 /**
  * A run of Arabic or Hebrew now in a left-to-right language: not right to left any more, and
- * shown with the bold, italic and size Word gave it as complex script.
+ * bold or italic as Word showed it as complex script. Its size stays the document's for Latin
+ * text: Arabic is set larger (16 pt beside 12) for its smaller letters.
  */
 function turnLeftToRight(rPr: XElement) {
   const kids = elementChildren(rPr);
@@ -448,8 +450,6 @@ function turnLeftToRight(rPr: XElement) {
   if (find('rtl')) setProperty(rPr, RPR_ORDER, 'rtl', '0');
   if (on(find('bCs')) && !find('b')) setProperty(rPr, RPR_ORDER, 'b', null);
   if (on(find('iCs')) && !find('i')) setProperty(rPr, RPR_ORDER, 'i', null);
-  const szCs = find('szCs')?.getAttributeNS(W, 'val');
-  if (szCs) setProperty(rPr, RPR_ORDER, 'sz', szCs);
 }
 
 export interface RebuildOptions {

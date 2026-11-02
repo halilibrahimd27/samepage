@@ -15,7 +15,14 @@ import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/typ
 import { localeFor } from '../core/languages';
 import { storedTranslations, type StoredOutcome } from '../core/project';
 import { bracketedOutcome, titlesToTranslate, type ReferenceTitle } from '../core/referenceTitles';
-import { extractA, extractW, isMono, rebuild, type ExtractedParagraph } from './paragraphs';
+import {
+  extractA,
+  extractW,
+  isMono,
+  rebuild,
+  rightToLeftShare,
+  type ExtractedParagraph,
+} from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
 import { fitSlideText, slideRole, textBodyOf } from './pptx';
 import { officeKind, openDocx, type OfficeKind } from './unzip';
@@ -207,12 +214,15 @@ export async function translateDocx(
   const parts = discoverParts(Object.keys(pkg.zip.files), opts, format);
   const docs = new Map<string, XDocument>();
   const units: Unit[] = [];
+  // Share of Arabic and Hebrew letters in each Word part before translation.
+  const rtlBefore = new Map<string, number>();
 
   for (const { path, kind } of parts) {
     const text = await pkg.readText(path);
     if (text === null) continue;
     const doc = parseXml(text);
     docs.set(path, doc);
+    if (kind === 'w') rtlBefore.set(path, rightToLeftShare(doc.documentElement?.textContent ?? ''));
     if (kind === 'core') {
       const title = doc.getElementsByTagNameNS(NS.dc, 'title')[0];
       if (title && hasLetters(title.textContent ?? '')) {
@@ -458,6 +468,19 @@ export async function translateDocx(
     naturalKey(a).localeCompare(naturalKey(b)),
   ))
     repairs.push(...fitSlideText(part, byBody));
+
+  // A part that was right to left and now reads left to right: its sections and tables too.
+  for (const [path, before] of rtlBefore) {
+    const doc = docs.get(path)!;
+    if (before < 0.5 || rightToLeftShare(doc.documentElement?.textContent ?? '') >= 0.2) continue;
+    for (const local of ['bidi', 'bidiVisual'])
+      for (const el of Array.from(doc.getElementsByTagNameNS(NS.w, local))) {
+        const parent = el.parentNode as XElement | null;
+        if (parent?.localName === 'sectPr' || parent?.localName === 'tblPr')
+          el.setAttributeNS(NS.w, 'w:val', '0');
+      }
+    touched.add(path);
+  }
 
   // Language of the document defaults → target (spelling/hyphenation in Word).
   const stylesText = format === 'docx' ? await pkg.readText('word/styles.xml') : null;

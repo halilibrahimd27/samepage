@@ -27,10 +27,8 @@ describe('right-to-left text in a Word document', () => {
   it('reads left to right once translated into a left-to-right language', () => {
     const xml = translate(ARABIC, (s) => s.replace('الشعر العربي', 'Arap şiiri'));
     expect(xml).toContain('<w:bidi w:val="0"/><w:jc w:val="both"/>');
-    // The complex-script bold and size it was shown with carry over, in schema order.
-    expect(xml).toMatch(
-      /<w:b\/><w:bCs\/><w:sz w:val="32"\/><w:szCs w:val="32"\/><w:rtl w:val="0"\/>/,
-    );
+    // Bold as it was shown in, in schema order; the size stays the one for Latin letters.
+    expect(xml).toMatch(/<w:b\/><w:bCs\/><w:szCs w:val="32"\/><w:rtl w:val="0"\/>/);
     expect(xml).toContain('Arap şiiri');
   });
 
