@@ -239,8 +239,9 @@ const TERMS: Langs[] = [
 const AS_WRITTEN = /^(?:Sig|df|gl|Mdn|IQR|Inc|Ltd|LLC|GmbH|Corp|S\.\s?A|A\.\s?Ş)\.?$/u;
 
 /**
- * Acronyms the document's own sentences use in capitals ("the WACC of each country"), at least
- * twice: a label of them alone stays as written ("WACC (%)" was spelled out by the engine).
+ * Acronyms the document's own sentences use in capitals ("the WACC of each country", "USPs"), at
+ * least twice: a label of them alone stays as written ("WACC (%)" was spelled out by the engine),
+ * and in a short label they travel as names ("Confirmed USPs" became "Unique Selling Points").
  * A heading in capitals ("RESULTS") is not one: no sentence writes it so.
  */
 export function documentAcronyms(texts: string[]): Set<string> {
@@ -249,7 +250,7 @@ export function documentAcronyms(texts: string[]): Set<string> {
     const words = text.match(/\p{L}+/gu) ?? [];
     if (words.length < 8 || words.filter((w) => /^\p{Ll}/u.test(w)).length < words.length / 2)
       continue;
-    for (const a of text.match(/(?<![\p{L}\d])\p{Lu}[\p{Lu}\d]+(?![\p{L}\d])/gu) ?? [])
+    for (const a of text.match(/(?<![\p{L}\d])\p{Lu}[\p{Lu}\d]+s?(?![\p{L}\d])/gu) ?? [])
       counts.set(a, (counts.get(a) ?? 0) + 1);
   }
   return new Set([...counts].filter(([, n]) => n >= 2).map(([a]) => a));

@@ -286,6 +286,7 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
 
   const pending: SegmentRequest[] = [];
   const acronyms = documentAcronyms(segments.map((s) => plainText(s.text)));
+  const acronymNames = [...acronyms].map((a) => ({ source: a, target: a, exact: true }));
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
     const heading = headings
@@ -380,8 +381,15 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         return new Map(results.map((r) => [r.id, r]));
       }
       const prepared = batch.map((s) => {
+        // A label has no sentence around its acronyms: they go as names.
+        const plain = plainText(s.text).trim();
+        const short = !/[.!?]$/u.test(plain) && plain.split(/\s+/u).length <= 5;
         const terms = protecting
-          ? protectTerms(s.text, protectedTerms, ctx.pair.source)
+          ? protectTerms(
+              s.text,
+              short ? [...protectedTerms, ...acronymNames] : protectedTerms,
+              ctx.pair.source,
+            )
           : { text: s.text, targets: [] };
         const numbers = freeze?.has(s.id)
           ? protectNumbers(terms.text, ctx.pair.target)

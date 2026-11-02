@@ -95,6 +95,21 @@ describe('pipeline with a machine engine', () => {
     expect(out.find((o) => o.id === 'h')?.text).toBe('Python');
     expect(out.find((o) => o.id === 'b')?.text).toBe('npm and PyPI host packages.');
   });
+
+  it("sends a paper's acronyms as names in a short label, not in its sentences", async () => {
+    const seen: string[] = [];
+    const out = await run(
+      [
+        { id: 's1', text: 'We validate the USPs against the eclipsing binaries.', role: 'body' },
+        { id: 's2', text: 'Most USPs orbit their star in less than a day.', role: 'body' },
+        { id: 'c', text: 'Confirmed USPs (250)', role: 'table-cell' },
+      ],
+      googleLike(seen, { USPs: 'Unique Selling Points' }),
+    );
+    expect(seen).toContain('Confirmed ⟦G1⟧ (250)');
+    expect(out.find((o) => o.id === 'c')?.text).toBe('Confirmed USPs (250)');
+    expect(seen).toContain('Most USPs orbit their star in less than a day.');
+  });
 });
 
 describe('number spelling', () => {
