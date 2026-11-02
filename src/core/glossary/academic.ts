@@ -236,7 +236,8 @@ const TERMS: Langs[] = [
  * A table's statistics head or a company's legal form, which engines misread alone ("Sig." →
  * "Sonraki", "Inc" → "Inch", "Pr." → "Prof.", "Rec." → "Kayıt."): kept as written.
  */
-const AS_WRITTEN = /^(?:Sig|df|gl|Mdn|IQR|Pr|Prec|Rec|Acc|Sens|Spec|Inc|Ltd|LLC|GmbH|Corp|S\.\s?A|A\.\s?Ş)\.?$/u;
+const AS_WRITTEN =
+  /^(?:Sig|df|gl|Mdn|IQR|Pr|Prec|Rec|Acc|Sens|Spec|Inc|Ltd|LLC|GmbH|Corp|S\.\s?A|A\.\s?Ş)\.?$/u;
 
 /**
  * Acronyms the document's own sentences use in capitals ("the WACC of each country", "USPs"), at
