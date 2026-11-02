@@ -8,6 +8,7 @@ import {
   closeBrackets,
   confineTags,
   createBrowserPageEngine,
+  piecewise,
   unglue,
   unspace,
 } from '../../src/engines/browserPage';
@@ -308,6 +309,24 @@ describe('headings with machine engines', () => {
     // Balanced brackets, or no sign before it: left alone.
     expect(backInBrackets('(p < ⟦D1⟧)', '(p < ⟦D1⟧)')).toBe('(p < ⟦D1⟧)');
     expect(backInBrackets('(see ⟦D1⟧)', '(bkz.) ⟦D1⟧)')).toBe('(bkz.) ⟦D1⟧)');
+  });
+
+  it('sees text Google translated piece by piece between held numbers', () => {
+    const sent =
+      'Однако если в ⟦D7⟧-й группе после III цикла величины IgА, ⟦U5⟧ и ⟦U6⟧ восстанавливаются до нормы.';
+    expect(
+      piecewise(
+        sent,
+        'Ancak, eğer ⟦D7⟧Üçüncü döngüden sonraki IgA değerlerine göre -inci hasta grubu,⟦U5⟧Ve ⟦U6⟧standart parametrelere döner.',
+      ),
+    ).toBe(true);
+    // A held number at a sentence start, or a name after one, is no piece.
+    expect(
+      piecewise(
+        sent,
+        'Ancak ⟦D7⟧. grupta III. döngüden sonra IgA, ⟦U5⟧ ve ⟦U6⟧ değerleri normale döner. ⟦D8⟧ Hasta',
+      ),
+    ).toBe(false);
   });
 
   it('puts a gloss Google moved back after its quoted term', () => {

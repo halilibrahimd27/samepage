@@ -259,6 +259,13 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
           'translated sentence by sentence: given the whole paragraph, the engine changed numbers or citations',
       });
     }
+    if (notes.includes('pieced')) {
+      issues.push({
+        code: 'MEANING_DRIFT',
+        severity: 'error',
+        detail: 'the engine translated the words between held numbers piece by piece',
+      });
+    }
     if (notes.includes('numbers-held')) {
       issues.push({
         code: 'REVIEW_SUGGESTED',
