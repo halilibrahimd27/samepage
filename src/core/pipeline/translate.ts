@@ -25,7 +25,7 @@ import {
   runInLabels,
   usesMetrics,
 } from '../glossary/academic';
-import { paragraphLanguage } from '../detectLanguage';
+import { inScriptOf, paragraphLanguage } from '../detectLanguage';
 import { glossaryHash } from '../glossary/glossary';
 import { protectNumbers, protectTerms, restoreTerms, withBuiltInNames } from '../glossary/protect';
 import { splitSentences } from '../../engines/plainText';
@@ -154,10 +154,26 @@ const promptVersion = (engine: TranslationEngine, ctx: TranslateContext) =>
 async function byOwnLanguage(job: TranslateJob): Promise<SegmentOutcome[] | null> {
   const { pair } = job.ctx;
   const own = new Map<string, string>();
+  // Languages of the paragraphs long enough to tell (the source's when nothing else shows).
+  const tally = new Map<string, number>();
+  let long = 0;
+  const short: SegmentRequest[] = [];
   for (const s of job.segments) {
-    const lang = paragraphLanguage(plainText(s.text), pair.source);
+    const plain = plainText(s.text);
+    const lang = paragraphLanguage(plain, pair.source);
     if (lang && lang !== pair.source) own.set(s.id, lang);
+    if ((plain.match(/\p{L}+/gu)?.length ?? 0) >= 8) {
+      long++;
+      tally.set(lang ?? pair.source, (tally.get(lang ?? pair.source) ?? 0) + 1);
+    } else if (!lang) short.push(s);
   }
+  // A paper mostly in another language than the one given (an Indonesian paper taken for
+  // English): its short lines that tell nothing ("1 = sangat tidak dikenal") are in it too.
+  const [major, n] = [...tally].sort((a, b) => b[1] - a[1])[0] ?? [pair.source, 0];
+  if (major !== pair.source && long >= 5 && n > 0.5 * long)
+    for (const s of short)
+      if (/\p{L}{2}/u.test(plainText(s.text)) && inScriptOf(plainText(s.text), major))
+        own.set(s.id, major);
   if (!own.size) return null;
   const outcomes = new Map<string, SegmentOutcome>();
   const groups = new Map<string, SegmentRequest[]>();

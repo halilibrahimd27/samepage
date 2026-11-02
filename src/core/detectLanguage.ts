@@ -230,6 +230,31 @@ export function paragraphLanguage(text: string, source: string): string | null {
   return clearLanguage(text, script, source);
 }
 
+/** The writing system of the languages read from their script alone. */
+const SCRIPT_OF: Record<string, RegExp> = {
+  ar: /\p{Script=Arabic}/gu,
+  fa: /\p{Script=Arabic}/gu,
+  ur: /\p{Script=Arabic}/gu,
+  iw: /\p{Script=Hebrew}/gu,
+  'zh-CN': /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu,
+  ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu,
+  ko: /\p{Script=Hangul}/gu,
+  hi: /\p{Script=Devanagari}/gu,
+  th: /\p{Script=Thai}/gu,
+  hy: /\p{Script=Armenian}/gu,
+  ka: /\p{Script=Georgian}/gu,
+};
+
+/** Whether most letters of a text are in the script `lang` is written in. */
+export function inScriptOf(text: string, lang: string): boolean {
+  const letters = text.match(LETTER) ?? [];
+  if (letters.length < 2) return false;
+  const known = LANGUAGES.find((l) => l === lang);
+  const script =
+    SCRIPT_OF[lang] ?? new RegExp(SCRIPT[known ? scriptOf(known) : 'latin'].source, 'gu');
+  return (letters.join('').match(script)?.length ?? 0) >= 0.6 * letters.length;
+}
+
 export interface DetectedLanguage {
   lang: LanguageCode;
   /** Winner's score divided by the runner-up's (≥ 1.5 when returned). */

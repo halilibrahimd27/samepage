@@ -426,7 +426,13 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
         // An untranslated sentence is full of function words; an address ("4 rue du Fer à
         // Cheval") or a caption of variables ("w = 0.1 mm") has one or two.
         const fw = functionWords(lower, sourceLang);
-        if (fw >= 3 && fw >= 0.2 * srcPlain.split(/\s+/).length)
+        // A label is words, not names: "mPFC aktiváció (prefrontális kéreg)", "1 = sangat tidak
+        // dikenal" came back as they were.
+        const words = lower
+          .split(/\s+/)
+          .map((w) => w.replace(/^\p{P}+|\p{P}+$/gu, ''))
+          .filter((w) => /^\p{Ll}[\p{L}\p{M}-]{3,}$/u.test(w));
+        if ((fw >= 3 && fw >= 0.2 * srcPlain.split(/\s+/).length) || words.length >= 2)
           err('UNTRANSLATED', 'translation is identical to the source');
         else
           issues.push({

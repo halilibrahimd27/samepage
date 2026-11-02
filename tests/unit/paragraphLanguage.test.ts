@@ -66,3 +66,39 @@ describe('the language of a paragraph', () => {
     expect(paragraphLanguage('p < 0.05; n = 120', 'tr')).toBeNull();
   });
 });
+
+describe('a paper in another language than the one given', () => {
+  it('sends its short lines in the language of its paragraphs', async () => {
+    const { translateSegments } = await import('../../src/core/pipeline/translate');
+    const { createPseudoEngine } = await import('../../src/engines/pseudo');
+    const pseudo = createPseudoEngine({ factor: 1, substitute: true });
+    const sent: string[] = [];
+    const engine = {
+      ...pseudo,
+      translate: (
+        batch: Parameters<typeof pseudo.translate>[0],
+        ctx: Parameters<typeof pseudo.translate>[1],
+        signal: AbortSignal,
+      ) => {
+        for (const s of batch) sent.push(`${ctx.pair.source}: ${s.text}`);
+        return pseudo.translate(batch, ctx, signal);
+      },
+    };
+    const body =
+      'Penelitian ini bertujuan untuk menganalisis pengaruh pemasaran terhadap minat kunjungan ulang wisatawan di kota ini.';
+    await translateSegments({
+      engine,
+      segments: [
+        ...[1, 2, 3, 4, 5, 6].map((k) => ({ id: `p${k}`, text: body, role: 'body' as const })),
+        {
+          id: 'label',
+          text: '1 = sangat tidak dikenal; 5 = sangat dikenal',
+          role: 'table-cell' as const,
+        },
+      ],
+      ctx: { pair: { source: 'en', target: 'tr' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(sent).toContain('id: 1 = sangat tidak dikenal; 5 = sangat dikenal');
+  });
+});

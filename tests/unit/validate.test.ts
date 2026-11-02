@@ -425,6 +425,13 @@ describe('validateTranslation', () => {
         validateTranslation({ source, target, sourceLang, targetLang: 'tr' }).map((i) => i.code),
         source,
       ).not.toContain('NUMBER_MISMATCH');
+    // A label back as it was is untranslated; names back as they were are not.
+    const same = (text: string) =>
+      validateTranslation({ source: text, target: text, sourceLang: 'hu', targetLang: 'tr' })
+        .filter((i) => i.code === 'UNTRANSLATED')
+        .map((i) => i.severity);
+    expect(same('mPFC aktiváció (prefrontális kéreg)')).toEqual(['error']);
+    expect(same('Magdalena Borzęcka, Anna Jędrejek, Kovács Péter')).toEqual(['info']);
     // Hours of the clock, as a time or on the 12-hour clock.
     expect(
       validateTranslation({
