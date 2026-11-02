@@ -283,6 +283,22 @@ const NUMBER_WORDS: Record<string, string[]> = {
   ],
   bg: ['два|две', 'три', 'четири', 'пет', 'десет', 'сто', 'хиляд\\p{L}*', '', '', '', '', '', ''],
 };
+/** Zeros of other digit sets: Arabic-Indic, Persian, Devanagari, Bengali, fullwidth. */
+const ZEROS = [0x660, 0x6f0, 0x966, 0x9e6, 0xff10];
+
+/**
+ * Digits of other scripts as ASCII ("٢٨٦" → "286"), and a middle dot between digits as a point
+ * ("5·18" → "5.18"): the translation writes them so.
+ */
+function asciiDigits(text: string): string {
+  return text
+    .replace(/(?<=\d)·(?=\d)/gu, '.')
+    .replace(/[\u0660-\u0669\u06f0-\u06f9\u0966-\u096f\u09e6-\u09ef\uff10-\uff19]/gu, (d) => {
+      const cp = d.codePointAt(0)!;
+      return String(cp - ZEROS.find((z) => cp >= z && cp <= z + 9)!);
+    });
+}
+
 /** A full hour of the clock: "14 órakor", "um 9 Uhr", "à 10 heures", "в 5 часов". */
 const HOUR =
   /(?<![\d.,:])(\d{1,2})\s*(?:órakor|órától|óráig|óra|Uhr|heures?|horas?|ore|часов|часа|час|godz\.?|hodin|uur|o'clock)(?!\p{L})/giu;
@@ -544,6 +560,8 @@ export function compareNumbers(
   /** Target language: small numbers it writes in words ("5 madde" → "fünf Items"). */
   targetLang?: string,
 ): { missing: string[]; extra: string[] } {
+  source = asciiDigits(source);
+  target = asciiDigits(target);
   // A full hour the translation writes as a time ("3 órakor" → "03:00"): its ":00" is no number.
   if (!/:00(?!\d)/u.test(source)) target = target.replace(/(?<=\d):00(?!\d)/gu, '');
   // A Roman numeral may become digits ("siglo XX" → "20th century"); one the target keeps as
@@ -594,6 +612,8 @@ export function compareNumbers(
             t,
             v: decade(t, candidateValues(t)).flatMap((v) => [
               v,
+              // The end of a range written short in the source ("1950-60-as évek" → "60'lar").
+              ...(/^\d{4}$/u.test(t) && !source.includes(t) ? [v % 100] : []),
               ...(halves.has(t) ? [v + 0.5] : []),
               // An hour of the 24-hour clock read on the 12-hour one ("14 órakor" → "saat 2'de").
               ...(hours.has(t) ? [v > 12 ? v - 12 : v + 12] : []),

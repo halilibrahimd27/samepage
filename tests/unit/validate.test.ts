@@ -407,6 +407,24 @@ describe('validateTranslation', () => {
       targetLang: 'tr',
     }).filter((i) => i.code === 'PUNCTUATION_CHANGED');
     expect(own.map((i) => i.severity)).toEqual(['warning']);
+    // Digits of another script, a middle dot between digits, a range's end written short.
+    for (const [source, target, sourceLang] of [
+      ['سورة البقرة أية : ٢٨٦', 'Bakara Suresi, ayet: 286', 'ar'],
+      [
+        'A tüntetések 5·18 emlékére indultak a városban.',
+        'Gösteriler şehirde 5.18 anısına başladı.',
+        'hu',
+      ],
+      [
+        '1950-60-as évek (amikor a mai idősek fiatalok voltak):',
+        "1950'ler ve 60'lar (bugünün yaşlıları gençken):",
+        'hu',
+      ],
+    ])
+      expect(
+        validateTranslation({ source, target, sourceLang, targetLang: 'tr' }).map((i) => i.code),
+        source,
+      ).not.toContain('NUMBER_MISMATCH');
     // Hours of the clock, as a time or on the 12-hour clock.
     expect(
       validateTranslation({
