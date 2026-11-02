@@ -328,6 +328,42 @@ describe('ruled grids drawn cell by cell', () => {
     expect(tables[0]!.rect.y1).toBeGreaterThanOrEqual(250);
   });
 
+  it('gives a cell of a booktabs table its own height and the room below it', async () => {
+    const { analyzeDocument } = await import('../../src/pdf/analyze/analyze');
+    // Rules above and under the header and at the end only; a cell of four lines beside cells
+    // of one, the next row starting under the long cell.
+    const cells: Cell[] = [
+      [60, 103, 100, 112, 'Fase'],
+      [160, 103, 240, 112, 'Descrizione'],
+      [60, 120, 100, 129, 'Ex-ante'],
+      [160, 120, 240, 129, 'Caratteristiche e'],
+      [160, 131, 240, 140, 'bisogni del corso'],
+      [160, 142, 240, 151, 'di studio e degli'],
+      [160, 153, 240, 162, 'studenti iscritti'],
+      [60, 170, 100, 179, 'In-itinere'],
+      [160, 170, 240, 179, 'Registri presenze'],
+    ];
+    const p = cellPage(cells, []);
+    // The long cell is one block of four lines.
+    const long = p.blocks.splice(3, 4);
+    p.blocks.push({
+      bbox: { x0: 160, y0: 120, x1: 240, y1: 162 },
+      lines: long.flatMap((b) => b.lines),
+    });
+    p.vectors.push(
+      ...[100, 116, 190].map((y) => ({
+        bbox: { x0: 50, y0: y, x1: 300, y1: y + 0.5 },
+        isRectangle: true,
+        isStroked: false,
+        color: [0, 0, 0] as [number, number, number],
+      })),
+    );
+    const [pageIR] = analyzeDocument([p]);
+    const cell = pageIR!.blocks.find((b) => b.lines.length === 4)!.tableCell!;
+    expect(cell.cellRect.y1).toBeGreaterThanOrEqual(162);
+    expect(cell.cellRect.y1).toBeLessThan(170);
+  });
+
   it('keeps the row rules beside a merged cell whose fill touches them', () => {
     // A merged first-column cell over three rows, filled white; its fill reaches half a point
     // under the start of the inner row rules, drawn across the other columns only.

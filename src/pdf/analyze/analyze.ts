@@ -1,4 +1,4 @@
-import { coverage, expand, union, unionAll } from '../../core/ir/geometry';
+import { coverage, expand, union, unionAll, xOverlap } from '../../core/ir/geometry';
 import {
   CAPTION,
   REFERENCES_HEADING as REFERENCES,
@@ -331,6 +331,18 @@ function assignTableCells(blocks: BlockIR[], table: TableRegion): void {
         y1: rowBounds[row]![1],
       },
     };
+  }
+  if (gridded) return;
+  // Without rules between the rows, a cell has the room down to the next cell of its column (or
+  // the table's end), and never less than its own text: rows found from first lines made a cell
+  // of four lines shorter than itself, and its translation shrank to fit.
+  for (const b of cells) {
+    const rect = b.tableCell!.cellRect;
+    const below = cells
+      .filter((o) => o !== b && o.bbox.y0 >= b.bbox.y1 - 1 && xOverlap(o.bbox, rect) > 2)
+      .map((o) => o.bbox.y0 - 2);
+    rect.y0 = Math.min(rect.y0, b.bbox.y0);
+    rect.y1 = Math.max(rect.y1, b.bbox.y1, Math.min(table.rect.y1, ...below));
   }
 }
 
