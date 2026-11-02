@@ -203,6 +203,28 @@ function blockRuns(block: BlockIR, runs: InlineRun<PdfStyle>[], evidence?: Hyphe
       // the sentence, and its letters no words ("I" became "Ben"). Set apart, Google moved the
       // digits ("CO Araştırma Merkezi2"). It goes as one formula, its subscripts kept.
       const chem = runs[runs.length - 1];
+      // A formula's index set upright in the text font ("α^{pipe}", "S_{base}", "ĉ^{liq}") is
+      // part of it: as text Google translated it ("αyboru", "S tabanı").
+      if (
+        !span.font.isMath &&
+        chem?.type === 'atom' &&
+        chem.kind === 'F' &&
+        !!chem.ref &&
+        !/\s$/u.test(chem.text) &&
+        span.size < lineSize * 0.86 &&
+        Math.abs(shift(span)) > 0.08 &&
+        /^[\p{L}\d,.′*+−-]{1,12}$/u.test(text) &&
+        // A raised number after a formula is its footnote's mark.
+        !(shift(span) > 0 && /^[\d,*∗†‡]+$/u.test(text))
+      ) {
+        const parts = JSON.parse(chem.ref) as MathPart[];
+        runs[runs.length - 1] = {
+          ...chem,
+          text: chem.text + text,
+          ref: JSON.stringify([...parts, { t: text, r: rel(span), d: shift(span) }]),
+        };
+        return;
+      }
       const chemAtom =
         chem?.type === 'atom' && chem.kind === 'F' && !!chem.ref && CHEM_ATOM.test(chem.text);
       if (

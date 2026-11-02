@@ -80,6 +80,28 @@ describe('PDF translation units', () => {
     expect(list!.encoded.source).toBe('the factors of [8, 16, 32].');
   });
 
+  it("keeps a formula's upright word index in the formula, not a footnote mark", () => {
+    // "α^{pipe}_y is the cost" and "the cost x¹": the first index is the formula's, the
+    // second a footnote mark.
+    const b = block('p0-b3', [
+      [
+        span('The cost ', 50),
+        span('α', 104, true),
+        span('pipe', 110),
+        span(' is high and so is ', 134),
+        span('x', 230, true),
+        span('1', 236),
+        span(' here.', 242),
+      ],
+    ]);
+    const [s1, s2] = [b.lines[0]!.spans[2]!, b.lines[0]!.spans[5]!];
+    Object.assign(s1, { size: 7, baseline: 96 });
+    Object.assign(s2, { size: 7, baseline: 96 });
+    const [unit] = buildPdfUnits([page([b])]);
+    expect(unit!.encoded.placeholders.find((p) => p.kind === 'F')!.text).toBe('αpipe');
+    expect(unit!.encoded.placeholders.some((p) => p.kind === 'N' && p.text === '1')).toBe(true);
+  });
+
   it('keeps a chemical formula whole, its subscripts as one formula', () => {
     // "Center on CO₂ and salts CH₃NH₃I, NaNO₂": the counts are small and set below the line.
     const b = block('p0-b2', [
