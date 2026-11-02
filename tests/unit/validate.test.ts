@@ -273,6 +273,15 @@ describe('validateTranslation', () => {
         targetLang: 'tr',
       }).filter((i) => i.code === 'NUMBER_MISMATCH'),
     ).toEqual([]);
+    // Turkish number words take suffixes ("dört" → "dördü").
+    expect(
+      validateTranslation({
+        source: '4 dimensiones de 7 fueron validadas: autoeficacia y motivación extrínseca.',
+        target: 'Yedi boyutun dördü doğrulanmıştır: öz yeterlilik ve dışsal motivasyon.',
+        sourceLang: 'es',
+        targetLang: 'tr',
+      }).filter((i) => i.code === 'NUMBER_MISMATCH'),
+    ).toEqual([]);
     // A specialty code is matched whole: "19.00.01" made "19.00.2001" is another one.
     expect(
       validateTranslation({

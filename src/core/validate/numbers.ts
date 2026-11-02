@@ -424,6 +424,13 @@ const ORDINALS: Record<string, RegExp[]> = {
   ].map((w) => new RegExp(`^${w}[oa]s?$`, 'u')),
 };
 
+/**
+ * A Turkish number word with its suffix ("yedi boyutun dördü", "üçünde", "ikisi", "beşinden"):
+ * "dört" softens to "dörd-" before a vowel.
+ */
+const TR_INFLECTED =
+  /^(iki|üç|dör[td]|beş|altı|yedi|sekiz|dokuz)(?:[ıiuü]|[sy][ıiuü]|[ıiuü]n[ıiuü]n|[sn][ıiuü]n|[ıiuü]n[ae]|[ıiuü]n[dt][ae]n?|[ıiuü]nd[ae]n?|[dt][ae]n?|[ye][ae]|[ae]|yle|yla|l[ae]r[ıi]?|[şs][ae]r)$/u;
+
 /** Returns source tokens that have no matching target token, and vice versa. */
 export function compareNumbers(
   source: string,
@@ -484,6 +491,11 @@ export function compareNumbers(
           const lower = w.toLocaleLowerCase(targetLang);
           const k = words.indexOf(lower);
           if (k >= 0) return [{ t: w, v: [k + 2], word: true }];
+          const inflected = targetLang === 'tr' ? TR_INFLECTED.exec(lower) : null;
+          if (inflected) {
+            const stem = inflected[1]!.replace(/d$/u, 't');
+            return [{ t: w, v: [words.indexOf(stem) + 2], word: true }];
+          }
           const z = zeroOne.indexOf(lower);
           if (z >= 0) return [{ t: w, v: [z], word: true }];
           const o = (ORDINALS[targetLang ?? ''] ?? []).findIndex((re) => re.test(lower));
