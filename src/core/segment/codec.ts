@@ -199,7 +199,8 @@ export function verbatimOf(
 ): { verbatim?: Record<string, string> } {
   let standIns = 0;
   const entries = placeholders.flatMap((p): [string, string][] => {
-    if (p.kind === 'U') return [[p.id, p.text]];
+    // Identifiers and inline code travel as themselves.
+    if (p.kind === 'U' || p.kind === 'C') return [[p.id, p.text]];
     if (p.kind === 'F') {
       // LaTeX keeps the delimiters: "$P$" is the formula "P".
       const bare = p.text.replace(/^\$([^$]+)\$$|^\\\(([\s\S]+)\\\)$/u, '$1$2').trim();

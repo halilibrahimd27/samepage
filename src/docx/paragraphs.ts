@@ -3,6 +3,7 @@ import type { Element as XElement, Node as XNode } from '@xmldom/xmldom';
 import type { Role } from '../core/ir/types';
 import { encode, type DecodedRun, type Encoded, type InlineRun } from '../core/segment/codec';
 import type { PlaceholderKind } from '../core/segment/types';
+import { commentInWords, monoProse } from '../core/segment/code';
 import { NS } from './xml';
 
 /**
@@ -204,9 +205,44 @@ function textOfAtom(node: XNode): string {
 }
 
 /** Extracts a WordprocessingML paragraph. */
-export function extractW(para: XElement, role: Role): ExtractedParagraph {
+const MONO_FONT =
+  /mono|courier|consolas|menlo|monaco|inconsolata|source code|fira code|lucida console/i;
+
+/** A run set in a code font, directly or through a character style ("HTML Code", "Verbatim"). */
+export function isMono(rPr: XElement | null): boolean {
+  if (!rPr) return false;
+  const font =
+    rPr.getElementsByTagNameNS(NS.w, 'rFonts')[0]?.getAttributeNS(NS.w, 'ascii') ??
+    rPr.getElementsByTagNameNS(NS.a, 'latin')[0]?.getAttribute('typeface') ??
+    '';
+  const style = rPr.getElementsByTagNameNS(NS.w, 'rStyle')[0]?.getAttributeNS(NS.w, 'val') ?? '';
+  return MONO_FONT.test(font) || /code|verbatim|monospace/i.test(style);
+}
+
+const runText = (run: XElement) =>
+  Array.from(run.getElementsByTagNameNS(W, 't'))
+    .map((t) => t.textContent ?? '')
+    .join('');
+
+/**
+ * Extracts a Word paragraph. With `code`, runs in a code font are code ("python3 --version",
+ * "bolum_x()", a listing's lines): each travels as itself, its style kept, and a paragraph of
+ * code alone is not translated — unless it reads as language (a label in a typewriter font, a
+ * comment in words).
+ */
+export function extractW(
+  para: XElement,
+  role: Role,
+  opts: { code?: boolean } = {},
+): ExtractedParagraph {
   const flat: Flat[] = [];
   flattenW(para, [], flat);
+  const textRuns = flat.filter((f) => f.kind === 'run' && /\S/u.test(runText(f.node)));
+  const monoOf = (run: XElement) =>
+    isMono(elementChildren(run).find((c) => is(c, W, 'rPr')) ?? null);
+  const allMono = textRuns.length > 0 && textRuns.every((f) => monoOf(f.node));
+  const whole = textRuns.map((f) => runText(f.node)).join('');
+  const codeRuns = !!opts.code && !(allMono && (monoProse(whole) || commentInWords(whole)));
   const runs: InlineRun<RunStyle>[] = [];
   const atoms: AtomPayload[] = [];
   const head: XNode[] = [];
@@ -281,6 +317,10 @@ export function extractW(para: XElement, role: Role): ExtractedParagraph {
     }
     if (fc) {
       pushAtom('R', run, f.wrappers);
+      continue;
+    }
+    if (codeRuns && monoOf(run) && /\S/u.test(runText(run))) {
+      pushAtom('C', run, f.wrappers);
       continue;
     }
 

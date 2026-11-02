@@ -100,8 +100,12 @@ describe.each(FIXTURES)('PDF identity check: %s', (name) => {
     const all = [...units.entries()];
     // Paragraphs set in a column's flow (R0) move within their part of the column: they are
     // compared together, over the same area before and after.
+    // A chain is still compared whole, across its boxes.
     const flowedIds = new Set(
-      report.units.filter((u) => u.repairs.some((r) => r.code === 'R0_FLOW')).map((u) => u.id),
+      report.units
+        .filter((u) => u.repairs.some((r) => r.code === 'R0_FLOW'))
+        .map((u) => u.id)
+        .filter((id) => (units.get(id)?.length ?? 0) === 1),
     );
     const flowArea = new Map<string, { p: number; rect: BlockIR['bbox'] }>();
     for (const [k, m] of all) {

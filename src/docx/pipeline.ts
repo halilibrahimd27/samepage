@@ -14,7 +14,7 @@ import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/typ
 import { localeFor } from '../core/languages';
 import { storedTranslations, type StoredOutcome } from '../core/project';
 import { bracketedOutcome, titlesToTranslate, type ReferenceTitle } from '../core/referenceTitles';
-import { extractA, extractW, rebuild, type ExtractedParagraph } from './paragraphs';
+import { extractA, extractW, isMono, rebuild, type ExtractedParagraph } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
 import { fitSlideText, slideRole, textBodyOf } from './pptx';
 import { officeKind, openDocx, type OfficeKind } from './unzip';
@@ -218,9 +218,10 @@ export async function translateDocx(
     if (kind === 'w') {
       let inReferences = false;
       const paras = Array.from(doc.getElementsByTagNameNS(NS.w, 'p'));
+      const code = codeFontIsCode(doc);
       for (const para of paras) {
         const role = wRole(para, path);
-        const p = extractW(para, role);
+        const p = extractW(para, role, { code });
         if (role === 'heading') inReferences = REFERENCES_HEADING.test(p.plain);
         // Only letters outside placeholders count (a cell holding just a URL is not translated).
         if (!hasLetters(plainText(p.encoded.source))) continue;
@@ -482,19 +483,24 @@ export async function translateDocx(
   };
 }
 
-/** Plain text of the document's paragraphs, for glossary suggestions. */
-const MONO_FONT =
-  /mono|courier|consolas|menlo|monaco|inconsolata|source code|fira code|lucida console/i;
-
-/** A run set in a code font, directly or through a character style ("HTML Code", "Verbatim"). */
-function isMono(rPr: XElement | null): boolean {
-  if (!rPr) return false;
-  const font =
-    rPr.getElementsByTagNameNS(NS.w, 'rFonts')[0]?.getAttributeNS(NS.w, 'ascii') ??
-    rPr.getElementsByTagNameNS(NS.a, 'latin')[0]?.getAttribute('typeface') ??
-    '';
-  const style = rPr.getElementsByTagNameNS(NS.w, 'rStyle')[0]?.getAttributeNS(NS.w, 'val') ?? '';
-  return MONO_FONT.test(font) || /code|verbatim|monospace/i.test(style);
+/**
+ * Whether a code font marks code in this document: not when most of its text is set in one (a
+ * typescript in Courier), where it is the document's own face.
+ */
+function codeFontIsCode(doc: XDocument): boolean {
+  let mono = 0;
+  let all = 0;
+  for (const run of Array.from(doc.getElementsByTagNameNS(NS.w, 'r'))) {
+    const n = Array.from(run.getElementsByTagNameNS(NS.w, 't')).reduce(
+      (k, t) => k + (t.textContent ?? '').trim().length,
+      0,
+    );
+    if (!n) continue;
+    all += n;
+    const rPr = run.getElementsByTagNameNS(NS.w, 'rPr')[0] ?? null;
+    if (isMono(rPr)) mono += n;
+  }
+  return all > 0 && mono < 0.5 * all;
 }
 
 /** The text parts of a Word or PowerPoint package and their paragraphs (samples, terms, abstract). */

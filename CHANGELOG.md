@@ -4,6 +4,24 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-03
+
+### Changed
+
+- Translated PDFs are set like a typeset page: the paragraphs of a column follow one another at
+  one size, the column's own spacing kept. Each paragraph used to be fitted into its own box, so a
+  long one shrank the type of every paragraph and the short ones left gaps under them.
+- A quieter, corporate look: one navy brand colour, a sticky header, a hero band, refined cards,
+  form controls and buttons.
+
+### Fixed
+
+- Slides: labels and box titles set in a typewriter font ("TEMEL", "BİLMEN GEREKEN") and comments
+  in code boxes are translated; Poppins, Montserrat, Inter and other sans faces stay sans in the
+  translation; a bullet the slide draws twice over itself is translated once and its copy erased.
+- Word: a table stays in one column with its caption.
+- A name in code style ("libraries.io") keeps its style alone, not the rest of the sentence.
+
 ## [1.0.1] — 2026-11-02
 
 Fixes found by translating 28 further papers in eight languages and reading every result.

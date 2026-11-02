@@ -428,13 +428,23 @@ export function repairDocument(input: RepairInput): RepairOutput {
   if (use.flow) flowColumns();
 
   function flowColumns(): void {
+    const horizontal = (b: BlockIR) => b.direction[1] === 0 && !b.tableCell && b.lines.length > 0;
     const single = states.filter(
       (s) =>
         (s.role === 'body' || s.role === 'heading') &&
         s.blocks.length === 1 &&
-        s.blocks[0]!.direction[1] === 0 &&
-        !s.blocks[0]!.tableCell &&
-        s.blocks[0]!.lines.length > 0,
+        horizontal(s.blocks[0]!),
+    );
+    // A paragraph that goes on in the next column or page may end a column part: its first box
+    // follows the paragraphs above it down to its own bottom, and the chain carries the rest.
+    const heads = new Set(
+      states.filter(
+        (s) =>
+          s.role === 'body' &&
+          s.blocks.length > 1 &&
+          horizontal(s.blocks[0]!) &&
+          pageOf(s.blocks[0]!) === s.pageIndex,
+      ),
     );
     const lineStep = (b: BlockIR) => {
       const steps = b.lines
@@ -460,10 +470,12 @@ export function repairDocument(input: RepairInput): RepairOutput {
     const overlapX = (a: Rect, b: Rect) =>
       Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) >= 0.5 * Math.min(a.x1 - a.x0, b.x1 - b.x0);
     const byPage = new Map<number, State[]>();
-    for (const s of single) byPage.set(s.pageIndex, [...(byPage.get(s.pageIndex) ?? []), s]);
+    for (const s of [...single, ...heads])
+      byPage.set(s.pageIndex, [...(byPage.get(s.pageIndex) ?? []), s]);
     for (const [pageIndex, members] of byPage) {
       const page = pages[pageIndex]!;
-      const ids = new Set(members.map((m) => m.blocks[0]!.id));
+      // A head stays an obstacle to every part it does not end.
+      const ids = new Set(members.filter((m) => !heads.has(m)).map((m) => m.blocks[0]!.id));
       const backgrounds = backgroundsOf(pageIndex);
       const fixed: Rect[] = [
         ...page.blocks.filter((b) => !ids.has(b.id)).map((b) => b.bbox),
@@ -473,7 +485,7 @@ export function repairDocument(input: RepairInput): RepairOutput {
       const sorted = [...members].sort((a, b) => a.blocks[0]!.bbox.y0 - b.blocks[0]!.bbox.y0);
       const taken = new Set<State>();
       for (const start of sorted) {
-        if (taken.has(start)) continue;
+        if (taken.has(start) || heads.has(start)) continue;
         const region = [start];
         taken.add(start);
         for (;;) {
@@ -496,8 +508,10 @@ export function repairDocument(input: RepairInput): RepairOutput {
           if (between || b.bbox.y0 - last.bbox.y1 > 2.5 * lineStep(last)) break;
           region.push(next);
           taken.add(next);
+          if (heads.has(next)) break;
         }
         if (region.length < 2) continue;
+        const head = heads.has(region[region.length - 1]!) ? region.pop()! : null;
         const span = region.reduce(
           (r, s) => union(r, s.blocks[0]!.bbox),
           region[0]!.blocks[0]!.bbox,
@@ -516,10 +530,15 @@ export function repairDocument(input: RepairInput): RepairOutput {
           const b = s.blocks[0]!;
           return needed(s, 1) < b.bbox.y1 - b.bbox.y0 - 1.5 * lineStep(b);
         };
-        if (region.every(slight) && !region.some(gapping)) continue;
+        if (region.every(slight) && !region.some(gapping)) {
+          if (head) taken.delete(head);
+          continue;
+        }
         const blocks = region.map((s) => s.blocks[0]!);
         const top = blocks[0]!.bbox.y0;
         const lastBox = blocks[blocks.length - 1]!.bbox;
+        const headBox = head?.blocks[0]!.bbox;
+        const headGap = headBox ? Math.max(0, headBox.y0 - lastBox.y1) : 0;
         // Room down to whatever stands below this part of the column, or the page's content end.
         const below = fixed
           .filter(
@@ -527,7 +546,9 @@ export function repairDocument(input: RepairInput): RepairOutput {
               r.y0 >= lastBox.y1 - 0.5 && Math.min(r.x1, span.x1) - Math.max(r.x0, span.x0) > 2,
           )
           .map((r) => r.y0 - clearance);
-        const limit = Math.max(lastBox.y1, Math.min(contentBounds(page).y1, ...below));
+        const limit = headBox
+          ? headBox.y0 - headGap + 0.5 * lineStep(head.blocks[0]!)
+          : Math.max(lastBox.y1, Math.min(contentBounds(page).y1, ...below));
         const gaps = blocks.map((b, k) =>
           k ? Math.max(0, b.bbox.y0 - blocks[k - 1]!.bbox.y1) : 0,
         );
@@ -536,7 +557,10 @@ export function repairDocument(input: RepairInput): RepairOutput {
         const floor = minScaleFor(policy, 'body');
         let scale = 1;
         if (top + total(1) > limit) {
-          if (top + total(floor) > limit) continue;
+          if (top + total(floor) > limit) {
+            if (head) taken.delete(head);
+            continue;
+          }
           let lo = floor;
           let hi = 1;
           while (hi - lo > 0.005) {
@@ -563,6 +587,18 @@ export function repairDocument(input: RepairInput): RepairOutput {
             note: `set in the column's flow${scale < 1 ? `, scale ${scale}` : ''}`,
           });
         });
+        if (head) {
+          const b = head.blocks[0]!;
+          const box = { ...b.bbox, y0: Math.min(b.bbox.y1 - 1, cursor + headGap) };
+          head.params = { ...head.params, boxes: { ...head.params.boxes, [b.id]: box } };
+          relayout(head);
+          flowed.add(head);
+          head.steps.push({
+            code: 'R0_FLOW',
+            unitId: head.input.unit.id,
+            note: "first box set in the column's flow",
+          });
+        }
       }
     }
   }

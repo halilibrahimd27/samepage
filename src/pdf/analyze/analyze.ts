@@ -5,6 +5,7 @@ import {
   SELF_CITATION_LABEL,
 } from '../../core/references';
 import type { BlockIR, LineIR, PageIR, Rect, Role } from '../../core/ir/types';
+import { commentInWords, monoProse } from '../../core/segment/code';
 import type { RawPage } from '../extract/raw';
 import { blockText, buildBlocks } from './blocks';
 import { cluster, detectTables, type TableRegion } from './tables';
@@ -75,23 +76,7 @@ const allBold = (b: BlockIR) =>
   b.lines.every((l) => l.spans.every((s) => s.font.bold || !s.text.trim() || s.font.isMath));
 const allMono = (b: BlockIR) =>
   b.lines.every((l) => l.spans.every((s) => s.font.family === 'mono' || !s.text.trim()));
-/**
- * Text in a typewriter font that reads as language, not code: a slide's labels ("TEMEL",
- * "BİLMEN GEREKEN", "1. HAFTA") are set in JetBrains Mono like its code, and stayed untranslated.
- * Code has its signs ({ } = $ < > |), paths and names (a.b, snake_case, camelCase, --flags).
- */
-export const monoProse = (text: string): boolean => {
-  const t = text.trim();
-  if (!/\p{L}{2}/u.test(t)) return false;
-  if (/[{}=$<>|`;@[\]]|::|=>|&&|\/\/|^\s*#|--\w|\w\.\w|\w_\w|\p{Ll}\p{Lu}|\w\(/u.test(t))
-    return false;
-  // Words, with the punctuation of prose.
-  const words = t.match(/\p{L}[\p{L}\p{M}'’-]*/gu) ?? [];
-  const signs = t.replace(/[\p{L}\p{M}\p{N}\s.,:;!?'’"“”()\-–—&%·•/+*]/gu, '');
-  // One lower-case word is a name ("requests", "colors" in a package table), not a label.
-  if (words.length === 1 && /^\p{Ll}/u.test(t)) return false;
-  return words.length > 0 && signs.length <= 1;
-};
+export { monoProse };
 /**
  * The same text drawn twice over itself, wrapped differently (a slide exported with each bullet
  * twice): one copy is translated, the other only erased, or the two translations overlap.
@@ -173,18 +158,12 @@ function dropTwins(blocks: BlockIR[]): BlockIR[] {
   return blocks.filter((b) => !dropped.has(b));
 }
 
-/** A comment of a code listing, after its sign ("# ", "// ", "-- "). */
-const COMMENT = /^\s*(?:#|\/\/|--|%)\s*(.*)$/u;
-
 /**
  * A comment line in words ("# KOTU: kalici erisim anahtari", "// the attacker's code") is
  * language: it is translated in its own place, and the code around it stays as written.
  */
 function splitCodeComments(blocks: BlockIR[]): BlockIR[] {
-  const comment = (l: LineIR) => {
-    const m = COMMENT.exec(l.spans.map((s) => s.text).join(''));
-    return !!m && (m[1]!.match(/\p{L}{2,}/gu)?.length ?? 0) >= 2 && !/[{}=$<>|@]/u.test(m[1]!);
-  };
+  const comment = (l: LineIR) => commentInWords(l.spans.map((s) => s.text).join(''));
   const out: BlockIR[] = [];
   for (const b of blocks) {
     if (b.role !== 'code' || b.chain || !b.lines.some(comment)) {
