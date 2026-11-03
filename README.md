@@ -85,6 +85,10 @@ the paper says.
 4. Download the translated document, the side-by-side PDF, an editable Word file (for PDFs) or
    the report.
 
+Drop **several files** at once and they are translated one after another, each from its own
+language, with the same engine and settings; download each when it is done, or all of them as
+one `.zip`.
+
 <p align="center">
   <img src="media/demo.gif" alt="Demo: the Turkish demo paper translated into English, its quality report and side-by-side preview, then its title and abstract alone" width="880">
 </p>

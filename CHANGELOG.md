@@ -4,6 +4,16 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] — 2026-11-03
+
+### Added
+
+- Several files at once: drop or choose up to 20 PDF, Word, PowerPoint and LaTeX files and they
+  are translated one after another, each from the language read from its own text, with the
+  engine and settings chosen. A file already in the target language is left out, one that
+  cannot be opened (encrypted, too large) fails alone. Each file downloads when it is done
+  (a PDF with its Word file), all of them as one `.zip`.
+
 ## [1.2.0] — 2026-11-03
 
 ### Added
