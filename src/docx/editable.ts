@@ -181,10 +181,13 @@ const JC: Record<Align, string> = {
 const halfPoints = (pt: number) => Math.round(pt * 2);
 const twips = (pt: number) => Math.round(pt * 20);
 
-/** Code's font: narrower than Courier New, nearer the PDFs' Inconsolata and Latin Modern Mono. */
-export const MONO = 'Consolas';
-/** Consolas's advance, in em. */
-export const MONO_WIDTH = 0.55;
+/**
+ * Code's font: one every Windows and Mac computer has (Consolas is missing on a Mac without
+ * Office, and Pages says the document lacks a font).
+ */
+export const MONO = 'Courier New';
+/** Courier New's advance, in em. */
+export const MONO_WIDTH = 0.6;
 
 function runXml(r: EditableRun, hyperlink: boolean, size?: number, font?: string): string {
   if (r.footnote !== undefined)

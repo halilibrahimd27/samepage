@@ -262,8 +262,8 @@ describe('editable Word output of a PDF (P9.4)', () => {
     expect(item!.style).toBe('code');
     expect(item!.runs.map((r) => r.text)).toEqual(['def run(self):', `    ${long}`]);
     expect(item!.runs[1]!.lineBreak).toBe(true);
-    // 120 characters of Consolas in 451 pt.
-    expect(item!.size).toBe(6.5);
+    // 120 characters of Courier New in 451 pt.
+    expect(item!.size).toBe(6);
   });
 
   it('sets an inline formula’s subscript as a Word subscript', () => {

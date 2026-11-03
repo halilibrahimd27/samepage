@@ -283,16 +283,13 @@ function wordFont(spans: SpanIR[]): string {
   const [family = 'serif', name = ''] = ([...chars].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '')
     .toLowerCase()
     .split('|');
+  // Only fonts Windows and macOS both bring (Pages reports any other as missing): a book face
+  // goes to Georgia, a humanist sans to Arial.
   const known: [RegExp, string][] = [
-    [/palatino|palladio|pagella/, 'Palatino Linotype'],
-    [/garamond/, 'Garamond'],
-    [/georgia/, 'Georgia'],
-    [/cambria/, 'Cambria'],
-    [/calibri|carlito/, 'Calibri'],
+    [/palatino|palladio|pagella|cambria|georgia/, 'Georgia'],
     [/verdana/, 'Verdana'],
-    [/tahoma/, 'Tahoma'],
-    [/segoe/, 'Segoe UI'],
-    [/arial|helvet|nimbussan|liberationsans|arimo|biolinum/, 'Arial'],
+    [/tahoma|segoe/, 'Tahoma'],
+    [/calibri|carlito|arial|helvet|nimbussan|liberationsans|arimo|biolinum/, 'Arial'],
   ];
   const hit = known.find(([re]) => re.test(name));
   if (hit) return hit[1];
@@ -1634,8 +1631,7 @@ function room(page: PageIR, r: Rect): { left: number; right: number; below: numb
 const FONT_WIDTH: [RegExp, number][] = [
   [/verdana/i, 1.15],
   [/tahoma|georgia/i, 1.05],
-  [/times|garamond/i, 0.9],
-  [/calibri/i, 0.9],
+  [/times/i, 0.9],
 ];
 
 /** Rough width of text as Word sets it (points): capitals, digits, narrow letters, spaces. */
