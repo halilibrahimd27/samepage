@@ -4,6 +4,24 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.3] — 2026-11-03
+
+### Fixed
+
+- Translated text no longer runs over the paragraph below it in numbered lists: an item's next
+  lines, set under its text past the number, were a paragraph of their own when the line before
+  ended a sentence ("… + SHAP." | "Class imbalance …"), or opened with a code badge, a bracket
+  or a web address in smaller type. The item is one paragraph and the items below move down.
+- A badge at the start of a line ("M" on a green disc) stayed where it was while its sentence
+  moved: it is now taken off and drawn around its translated letter, in its own proportions.
+  Badges no longer count as obstacles for the paragraph they belong to, and a paragraph merged
+  from two parts keeps the badges of both.
+- A paragraph in one column ran into a full-width block under both columns.
+- Two-line paragraphs and references on a ragged page were justified with wide gaps: lines that
+  end a point or two apart across a column no longer count as a text edge.
+- A run of names split by "·" at a line end is one paragraph, not one per line.
+- White shading behind a few words is not taken for a badge.
+
 ## [1.5.2] — 2026-11-03
 
 ### Fixed
