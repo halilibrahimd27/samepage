@@ -27,7 +27,7 @@ export const fr: Record<MessageKey, string> = {
   'settings.autoTranslateHint':
     'Désactivé\u202F: vous activez vous-même la traduction de page de votre navigateur et choisissez la langue.',
   'sheet.autoFailed':
-    'La traduction automatique n’a pas pu démarrer (Google Translate ne s’est pas chargé). Traduisez avec votre navigateur\u202F:',
+    'Google Translate ne s’est pas chargé\u202F: il limite peut-être un moment les requêtes de votre réseau. Ce qui est déjà traduit est conservé\u202F: réessayez plus tard et seul le reste sera traduit, ou traduisez maintenant avec votre navigateur\u202F:',
   'error.chromeTranslator':
     'Chrome n’a pas pu préparer son traducteur local pour cette paire de langues (Chrome ne la propose peut-être pas, ou le téléchargement du pack de langue s’est bloqué). Choisissez «\u00A0Google Translate\u00A0» ou réessayez plus tard.',
   'file.detected': 'Langue détectée\u202F: {lang}',

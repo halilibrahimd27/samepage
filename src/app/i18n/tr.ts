@@ -27,7 +27,7 @@ export const tr: Record<MessageKey, string> = {
   'settings.autoTranslateHint':
     'Kapalıyken tarayıcınızın kendi sayfa çevirisini açar ve dili kendiniz seçersiniz.',
   'sheet.autoFailed':
-    'Otomatik çeviri başlatılamadı (Google Çeviri yüklenemedi). Tarayıcınızla çevirin:',
+    'Google Çeviri yüklenemedi; ağınızdan gelen istekleri bir süreliğine sınırlıyor olabilir. Şimdiye kadar çevrilenler saklandı: daha sonra yeniden deneyin, yalnızca kalan kısım çevrilir. Ya da şimdi tarayıcınızla çevirin:',
   'error.chromeTranslator':
     'Chrome bu dil çifti için cihaz içi çevirmeni hazırlayamadı (Chrome bu çifti sunmuyor olabilir ya da dil paketi indirmesi takıldı). “Google Çeviri”yi seçin ya da daha sonra tekrar deneyin.',
   'file.detected': 'Algılanan dil: {lang}',

@@ -25,7 +25,7 @@ export const en = {
   'settings.autoTranslateHint':
     'Off: you switch on your browser’s own page translation and pick the language yourself.',
   'sheet.autoFailed':
-    'Automatic translation could not start (Google Translate did not load). Translate with your browser instead:',
+    'Google Translate did not load — it may be limiting requests from your network for a while. What is translated so far is kept: try again later and only the rest is translated, or translate with your browser now:',
   'error.chromeTranslator':
     'Chrome could not prepare its on-device translator for this language pair (Chrome may not offer it, or its language download stalled). Choose “Google Translate”, or try again later.',
   'file.detected': 'Detected language: {lang}',

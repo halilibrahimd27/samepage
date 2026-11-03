@@ -841,7 +841,13 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   }
 
   const batches = makeBatches(pending, engine.maxBatchChars);
-  await pool(batches, engine.runsOn === 'main' ? 1 : (job.concurrency ?? 2), runBatch);
+  // Each batch is kept as it is done: a long book stopped by the engine (Google limiting a
+  // network for a while) goes on later from where it stopped, not from its first page. What the
+  // meaning check has not read yet carries no findings and is read on the next run.
+  await pool(batches, engine.runsOn === 'main' ? 1 : (job.concurrency ?? 2), async (batch) => {
+    await runBatch(batch);
+    if (job.cache && fresh.length) await job.cache.set(fresh.splice(0));
+  });
 
   if (job.fidelityCheck && engine.checkFidelity) {
     const toCheck = segments

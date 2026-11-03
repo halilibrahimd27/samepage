@@ -409,3 +409,41 @@ describe('sentence-by-sentence retry', () => {
     );
   });
 });
+
+describe('a long run stopped by the engine', () => {
+  it('keeps what was translated before it stopped, and goes on from there', async () => {
+    const { MemoryCache } = await import('../../src/core/cache/cache');
+    const { EngineError } = await import('../../src/engines/types');
+    const cache = new MemoryCache();
+    let blocked = true;
+    let sent = 0;
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      maxBatchChars: 40,
+      translate: (batch) => {
+        sent += batch.length;
+        // Google limits the network after the first batch.
+        if (blocked && sent > 1) return Promise.reject(new EngineError('rate-limit', 'limited'));
+        return Promise.resolve(batch.map((b) => ({ id: b.id, text: `EN ${b.text}` })));
+      },
+    };
+    const segments = ['Birinci paragraf burada.', 'İkinci paragraf burada.'].map((text, i) => ({
+      id: `p${i}`,
+      text,
+      role: 'body' as const,
+    }));
+    const job = {
+      engine,
+      segments,
+      ctx: { pair: { source: 'tr', target: 'en' }, glossary: [], numberLocalization: false },
+      cache,
+      signal: new AbortController().signal,
+    };
+    await expect(translateSegments(job)).rejects.toThrow();
+    blocked = false;
+    sent = 0;
+    const outcomes = await translateSegments(job);
+    expect(outcomes.map((o) => o.cached)).toEqual([true, false]);
+    expect(sent).toBe(1);
+  });
+});

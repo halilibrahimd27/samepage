@@ -28,7 +28,7 @@ export const de: Record<MessageKey, string> = {
   'settings.autoTranslateHint':
     'Aus: Sie aktivieren die seiteneigene Übersetzung Ihres Browsers und wählen die Sprache selbst.',
   'sheet.autoFailed':
-    'Die automatische Übersetzung konnte nicht gestartet werden (Google Translate wurde nicht geladen). Übersetzen Sie stattdessen mit Ihrem Browser:',
+    'Google Translate wurde nicht geladen – es begrenzt möglicherweise eine Weile die Anfragen aus Ihrem Netz. Bereits Übersetztes bleibt erhalten: Versuchen Sie es später erneut, dann wird nur der Rest übersetzt, oder übersetzen Sie jetzt mit Ihrem Browser:',
   'error.chromeTranslator':
     'Chrome konnte den geräteinternen Übersetzer für dieses Sprachpaar nicht vorbereiten (Chrome bietet es eventuell nicht an, oder der Sprachdownload ist hängen geblieben). Wählen Sie „Google Translate“ oder versuchen Sie es später erneut.',
   'file.detected': 'Erkannte Sprache: {lang}',
