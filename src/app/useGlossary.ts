@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { mergeGlossaries } from '../core/glossary/glossary';
 import type { TermSuggestion } from '../core/glossary/detect';
 import type { GlossaryEntry } from '../core/validate/validate';
 import type { LangPair } from '../engines/types';
@@ -8,23 +9,46 @@ import { pipelineClient } from './pipelineClient';
 export function useGlossary(pair: LangPair) {
   const [entries, setEntries] = useState<GlossaryEntry[]>([]);
   const { source, target } = pair;
+  const key = `${source}>${target}`;
+  /** The pair whose stored glossary has come, and the entries shown. */
+  const loaded = useRef<string | null>(null);
+  const current = useRef<GlossaryEntry[]>([]);
+  const changed = useRef(false);
 
   useEffect(() => {
     let active = true;
+    loaded.current = null;
+    changed.current = false;
+    current.current = [];
     void pipelineClient
       .call((api) => api.loadGlossary({ source, target }))
-      .then((loaded) => active && setEntries(loaded));
+      .then((stored) => {
+        if (!active) return;
+        loaded.current = key;
+        // Changed before the stored glossary came (a pack imported at once): both are kept, the
+        // change winning on a term, and saved together — saved alone it would replace the rest.
+        const next = changed.current ? mergeGlossaries(stored, current.current) : stored;
+        current.current = next;
+        setEntries(next);
+        if (changed.current)
+          void pipelineClient.call((api) => api.saveGlossary({ source, target }, next));
+      });
     return () => {
       active = false;
     };
-  }, [source, target]);
+  }, [source, target, key]);
 
   const update = useCallback(
     (next: GlossaryEntry[]) => {
+      current.current = next;
       setEntries(next);
+      if (loaded.current !== key) {
+        changed.current = true;
+        return;
+      }
       void pipelineClient.call((api) => api.saveGlossary({ source, target }, next));
     },
-    [source, target],
+    [source, target, key],
   );
 
   const usable = entries.filter((g) => g.source.trim() && g.target.trim());
