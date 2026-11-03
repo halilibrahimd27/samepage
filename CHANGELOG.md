@@ -4,6 +4,46 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-11-03
+
+### Added
+
+- The editable Word file of a slide deck is laid out slide by slide: each slide a page at its
+  size, its picture behind the text, the text in frames where the slide sets it, in its colours
+  and sizes. Word 2007 and WPS show it alike. It used to flow as one document, 38 slides over 59
+  pages, panels apart from their text.
+- arXiv's stamp turned up the left margin ("arXiv:2412.05259v1 [cs.SE] 6 Dec 2024") is kept in
+  the Word file, in its place.
+
+### Changed
+
+- Google Translate is the engine, set and folded away: the Chrome built-in translator, a local
+  model, Claude and the polishing of flagged sentences are under "Engine and quality".
+
+### Fixed
+
+- A deck saved as pictures with an unseen text layer (recognised elsewhere) was translated over
+  its picture: the original words stayed and the translation, black and in a serif, ran over
+  them. Such a page is now read like a scan: each line covered with the paper under it and set
+  anew in the picture's ink, bold where it is bold, in a sans on a slide. The cards it draws keep
+  their text inside, and a title no longer runs down over them (layout score 97.1 → 99.6).
+- A label of one word is read in the sense of the text under it: "KUR" was "COURSE" and is
+  "INSTALLATION", "SÜREÇ" was "PERIOD" and is "PROCESS", "Adım" was "My name" and is "Step". A
+  step label "2 · KUR" was taken for a formula and never sent.
+- A sentence the meaning check still flags after it was translated sentence by sentence is
+  translated again through English, kept when it then checks out ("jelentősen csökken" had come
+  back as "önemli ölçüde azalmamaktadır", the opposite).
+- The Chrome built-in translator gets Google's repairs: labels in capitals keep their capitals
+  and dots ("Login Problem" for "GİRİŞ · PROBLEM"), a list mark it moved off comes back.
+- Books: a chapter's large first letter joins its words, also after an opening quote ("C" +
+  "lerval" had become "Larval"); a paragraph that goes on over a page after a full stop stays one
+  paragraph.
+- Word documents: a word split where a font lacks a letter (Hungarian "ő" set in another font) is
+  translated whole; it had come back as "<t1>ESERLERİN</t1> … (EU (2023)". Arabic turned into a
+  Latin language takes a Latin font and size (WPS: 24 pages for a 16-page paper, now 17).
+- A bracket left open where the source's pair up goes to the engine again; it is flagged when it
+  stays so.
+
 ## [1.1.0] — 2026-11-03
 
 ### Changed

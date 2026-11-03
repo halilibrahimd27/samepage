@@ -44,7 +44,8 @@ the paper says.
   tables and footnotes are text you can edit, figures and display formulas pictures. Tables are
   found with full, booktabs or single rules and also without any rule, from their caption, and
   keep their rules and column alignment; footnote marks become Word footnotes and every
-  reference entry its own paragraph.
+  reference entry its own paragraph. A slide deck comes out slide by slide: each slide a page,
+  its picture behind it and its text in frames where the slide sets it.
 - **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. Each
   paragraph is translated from its own language — an English abstract in a Turkish paper, a German
   quotation, the Arabic body of a paper with an English abstract — and one already in the target
@@ -112,7 +113,8 @@ Zotero, drag a PDF attachment onto the samepage page.
 
 samepage is a static site with **no backend**. Your document is opened, analysed and rebuilt
 entirely inside your browser; the file itself never leaves your device. Only the text that needs
-translating is sent, and only to the engine you choose:
+translating is sent, and only to the engine you choose. Google Translate is set; the others are under "Engine and
+quality":
 
 | Engine                           | Where your text goes                                                        |
 | -------------------------------- | --------------------------------------------------------------------------- |
