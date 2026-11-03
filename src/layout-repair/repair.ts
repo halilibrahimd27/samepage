@@ -184,7 +184,8 @@ export function repairDocument(input: RepairInput): RepairOutput {
   };
 
   // Filled boxes holding text (a paragraph's shading, line by line in Word's PDFs) are
-  // backgrounds: text set over them collides with nothing.
+  // backgrounds: text set over them collides with nothing. Not a card drawn in a picture of the
+  // page: only its own text may stand on it, a title above runs into it.
   const backgroundsByPage = new Map<number, Set<PageIR['vectors'][number]>>();
   const backgroundsOf = (pageIndex: number) => {
     let set = backgroundsByPage.get(pageIndex);
@@ -193,7 +194,11 @@ export function repairDocument(input: RepairInput): RepairOutput {
       const lines = page.blocks.flatMap((b) => b.lines.map((l) => l.bbox));
       set = new Set(
         page.vectors.filter(
-          (v) => v.isRectangle && !v.isStroked && lines.some((l) => coverage(l, v.bbox) > 0.8),
+          (v) =>
+            v.isRectangle &&
+            !v.isStroked &&
+            !v.picture &&
+            lines.some((l) => coverage(l, v.bbox) > 0.8),
         ),
       );
       backgroundsByPage.set(pageIndex, set);

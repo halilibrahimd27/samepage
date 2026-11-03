@@ -68,7 +68,12 @@ export async function extractAndAnalyze(
     const pages = analyzeDocument(raw);
     for (const page of pages) {
       const info = infos.get(page.index);
-      if (info) page.ocr = info;
+      if (!info) continue;
+      const { cards, ...ocrInfo } = info;
+      page.ocr = ocrInfo;
+      // After the analysis, which reads the text as the layer gave it: shapes for the layout only.
+      for (const bbox of cards ?? [])
+        page.vectors.push({ bbox, isRectangle: true, isStroked: false, picture: true });
     }
     return pages;
   } finally {

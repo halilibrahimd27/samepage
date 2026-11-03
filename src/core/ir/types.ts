@@ -75,7 +75,8 @@ export interface PageIR {
   rotation: 0 | 90 | 180 | 270;
   blocks: BlockIR[];
   images: { bbox: Rect }[];
-  vectors: { bbox: Rect; isRectangle: boolean; isStroked: boolean }[];
+  /** `picture`: a card or panel drawn in a picture of the page, found from its pixels. */
+  vectors: { bbox: Rect; isRectangle: boolean; isStroked: boolean; picture?: boolean }[];
   columns: Rect[];
   /** Figures (images and drawings, tables excluded); `formula` when made of fraction bars only. */
   figures?: { bbox: Rect; formula: boolean }[];

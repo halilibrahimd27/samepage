@@ -35,6 +35,8 @@ export interface OcrPageInfo {
   lines: OcrLine[];
   /** The PDF's own text layer, unseen over a picture of its text. */
   layer?: boolean;
+  /** Cards and panels the picture draws the text on (page space), for the layout. */
+  cards?: Rect[];
 }
 
 const chars = (page: RawPage) =>
@@ -147,6 +149,35 @@ export function unseenText(
   return all > 0 && changed < 0.01 * all;
 }
 
+/**
+ * The card a line of a picture sits on: from just outside the line, as far as the paper goes —
+ * left and right on its middle row, up and down beside its left end. Null when the paper is the
+ * page's own (it reaches the picture's edge).
+ */
+function cardAround(px: PagePixels, box: Rect, paper: Color): Rect | null {
+  const at = (x: number, y: number): Color => {
+    const i = (Math.round(y) * px.width + Math.round(x)) * 3;
+    return [px.data[i]! / 255, px.data[i + 1]! / 255, px.data[i + 2]! / 255];
+  };
+  const isPaper = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < px.width && y < px.height && distance(at(x, y), paper) < 0.05;
+  const mid = (box.y0 + box.y1) / 2;
+  const side = box.x0 - 3;
+  if (!isPaper(side, mid)) return null;
+  let x0 = side;
+  while (isPaper(x0 - 1, mid)) x0--;
+  let x1 = box.x1 + 3;
+  while (isPaper(x1 + 1, mid)) x1++;
+  let y0 = mid;
+  while (isPaper(side, y0 - 1)) y0--;
+  let y1 = mid;
+  while (isPaper(side, y1 + 1)) y1++;
+  const edge = 2;
+  if (x0 <= edge || y0 <= edge || x1 >= px.width - 1 - edge || y1 >= px.height - 1 - edge)
+    return null;
+  return { x0, y0, x1: x1 + 1, y1: y1 + 1 };
+}
+
 /** Names of the type a text layer is set anew in (no font of it shows), read by family. */
 const layerFont = (serif: boolean, bold: boolean) =>
   `Layer ${serif ? 'Serif' : 'Sans'}${bold ? ' Bold' : ''}`;
@@ -196,6 +227,22 @@ export function layerPage(
       };
     }),
   }));
+  // The cards and panels the picture draws the text on: shapes for the layout, so a translation
+  // stays inside its card and a title does not run down over the cards under it.
+  const cards: { bbox: Rect; color: Color }[] = [];
+  for (const m of measured) {
+    const card = cardAround(px, toPx(m.line.bbox), m.paper);
+    if (!card) continue;
+    const r = {
+      x0: card.x0 / scale,
+      y0: card.y0 / scale,
+      x1: card.x1 / scale,
+      y1: card.y1 / scale,
+    };
+    if ((r.x1 - r.x0) * (r.y1 - r.y0) > 0.5 * page.width * page.height) continue;
+    if (!cards.some((c) => Math.abs(c.bbox.x0 - r.x0) < 2 && Math.abs(c.bbox.y0 - r.y0) < 2))
+      cards.push({ bbox: r, color: m.paper });
+  }
   return {
     page: {
       ...page,
@@ -213,7 +260,7 @@ export function layerPage(
         ),
       },
     },
-    info: { confidence: 100, lines, layer: true },
+    info: { confidence: 100, lines, layer: true, cards: cards.map((c) => c.bbox) },
   };
 }
 

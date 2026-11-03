@@ -98,7 +98,7 @@ describe('mathFragments', () => {
       'n D R(g)∗TrB∗div = c(n −2)',
     ])
       expect(mathLike(t), t).toBe(true);
-    for (const t of ['Fig. 2', 'Age (y)', 'The results', 'PCA analysis + clustering'])
+    for (const t of ['Fig. 2', 'Age (y)', 'The results', 'PCA analysis + clustering', '2 · KUR'])
       expect(mathLike(t), t).toBe(false);
   });
 

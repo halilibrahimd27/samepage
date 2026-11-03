@@ -733,7 +733,8 @@ export function mathLike(text: string): boolean {
   if (!t || t.length > 80 || !/\p{L}/u.test(t)) return false;
   if ((t.match(/\p{L}+/gu) ?? []).some((run) => run.length > 3 && !MATH_FUNCTION.test(run)))
     return false;
-  return /[=<>≤≥≈∗×·−+∑∫∂∇∆〈〉⟨⟩|^∈∉⊂⊆∀∃→↦]/u.test(t);
+  // A dot spaced apart separates a label's parts ("2 · KUR", a slide's step): no product.
+  return /[=<>≤≥≈∗×·−+∑∫∂∇∆〈〉⟨⟩|^∈∉⊂⊆∀∃→↦]/u.test(t.replace(/\s·\s/gu, ' '));
 }
 
 const IDENTIFIER = /^(?:[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+|[a-z]+[A-Z][A-Za-z0-9]*)$/;
