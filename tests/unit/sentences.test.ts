@@ -184,6 +184,44 @@ describe('sentence-by-sentence retry', () => {
     expect(out!.findings).toEqual([]);
   });
 
+  it('translates a sentence turned around again through English', async () => {
+    const source = 'Az egy főre jutó alvásmennyiség jelentősen csökken.';
+    const engine: TranslationEngine = {
+      ...machineTranslator(),
+      translate: (batch, ctx) =>
+        Promise.resolve(
+          batch.map((b) => {
+            const { source: from, target: to } = ctx.pair;
+            const text =
+              from === 'hu' && to === 'tr'
+                ? 'Kişi başına düşen uyku miktarı önemli ölçüde azalmamaktadır.'
+                : from === 'hu' && to === 'en'
+                  ? 'The amount of sleep per person decreases significantly.'
+                  : from === 'en' && to === 'tr'
+                    ? 'Kişi başına düşen uyku miktarı önemli ölçüde azalıyor.'
+                    : 'The amount of sleep per person does not decrease significantly.';
+            return { id: b.id, text };
+          }),
+        ),
+      checkFidelity: (pairs) =>
+        Promise.resolve({
+          findings: pairs
+            .filter((p) => p.target.includes('azalmamaktadır'))
+            .map((p) => ({ id: p.id, issue: 'negation added', severity: 'major' as const })),
+        }),
+    };
+    const [out] = await translateSegments({
+      engine,
+      segments: [{ id: 'h', text: source, role: 'body' }],
+      ctx: { pair: { source: 'hu', target: 'tr' }, glossary: [], numberLocalization: false },
+      fidelityCheck: true,
+      signal: new AbortController().signal,
+    });
+    expect(out!.text).toBe('Kişi başına düşen uyku miktarı önemli ölçüde azalıyor.');
+    expect(out!.notes).toContain('via-english');
+    expect(out!.findings).toEqual([]);
+  });
+
   it('clears a flag the back-translation raised when the translation reads right in English', async () => {
     const source =
       'Соціальні виклики: збільшення кількості залишених без опіки дітей та старіння населення.';

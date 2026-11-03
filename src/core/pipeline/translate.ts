@@ -8,6 +8,7 @@ import {
 import {
   EngineError,
   type FidelityFinding,
+  type LangPair,
   type PostEditItem,
   type SegmentRequest,
   type SegmentResult,
@@ -1050,6 +1051,38 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       ctx.pair.source !== 'en' && soundIn(s, (await inEnglish([{ s, text }])).get(s.id));
     const soften = (s: SegmentRequest, text: string) =>
       softenClaims(s.text, text, ctx.pair.source, ctx.pair.target);
+    const adoptFor = (
+      s: SegmentRequest,
+      o: SegmentOutcome,
+      found: string,
+      text: string,
+      note: string,
+      detail: string,
+    ) => {
+      o.text = text;
+      o.findings = [];
+      delete o.back;
+      o.notes.push(note);
+      o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
+      o.issues.push({ code: 'POST_EDITED', severity: 'info', detail: `${detail}: ${found}` });
+      fresh.push([keyOf.get(s.id)!, { text, notes: o.notes, findings: [] }]);
+    };
+    /** Texts in another language pair, in as few calls as fit. */
+    const inPair = async (
+      items: { id: string; s: SegmentRequest; text: string }[],
+      pair: LangPair,
+    ) => {
+      const out = new Map<string, string>();
+      const requests = items.map(({ id, s, text }) => ({ ...s, id: `${id}~via`, text }));
+      for (const batch of makeBatches(requests, engine.maxBatchChars)) {
+        const results = await engine
+          .translate(batch, { ...ctx, glossary: [], pair }, signal)
+          .catch(() => null);
+        for (const r of results ?? [])
+          if (r.text.trim()) out.set(r.id.replace(/~via$/u, ''), r.text);
+      }
+      return out;
+    };
     // Every flagged translation in English at once.
     const english =
       ctx.pair.source === 'en'
@@ -1066,15 +1099,8 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         fresh.push([keyOf.get(s.id)!, { text: o.text, notes: o.notes, findings: [] }]);
         continue;
       }
-      const adopt = (text: string, note: string, detail: string) => {
-        o.text = text;
-        o.findings = [];
-        delete o.back;
-        o.notes.push(note);
-        o.issues = o.issues.filter((i) => i.code !== 'MEANING_DRIFT');
-        o.issues.push({ code: 'POST_EDITED', severity: 'info', detail: `${detail}: ${found}` });
-        fresh.push([keyOf.get(s.id)!, { text, notes: o.notes, findings: [] }]);
-      };
+      const adopt = (text: string, note: string, detail: string) =>
+        adoptFor(s, o, found, text, note, detail);
       // A "suggests" the engine wrote as "shows" is put back first: no new translation needed.
       const softened = soften(s, o.text);
       if (softened !== o.text && (await checksOut(s, softened))) {
@@ -1099,6 +1125,36 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
         text,
         'sentences',
         'translated again sentence by sentence after the meaning check found',
+      );
+    }
+    // Still flagged: through English. A pair a machine translator knows less well turns a
+    // sentence around ("jelentősen csökken" → "önemli ölçüde azalmamaktadır"); through English
+    // it rarely does. The English must read as the source does, and the result pass the check.
+    const still = flagged.filter(({ o }) => o.findings.length > 0);
+    if (!still.length || ctx.pair.source === 'en' || ctx.pair.target === 'en') return;
+    const viaEnglish = await inPair(
+      still.map(({ s }) => ({ id: s.id, s, text: s.text })),
+      { source: ctx.pair.source, target: 'en' },
+    );
+    const sound = still.filter(({ s }) => soundIn(s, viaEnglish.get(s.id)));
+    const anew = await inPair(
+      sound.map(({ s }) => ({ id: s.id, s, text: viaEnglish.get(s.id)! })),
+      { source: 'en', target: ctx.pair.target },
+    );
+    for (const { s, o } of sound) {
+      signal.throwIfAborted();
+      const draft = anew.get(s.id);
+      if (!draft) continue;
+      const spelled = ctx.numberLocalization ? draft : keepNumberSpelling(s.text, draft);
+      const text = soften(s, runInLabels(s.text, spelled, ctx.pair.source, ctx.pair.target));
+      if (!(await checksOut(s, text))) continue;
+      adoptFor(
+        s,
+        o,
+        o.findings.map((f) => f.issue).join('; '),
+        text,
+        'via-english',
+        'translated again through English after the meaning check found',
       );
     }
   }
