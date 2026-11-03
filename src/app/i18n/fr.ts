@@ -275,6 +275,13 @@ export const fr: Record<MessageKey, string> = {
   'workspace.ocr': 'Reconnaissance du texte (OCR)… page {done} / {total}',
   'workspace.checking': 'Vérification du sens… {done} / {total} paragraphes',
   'workspace.polishing': 'Claude révise les phrases signalées… {done} / {total}',
+  'polish.labelAny': 'Faire réviser les phrases signalées par une IA',
+  'polish.withClaude': 'Par Claude (votre propre clé d’API)',
+  'polish.onDevice': 'Par l’IA intégrée de Chrome — gratuite, sur cet appareil',
+  'polish.onDeviceReady':
+    'Le texte reste sur votre ordinateur. Un modèle plus petit que Claude\u202F: chaque révision est vérifiée comme toute traduction.',
+  'polish.onDeviceDownload':
+    'Chrome télécharge son modèle une fois (quelques Go) quand vous traduisez. Le texte reste sur votre ordinateur\u202F; chaque révision est vérifiée comme toute traduction.',
   'polish.label': 'Faire réviser les phrases signalées par Claude',
   'polish.hint':
     'Les phrases signalées par la vérification du sens sont révisées par Claude avec votre propre clé API Anthropic. Seules ces phrases sont envoyées à Anthropic.',

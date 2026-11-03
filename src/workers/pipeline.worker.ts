@@ -21,6 +21,7 @@ import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import { buildBilingualDocx } from '../docx/bilingual';
 import { crossrefTitles } from '../core/crossref';
+import { createOnDeviceEditor } from '../engines/onDevice';
 import { docxParagraphs, docxTermTexts, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
@@ -76,8 +77,11 @@ function engineFor(
 
 const IDENTITY = { factor: 1, substitute: false };
 
-/** Hybrid quality (P9.3): Claude under the user's own key revises what the check flags. */
-function polishOptions(job: TextJob | DocxJob | PdfJob) {
+/**
+ * Hybrid quality (P9.3): Claude under the user's own key revises what the check flags, or the
+ * browser's own model on the device, free.
+ */
+function polishOptions(job: TextJob | DocxJob | PdfJob, chrome?: ChromeTranslatorBridge) {
   return {
     ...(job.polish
       ? {
@@ -86,7 +90,9 @@ function polishOptions(job: TextJob | DocxJob | PdfJob) {
             model: job.polish.model,
           }),
         }
-      : {}),
+      : job.polishOnDevice && chrome
+        ? { postEditor: createOnDeviceEditor(chrome) }
+        : {}),
     ...(job.englishSpelling ? { englishSpelling: job.englishSpelling } : {}),
   };
 }
@@ -237,7 +243,9 @@ const api: PipelineApi = {
           ...(job.englishSpelling ? { englishSpelling: job.englishSpelling } : {}),
         },
         signal: controller.signal,
-        ...(job.polish ? { postEditor: polishOptions(job).postEditor } : {}),
+        ...(job.polish || job.polishOnDevice
+          ? { postEditor: polishOptions(job, chrome).postEditor }
+          : {}),
         ...(job.useCache ? { cache } : {}),
         fidelityCheck: job.fidelityCheck,
         localCitations: job.localCitations ?? false,
@@ -330,7 +338,7 @@ const api: PipelineApi = {
           fidelityCheck: job.fidelityCheck,
           localCitations: job.localCitations ?? false,
           // A reopened project: its translations, no engine and no polishing.
-          ...(job.replay ? { replay: job.replay } : polishOptions(job)),
+          ...(job.replay ? { replay: job.replay } : polishOptions(job, chrome)),
           translateComments: job.translateComments,
           translateReferences: job.translateReferences,
           referenceTitles: job.referenceTitles ?? false,
@@ -369,7 +377,7 @@ const api: PipelineApi = {
           fidelityCheck: job.fidelityCheck,
           localCitations: job.localCitations ?? false,
           // A reopened project: its translations, no engine and no polishing.
-          ...(job.replay ? { replay: job.replay } : polishOptions(job)),
+          ...(job.replay ? { replay: job.replay } : polishOptions(job, chrome)),
           translateReferences: job.translateReferences,
           referenceTitles: job.referenceTitles ?? false,
           ...(job.officialTitles && !job.replay ? { titleLookup: crossrefTitles } : {}),
@@ -448,7 +456,7 @@ const api: PipelineApi = {
           fidelityCheck: job.fidelityCheck,
           localCitations: job.localCitations ?? false,
           // A reopened project: its translations, no engine and no polishing.
-          ...(job.replay ? { replay: job.replay } : polishOptions(job)),
+          ...(job.replay ? { replay: job.replay } : polishOptions(job, chrome)),
           ...(job.overrides ? { overrides: job.overrides } : {}),
           cache,
           memory: session,

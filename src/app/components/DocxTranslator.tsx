@@ -125,7 +125,9 @@ export function DocxTranslator({
     setRunning(jobId);
     setProgress(null);
     try {
-      const bridge = reuse ? undefined : await engineBridge(config.engine, pair, setDownload);
+      const bridge = reuse
+        ? undefined
+        : await engineBridge(config.engine, pair, setDownload, config.polishOnDevice);
       const spec = config.spec();
       const options = projectFile.options(reuse !== null, current);
       const onProgress = proxy((done: number, total: number, phase?: ProgressPhase) =>

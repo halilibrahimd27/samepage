@@ -59,3 +59,33 @@ test('polishing flagged sentences with Claude asks for the user’s own key', as
   await page.getByLabel('Target language', { exact: true }).selectOption('en');
   await expect(page.getByLabel('English spelling')).toBeVisible();
 });
+
+test('flagged sentences can be polished free by Chrome’s own model where it writes the language', async ({
+  page,
+}) => {
+  // Chrome's Prompt API, as Chrome 156 answers: English it writes, Turkish it does not.
+  await page.addInitScript(() => {
+    (globalThis as { LanguageModel?: unknown }).LanguageModel = {
+      availability: (o: { expectedOutputs?: { languages: string[] }[] }) =>
+        Promise.resolve(
+          o.expectedOutputs?.[0]?.languages[0] === 'en' ? 'available' : 'unavailable',
+        ),
+      create: () => Promise.reject(new Error('not in this test')),
+    };
+  });
+  await page.goto('./');
+  await page.getByTestId('file-input').setInputFiles('tests/corpus/pdf/one-column-basic.pdf');
+  await expect(page.getByTestId('thumbnail')).toBeVisible({ timeout: 30_000 });
+  await page.getByText('Engine and quality').click();
+  await page.getByTestId('polish-toggle').check();
+  await page.getByLabel('Target language', { exact: true }).selectOption('en');
+  await page.getByTestId('polish-on-device').check();
+  // No key asked for: the model is the browser's own.
+  await expect(page.getByLabel('Anthropic API key', { exact: true })).toBeHidden();
+  await expect(page.getByTestId('engine-options').locator('summary')).toContainText('+ Chrome AI');
+  // Into Turkish Chrome's model does not write: only Claude is offered.
+  await page.getByLabel('Target language', { exact: true }).selectOption('tr');
+  await page.getByLabel('Source language', { exact: true }).selectOption('en');
+  await expect(page.getByTestId('polish-with')).toBeHidden();
+  await expect(page.getByLabel('Anthropic API key', { exact: true })).toBeVisible();
+});

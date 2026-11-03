@@ -181,7 +181,7 @@ export function BatchTranslator({
       .call((api) => api.loadGlossary(pair))
       .then((entries) => entries.filter((g) => g.source.trim() && g.target.trim()))
       .catch(() => []);
-    const bridge = await engineBridge(config.engine, pair, setDownload);
+    const bridge = await engineBridge(config.engine, pair, setDownload, config.polishOnDevice);
     setDownload(null);
     const onProgress = proxy((done: number, total: number, phase?: ProgressPhase) =>
       update(it.id, { progress: { done, total, phase } }),

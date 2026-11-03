@@ -268,6 +268,13 @@ export const tr: Record<MessageKey, string> = {
   'workspace.ocr': 'Metin tanınıyor (OCR)… sayfa {done} / {total}',
   'workspace.checking': 'Anlam kontrol ediliyor… {done} / {total} paragraf',
   'workspace.polishing': 'Claude işaretlenen cümleleri düzeltiyor… {done} / {total}',
+  'polish.labelAny': 'İşaretlenen cümleleri yapay zekâ ile düzelt',
+  'polish.withClaude': 'Claude ile (kendi API anahtarınız)',
+  'polish.onDevice': 'Chrome’un yerleşik yapay zekâsıyla — ücretsiz, bu cihazda',
+  'polish.onDeviceReady':
+    'Metin bilgisayarınızdan çıkmaz. Claude’dan küçük bir model: her düzeltme diğer çeviriler gibi denetlenir.',
+  'polish.onDeviceDownload':
+    'Chrome, çevirdiğinizde modelini bir kez indirir (birkaç GB). Metin bilgisayarınızdan çıkmaz; her düzeltme diğer çeviriler gibi denetlenir.',
   'polish.label': 'İşaretlenen cümleleri Claude ile düzelt',
   'polish.hint':
     'Anlam denetiminin işaretlediği cümleler, kendi Anthropic API anahtarınızla Claude tarafından düzeltilir. Anthropic’e yalnızca bu cümleler gönderilir.',

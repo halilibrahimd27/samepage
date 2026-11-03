@@ -275,6 +275,13 @@ export const de: Record<MessageKey, string> = {
   'workspace.ocr': 'Text wird erkannt (OCR)… Seite {done} / {total}',
   'workspace.checking': 'Bedeutung wird geprüft… {done} / {total} Absätze',
   'workspace.polishing': 'Claude überarbeitet markierte Sätze… {done} / {total}',
+  'polish.labelAny': 'Markierte Sätze mit KI überarbeiten',
+  'polish.withClaude': 'Mit Claude (Ihr eigener API-Schlüssel)',
+  'polish.onDevice': 'Mit der integrierten KI von Chrome — kostenlos, auf diesem Gerät',
+  'polish.onDeviceReady':
+    'Der Text bleibt auf Ihrem Computer. Ein kleineres Modell als Claude: Jede Überarbeitung wird wie jede Übersetzung geprüft.',
+  'polish.onDeviceDownload':
+    'Chrome lädt sein Modell beim Übersetzen einmal herunter (einige GB). Der Text bleibt auf Ihrem Computer; jede Überarbeitung wird wie jede Übersetzung geprüft.',
   'polish.label': 'Markierte Sätze mit Claude überarbeiten',
   'polish.hint':
     'Sätze, die die Bedeutungsprüfung markiert, werden von Claude mit Ihrem eigenen Anthropic-API-Schlüssel überarbeitet. Nur diese Sätze werden an Anthropic gesendet.',

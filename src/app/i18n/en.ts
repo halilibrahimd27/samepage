@@ -267,6 +267,13 @@ export const en = {
   'workspace.ocr': 'Recognising text (OCR)… page {done} / {total}',
   'workspace.checking': 'Checking meaning… {done} / {total} paragraphs',
   'workspace.polishing': 'Claude is revising flagged sentences… {done} / {total}',
+  'polish.labelAny': 'Polish flagged sentences with AI',
+  'polish.withClaude': 'With Claude (your own API key)',
+  'polish.onDevice': 'With Chrome’s built-in AI — free, on this device',
+  'polish.onDeviceReady':
+    'The text stays on your computer. A smaller model than Claude: each revision is checked like any translation.',
+  'polish.onDeviceDownload':
+    'Chrome downloads its model once (a few GB) when you translate. The text stays on your computer; each revision is checked like any translation.',
   'polish.label': 'Polish flagged sentences with Claude',
   'polish.hint':
     'Sentences the meaning check flags are revised by Claude under your own Anthropic API key. Only those sentences are sent to Anthropic.',

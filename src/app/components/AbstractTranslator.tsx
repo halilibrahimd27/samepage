@@ -137,7 +137,7 @@ export function AbstractTranslator({
     setRunning(jobId);
     setProgress(null);
     try {
-      const bridge = await engineBridge(config.engine, pair, setDownload);
+      const bridge = await engineBridge(config.engine, pair, setDownload, config.polishOnDevice);
       const paragraphs = [...(title ? [title] : []), ...abstract, ...(keywords ? [keywords] : [])];
       const job: TextJob = {
         jobId,

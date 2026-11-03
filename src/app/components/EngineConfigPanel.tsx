@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ANTHROPIC_MODELS } from '../../engines/anthropicModels';
+import { chromeAiAvailability, type ChromeAiAvailability } from '../bridges/chromeAi';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
 import type { Settings } from '../settings';
@@ -22,6 +23,23 @@ export function EngineConfigPanel({
   const open =
     toggled ??
     (settings.showTestEngine || settings.showAdvancedEngines || config.engine !== 'browser');
+  // Chrome's own model, where it writes the target language (English, not Turkish).
+  const [device, setDevice] = useState<{ key: string; state: ChromeAiAvailability } | null>(null);
+  const pairKey = `${config.source}>${config.target}`;
+  useEffect(() => {
+    let active = true;
+    void chromeAiAvailability({ source: config.source, target: config.target }).then(
+      (state) => active && setDevice({ key: `${config.source}>${config.target}`, state }),
+    );
+    return () => {
+      active = false;
+    };
+  }, [config.source, config.target]);
+  const onDevice = device?.key === pairKey && device.state !== 'unavailable' ? device.state : null;
+  const { setOnDevice } = config;
+  useEffect(() => {
+    if (!onDevice) setOnDevice(false);
+  }, [onDevice, setOnDevice]);
   return (
     <div className="flex flex-col gap-6">
       <section className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
@@ -67,7 +85,7 @@ export function EngineConfigPanel({
           <span className="font-medium">{t('config.engineAndQuality')}</span>
           <span className="text-slate-600">
             {t(`engine.${config.engine}.label`)}
-            {config.polishing ? ' + Claude' : ''}
+            {config.polishing ? (config.polishOnDevice ? ' + Chrome AI' : ' + Claude') : ''}
           </span>
         </summary>
         <div className="flex flex-col gap-6 border-t border-slate-200 p-4">
@@ -94,11 +112,44 @@ export function EngineConfigPanel({
                   data-testid="polish-toggle"
                 />
                 <span>
-                  <span className="font-medium">{t('polish.label')}</span>
+                  <span className="font-medium">
+                    {onDevice ? t('polish.labelAny') : t('polish.label')}
+                  </span>
                   <span className="block text-slate-600">{t('polish.hint')}</span>
                 </span>
               </label>
-              {config.polish && <ClaudeFields config={config} />}
+              {config.polish && onDevice && (
+                <fieldset className="flex flex-col gap-1.5 pl-6 text-sm" data-testid="polish-with">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="polish-with"
+                      checked={!config.onDevice}
+                      onChange={() => config.setOnDevice(false)}
+                    />
+                    {t('polish.withClaude')}
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="radio"
+                      name="polish-with"
+                      className="mt-1"
+                      checked={config.onDevice}
+                      onChange={() => config.setOnDevice(true)}
+                      data-testid="polish-on-device"
+                    />
+                    <span>
+                      {t('polish.onDevice')}
+                      <span className="block text-slate-600">
+                        {onDevice === 'available'
+                          ? t('polish.onDeviceReady')
+                          : t('polish.onDeviceDownload')}
+                      </span>
+                    </span>
+                  </label>
+                </fieldset>
+              )}
+              {config.polish && !config.polishOnDevice && <ClaudeFields config={config} />}
             </div>
           )}
 

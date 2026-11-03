@@ -39,6 +39,8 @@ export interface TextJob {
   localCitations?: boolean;
   /** Hybrid quality (P9.3): flagged translations revised by Claude under the user's own key. */
   polish?: { apiKey: string; model: string };
+  /** Polishing with the browser's own language model instead (the bridge's `revise`). */
+  polishOnDevice?: boolean;
   /** English targets: the spelling LLM engines write. */
   englishSpelling?: 'american' | 'british';
 }
@@ -88,6 +90,8 @@ export interface DocxJob {
   overrides?: Record<string, string>;
   /** Hybrid quality (P9.3): flagged translations revised by Claude under the user's own key. */
   polish?: { apiKey: string; model: string };
+  /** Polishing with the browser's own language model instead (the bridge's `revise`). */
+  polishOnDevice?: boolean;
   /** English targets: the spelling LLM engines write. */
   englishSpelling?: 'american' | 'british';
   /** A reopened project's translations (P9.5): used instead of the engine, which is not called. */

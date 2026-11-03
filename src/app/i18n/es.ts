@@ -273,6 +273,13 @@ export const es: Record<MessageKey, string> = {
   'workspace.ocr': 'Reconociendo texto (OCR)… página {done} / {total}',
   'workspace.checking': 'Comprobando el significado… {done} / {total} párrafos',
   'workspace.polishing': 'Claude está revisando las frases marcadas… {done} / {total}',
+  'polish.labelAny': 'Pulir con IA las frases marcadas',
+  'polish.withClaude': 'Con Claude (su propia clave de API)',
+  'polish.onDevice': 'Con la IA integrada de Chrome — gratis, en este dispositivo',
+  'polish.onDeviceReady':
+    'El texto no sale de su ordenador. Un modelo más pequeño que Claude: cada revisión se comprueba como cualquier traducción.',
+  'polish.onDeviceDownload':
+    'Chrome descarga su modelo una vez (varios GB) al traducir. El texto no sale de su ordenador; cada revisión se comprueba como cualquier traducción.',
   'polish.label': 'Pulir con Claude las frases marcadas',
   'polish.hint':
     'Claude revisa, con su propia clave de API de Anthropic, las frases que marca la comprobación del significado. Solo esas frases se envían a Anthropic.',

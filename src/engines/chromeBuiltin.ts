@@ -38,6 +38,11 @@ export interface ChromeTranslatorBridge {
    * download, no manual sheet); null otherwise.
    */
   backTranslate?(pair: LangPair, texts: string[]): Promise<string[] | null>;
+  /**
+   * The browser's own language model, when the user polishes on the device: the model's answer
+   * to `user` under the instructions `system`, shaped by `schema`; null when it cannot answer.
+   */
+  revise?(pair: LangPair, system: string, user: string, schema: object): Promise<string | null>;
 }
 
 /** Back-translation meaning check (ADR-022) shared by the machine-translation engines. */

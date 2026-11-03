@@ -20,6 +20,8 @@ export function useEngineConfig(settings: Settings) {
   const apiKey = useApiKey();
   // Hybrid quality (P9.3): Claude revises what the meaning check flags in a Google/Chrome run.
   const [polish, setPolish] = useState(false);
+  // …or the browser's own model, on the device and free, where it writes the target language.
+  const [onDevice, setOnDevice] = useState(false);
   const [englishSpelling, setEnglishSpelling] = useState<'' | 'american' | 'british'>('');
   // Hiding the test engine falls back to the default engine without an extra state update.
   const activeEngine: EngineId =
@@ -41,17 +43,23 @@ export function useEngineConfig(settings: Settings) {
   };
 
   const polishing = polish && (activeEngine === 'browser' || activeEngine === 'chrome-builtin');
+  const polishOnDevice = polishing && onDevice;
 
   /** Job options beside the engine: the post-editor and the English spelling. */
   const extras = () => ({
-    ...(polishing && apiKey.key ? { polish: { apiKey: apiKey.key, model: anthropicModel } } : {}),
+    ...(polishOnDevice
+      ? { polishOnDevice: true }
+      : polishing && apiKey.key
+        ? { polish: { apiKey: apiKey.key, model: anthropicModel } }
+        : {}),
     ...(target === 'en' && englishSpelling ? { englishSpelling } : {}),
   });
 
   /** First reason the current configuration cannot run, or null. */
   const problem = (t: Translate): string | null => {
     if (source === target) return t('config.sameLanguage');
-    if ((activeEngine === 'anthropic' || polishing) && !apiKey.key) return t('config.needKey');
+    if ((activeEngine === 'anthropic' || (polishing && !onDevice)) && !apiKey.key)
+      return t('config.needKey');
     if (activeEngine === 'openai-compatible' && !localModel.trim())
       return t('config.needLocalModel');
     return null;
@@ -76,6 +84,9 @@ export function useEngineConfig(settings: Settings) {
     polish,
     setPolish,
     polishing,
+    onDevice,
+    setOnDevice,
+    polishOnDevice,
     englishSpelling,
     setEnglishSpelling,
     extras,

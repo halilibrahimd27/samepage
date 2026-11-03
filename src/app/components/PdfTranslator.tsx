@@ -104,7 +104,9 @@ export function PdfTranslator(props: {
     setRunning(jobId);
     setProgress(null);
     try {
-      const bridge = reuse ? undefined : await engineBridge(config.engine, pair, setDownload);
+      const bridge = reuse
+        ? undefined
+        : await engineBridge(config.engine, pair, setDownload, config.polishOnDevice);
       const spec = config.spec();
       const options = projectFile.options(reuse !== null, {
         fidelityCheck: settings.fidelityCheck,
