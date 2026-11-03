@@ -4,6 +4,18 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] — 2026-11-03
+
+### Fixed
+
+- A 1024-page PDF stayed at "Reading the document…" on a phone for an hour: every page was read
+  into memory before anything else, with nothing shown meanwhile. Each page is now analysed as it
+  is read and its characters let go, the reading shows "page 340 / 1024", and only the pages to
+  translate are read. A PDF of more than 150 pages comes first as the translated PDF; its Word
+  files and side-by-side PDF are made when asked, from the translation, without the engine
+  (together they more than doubled what the browser holds). The screen is kept on while a
+  translation runs: a phone that sleeps stops it.
+
 ## [1.5.0] — 2026-11-03
 
 ### Changed
