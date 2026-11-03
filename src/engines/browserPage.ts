@@ -336,22 +336,25 @@ const WORD = /\p{L}[\p{L}\p{M}'’-]*/gu;
  * are no function words stay in capitals as acronyms ("AB", "ABD"); the translation is set in
  * capitals again, so "pisa" comes back "PISA". Null for any other text.
  */
-export function sentenceCase(text: string, lang: string): string | null {
+export function sentenceCase(text: string, lang: string, short = false): string | null {
   const words =
     outsideMarks(text, (t) => t)
       .replace(/<\/?t\d+>|⟦[^⟧]*⟧/gu, ' ')
       .match(WORD) ?? [];
+  // Words of three letters alone may be acronyms ("SCA"); `short` (a label back as it was, on
+  // its retry) takes them for words too: "2 · KUR" came back "2 · KUR".
+  const long = words.some((w) => w.length >= 4);
   if (
     !words.length ||
     words.length > 8 ||
-    !words.some((w) => w.length >= 4) ||
+    (!long && !short) ||
     words.some((w) => w !== w.toLocaleUpperCase(lang) || w === w.toLocaleLowerCase(lang))
   )
     return null;
   let first = true;
   return outsideMarks(text, (part) =>
     part.replace(WORD, (w) => {
-      const acronym = w.length <= 3 && !functionWords(w, lang);
+      const acronym = long && w.length <= 3 && !functionWords(w, lang);
       const lower = acronym ? w : w.toLocaleLowerCase(lang);
       const out = first && !acronym ? lower[0]!.toLocaleUpperCase(lang) + lower.slice(1) : lower;
       first = false;
@@ -563,7 +566,9 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
     async translate(given, ctx, signal): Promise<SegmentResult[]> {
-      const caps = given.map((s) => sentenceCase(s.text, ctx.pair.source));
+      const caps = given.map((s) =>
+        sentenceCase(s.text, ctx.pair.source, ctx.retryFeedback !== undefined),
+      );
       const whole = given.map((s, i) => (caps[i] ? { ...s, text: caps[i] } : s));
       const pinned = whole.map(pinSectionNumber);
       const batch = pinned.map((p) => p.req);

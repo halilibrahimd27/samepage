@@ -1,4 +1,12 @@
 import { tokenize } from '../core/segment/codec';
+import {
+  confineTags,
+  dropAddedFullStop,
+  inCapitals,
+  reattachTags,
+  restoreSigns,
+  sentenceCase,
+} from './browserPage';
 import { backTranslationFindings, cueText, inSourceLanguage } from '../core/validate/meaning';
 import {
   assemblePieces,
@@ -82,6 +90,34 @@ function structureKept(source: string, target: string): boolean {
 }
 
 export function createChromeEngine(bridge: ChromeTranslatorBridge): TranslationEngine {
+  const plain = plainEngine(bridge);
+  return {
+    ...plain,
+    async translate(given, ctx, signal): Promise<SegmentResult[]> {
+      const lang = ctx.pair.target;
+      // A label in capitals goes in sentence case and comes back in capitals, as with Google:
+      // the model read "GİRİŞ · PROBLEM" as a name ("Login Problem").
+      const caps = given.map((s) =>
+        sentenceCase(s.text, ctx.pair.source, ctx.retryFeedback !== undefined),
+      );
+      const batch = given.map((s, i) => (caps[i] ? { ...s, text: caps[i] } : s));
+      const results = await plain.translate(batch, ctx, signal);
+      // The repairs of Google's answers fit the model's too: a mark it moved its span off, a
+      // span stretched over the sentence, a full stop added to a label.
+      return results.map((r, i) => {
+        if (!r?.text) return r;
+        const source = given[i]!.text;
+        const text = dropAddedFullStop(
+          source,
+          reattachTags(source, restoreSigns(source, confineTags(source, r.text))),
+        );
+        return { ...r, text: caps[i] ? inCapitals(text, lang) : text };
+      });
+    },
+  };
+}
+
+function plainEngine(bridge: ChromeTranslatorBridge): TranslationEngine {
   return {
     id: 'chrome-builtin',
     label: 'Chrome built-in translator',
@@ -95,7 +131,7 @@ export function createChromeEngine(bridge: ChromeTranslatorBridge): TranslationE
       vision: false,
       fidelityCheck: true,
     },
-    model: 'chrome-translator',
+    model: 'chrome-translator-2',
     maxBatchChars: 4000,
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),

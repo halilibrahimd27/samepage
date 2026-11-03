@@ -738,6 +738,26 @@ describe('helpers', () => {
     expect(r!.text).toBe('<t1>Test veri kümesi</t1>. Packages on ⟦U1⟧ are scanned.');
   });
 
+  it('Chrome engine: a label in capitals goes in sentence case and comes back in capitals', async () => {
+    const sent: string[] = [];
+    const engine = createChromeEngine({
+      availability: () => Promise.resolve('available'),
+      translate: (_pair, texts) => {
+        sent.push(...texts);
+        return Promise.resolve(
+          texts.map((t) => (t === 'Giriş · problem' ? 'Introduction · problem' : 'Upload')),
+        );
+      },
+    });
+    const [r] = await engine.translate(
+      [{ id: 'a', text: 'GİRİŞ · PROBLEM', role: 'label' }],
+      ctx,
+      new AbortController().signal,
+    );
+    expect(sent).toEqual(['Giriş · problem']);
+    expect(r!.text).toBe('INTRODUCTION · PROBLEM');
+  });
+
   it('Chrome engine: keeps every tag and placeholder even when the API drops them', async () => {
     // Behaves like Chrome's Translator API: markup is lost and the first letter lower-cased.
     const lossy = (t: string) => {

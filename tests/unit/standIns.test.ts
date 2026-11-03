@@ -59,6 +59,9 @@ describe('placeholders that travel as text, so the sentence stays whole', () => 
       'Bağımlılık ve <t1>AB</t1> ülkeleri',
     );
     expect(sentenceCase('AB', 'tr')).toBeNull(); // an acronym alone
+    // On the retry of a label that came back as it was, a short word is a word too.
+    expect(sentenceCase('2 · KUR', 'tr')).toBeNull();
+    expect(sentenceCase('2 · KUR', 'tr', true)).toBe('2 · Kur');
     expect(sentenceCase('Süreç ve sonuçlar', 'tr')).toBeNull();
     const sent: string[] = [];
     const engine = createBrowserPageEngine({
