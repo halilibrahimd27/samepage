@@ -10,6 +10,14 @@ export interface RawChar {
   font: string;
   size: number;
   color: [number, number, number];
+  /** Set on a badge drawn behind it (a word on a pill inside a line). */
+  chip?: Chip;
+}
+
+/** A badge's colours: its fill, and its border when it has one. */
+export interface Chip {
+  fill: [number, number, number];
+  stroke?: [number, number, number];
 }
 
 export interface RawLine {

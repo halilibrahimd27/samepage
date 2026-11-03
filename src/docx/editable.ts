@@ -18,6 +18,8 @@ export interface EditableRun {
   math?: boolean;
   /** RGB hex without '#'; unset for black. */
   color?: string;
+  /** A badge's fill behind the words (RGB hex). */
+  shade?: string;
   link?: string;
   /** A line break before the text (code listings, manual breaks). */
   lineBreak?: boolean;
@@ -203,6 +205,7 @@ function runXml(r: EditableRun, hyperlink: boolean, size?: number, font?: string
       ? `<w:sz w:val="${halfPoints(r.size ?? size!)}"/><w:szCs w:val="${halfPoints(r.size ?? size!)}"/>`
       : '',
     r.underline && !hyperlink ? '<w:u w:val="single"/>' : '',
+    r.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${r.shade}"/>` : '',
     r.superscript ? '<w:vertAlign w:val="superscript"/>' : '',
     r.subscript ? '<w:vertAlign w:val="subscript"/>' : '',
   ].join('');

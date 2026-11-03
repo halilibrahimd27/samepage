@@ -36,6 +36,8 @@ export interface SpanIR {
   baseline?: number;
   /** Underlined (a thin rule drawn under the text in the source). */
   underline?: boolean;
+  /** Set on a badge (a pill drawn behind it inside the line): its fill and border. */
+  chip?: { fill: [number, number, number]; stroke?: [number, number, number] };
 }
 
 export interface LineIR {
@@ -64,6 +66,8 @@ export interface BlockIR {
   tableCell?: { tableId: string; row: number; col: number; cellRect: Rect };
   /** Underline rules drawn under this block's text (removed with it when translated). */
   underlines?: Rect[];
+  /** Badges drawn behind words of this block (removed with it, drawn anew with the words). */
+  chips?: Rect[];
   /** Extra areas removed with this block's text (a drop cap absorbed into the paragraph). */
   extraRedact?: Rect[];
 }

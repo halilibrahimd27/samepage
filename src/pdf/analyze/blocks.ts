@@ -1,7 +1,7 @@
-import { iou, union, unionAll } from '../../core/ir/geometry';
+import { expand, iou, union, unionAll, xOverlap } from '../../core/ir/geometry';
 import type { BlockIR, LineIR, Rect, SpanIR } from '../../core/ir/types';
 import { coverage } from '../../core/ir/geometry';
-import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
+import type { Chip, RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
 import { fromPicture } from '../ocr/page';
 import type { TableRegion } from './tables';
 
@@ -30,6 +30,7 @@ export function fontInfo(name: string, flags?: RawFont): SpanIR['font'] {
 }
 
 const sameStyle = (a: RawChar, b: RawChar) =>
+  a.chip === b.chip &&
   a.font === b.font &&
   Math.abs(a.size - b.size) < 0.05 &&
   a.color.every((v, i) => Math.abs(v - b.color[i]!) < 0.02);
@@ -163,6 +164,7 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
       span.font = { ...span.font, isMath: true, italic: false };
     const uri = linkAt(bbox, page.links);
     if (uri) span.linkUri = uri;
+    if (first.chip) span.chip = first.chip;
     spans.push(span);
     cur = [];
   };
@@ -240,6 +242,109 @@ function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
     }
   }
   return out;
+}
+
+/**
+ * Badges inside lines (a word on a pill: "Web3 Paketi"): MuPDF cuts the line at the badge and
+ * starts a new block with it, so a sentence came out as four paragraphs and its translation
+ * ran over the badge. A line that starts on a badge goes after the text left of it on the same
+ * line, its characters marked with the badge's colours; blocks the badges cut apart, one over
+ * the other at the text's own pitch and left edge, are one block again. Returns the badges'
+ * shapes, taken off with their words and drawn anew.
+ */
+function joinInlineChips(page: RawPage): { blocks: RawTextBlock[]; chips: Rect[] } {
+  // A pill: a filled shape about a line high and a few words wide; its border is drawn apart.
+  const fills = page.vectors.filter(
+    (v) =>
+      !v.isStroked &&
+      v.bbox.y1 - v.bbox.y0 >= 6 &&
+      v.bbox.y1 - v.bbox.y0 <= 24 &&
+      v.bbox.x1 - v.bbox.x0 >= 8 &&
+      v.bbox.x1 - v.bbox.x0 <= 220,
+  );
+  const blocks = page.blocks.map((b) => ({ ...b, lines: [...b.lines] }));
+  const chips: Rect[] = [];
+  const touched = new Set<RawTextBlock>();
+  const near = (a: Rect, b: Rect) =>
+    Math.abs(a.x0 - b.x0) < 1.5 &&
+    Math.abs(a.y0 - b.y0) < 1.5 &&
+    Math.abs(a.x1 - b.x1) < 1.5 &&
+    Math.abs(a.y1 - b.y1) < 1.5;
+  for (const block of blocks) {
+    for (const line of [...block.lines]) {
+      if (line.dir[1] !== 0) continue;
+      const first = line.chars.find((c) => /\S/u.test(c.c));
+      if (!first) continue;
+      const cx = (first.bbox.x0 + first.bbox.x1) / 2;
+      const cy = (first.bbox.y0 + first.bbox.y1) / 2;
+      const pill = fills.find(
+        (v) => cx > v.bbox.x0 && cx < v.bbox.x1 && cy > v.bbox.y0 && cy < v.bbox.y1,
+      );
+      if (!pill) continue;
+      // The text it goes on: left of the badge on the same line, a word gap away.
+      const host = blocks
+        .flatMap((b) => b.lines.map((l) => ({ b, l })))
+        .find(
+          ({ l }) =>
+            l !== line &&
+            l.dir[1] === 0 &&
+            l.bbox.x1 <= pill.bbox.x0 + 1 &&
+            pill.bbox.x0 - l.bbox.x1 < 12 &&
+            Math.abs((l.bbox.y0 + l.bbox.y1) / 2 - (pill.bbox.y0 + pill.bbox.y1) / 2) <
+              0.5 * (l.bbox.y1 - l.bbox.y0),
+        );
+      if (!host) continue;
+      const border = page.vectors.find((v) => v.isStroked && near(v.bbox, expand(pill.bbox, 0.5)));
+      const chip: Chip = { fill: pill.color, ...(border ? { stroke: border.color } : {}) };
+      // The badge's words and the spaces between them; not a space at its edges.
+      const inside = line.chars.map((c) => {
+        const x = (c.bbox.x0 + c.bbox.x1) / 2;
+        return x > pill.bbox.x0 && x < pill.bbox.x1;
+      });
+      const ink = line.chars.flatMap((c, i) => (inside[i] && /\S/u.test(c.c) ? [i] : []));
+      const marked = line.chars.map((c, i) =>
+        inside[i] && i >= ink[0]! && i <= ink[ink.length - 1]! ? { ...c, chip } : c,
+      );
+      const anchor = host.l.chars[host.l.chars.length - 1]!;
+      const space: RawChar = { ...anchor, c: ' ', chip: undefined };
+      delete space.chip;
+      const merged = /\s$/u.test(anchor.c) ? marked : [space, ...marked];
+      const at = host.b.lines.indexOf(host.l);
+      host.b.lines[at] = {
+        ...host.l,
+        bbox: union(host.l.bbox, line.bbox),
+        chars: [...host.l.chars, ...merged],
+      };
+      block.lines.splice(block.lines.indexOf(line), 1);
+      chips.push(union(pill.bbox, border?.bbox ?? pill.bbox));
+      touched.add(host.b);
+    }
+  }
+  // Blocks the badges cut apart: one over the next at the text's pitch, from one left edge.
+  const out: RawTextBlock[] = [];
+  for (const b of blocks.filter((x) => x.lines.length)) {
+    const prev = out[out.length - 1];
+    const last = prev?.lines[prev.lines.length - 1];
+    const next = b.lines[0]!;
+    const size = Math.max(...next.chars.map((c) => c.size), 1);
+    if (
+      prev &&
+      last &&
+      (touched.has(prev) || touched.has(b)) &&
+      Math.abs(next.bbox.x0 - prev.lines[0]!.bbox.x0) < 2 &&
+      next.bbox.y0 - last.bbox.y1 < 0.8 * size &&
+      next.bbox.y0 > last.bbox.y0
+    ) {
+      prev.lines.push(...b.lines);
+      prev.bbox = union(prev.bbox, b.bbox);
+      if (touched.has(b)) touched.add(prev);
+      continue;
+    }
+    const copy = { ...b, bbox: unionAll(b.lines.map((l) => l.bbox)) };
+    if (touched.has(b)) touched.add(copy);
+    out.push(copy);
+  }
+  return { blocks: out, chips };
 }
 
 /** An equation's number beside it ("(3)", "(12a)"): kept with the formula. */
@@ -574,7 +679,8 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
     .filter((v) => v.bbox.y1 - v.bbox.y0 < 1.5 && v.bbox.x1 - v.bbox.x0 > 3)
     .map((v) => v.bbox);
   const cuts = cutAtColumns(page, tables);
-  for (const raw of rejoinSplitLines(page.blocks)) {
+  const { blocks: joined, chips } = joinInlineChips(page);
+  for (const raw of rejoinSplitLines(joined)) {
     const sizes = raw.lines.map(dominantSize);
     const em = sizes.length ? Math.max(...sizes) : 10;
     // A picture's text layer keeps a line's words together: lines it sets apart are cells.
@@ -629,8 +735,12 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
     for (const { lines, dir } of pieces) {
       const bbox = unionAll(lines.map((l) => l.bbox));
       const underlines = inTable(bbox) ? [] : markUnderlines(lines, rules);
+      const onChips = lines.some((l) => l.spans.some((sp) => sp.chip))
+        ? chips.filter((c) => coverage(c, expand(bbox, 2)) > 0.8)
+        : [];
       const block: BlockIR = {
         ...(underlines.length ? { underlines } : {}),
+        ...(onChips.length ? { chips: onChips } : {}),
         id: `p${page.index}-b${blocks.length}`,
         bbox,
         role: 'unknown',
@@ -645,7 +755,19 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
       blocks.push(block);
     }
   }
-  return dropDuplicates(mergeSplitParagraphs(blocks, layout, cells));
+  // Two lines between the same two rules of a ruled table, one over the other: one cell.
+  const ruledRow = (r: Rect) => {
+    const t = tables.find((x) => x.rows.length > 1 && coverage(r, x.rect) > 0.6);
+    if (!t) return null;
+    const mid = (r.y0 + r.y1) / 2;
+    const k = t.rows.findIndex((y) => y > mid);
+    return k > 0 ? `${t.id}:${k}` : null;
+  };
+  const sameCell = (a: Rect, b: Rect) => {
+    const row = ruledRow(a);
+    return row !== null && row === ruledRow(b) && xOverlap(a, b) > 0;
+  };
+  return dropDuplicates(mergeSplitParagraphs(blocks, layout, cells, sameCell));
 }
 
 /**
@@ -747,6 +869,7 @@ function mergeSplitParagraphs(
   blocks: BlockIR[],
   layout: PageLayout,
   cells: Set<BlockIR>,
+  sameCell: (a: Rect, b: Rect) => boolean = () => false,
 ): BlockIR[] {
   const out: BlockIR[] = [];
   const stepOf = (x: LineIR, y: LineIR) => y.baseline - x.baseline;
@@ -785,7 +908,10 @@ function mergeSplitParagraphs(
       const hanging = /^\s*\d{1,3}[.)]?\s+\S/u.test(aFirstText) ? 3 * size : 0;
       const leftOk =
         bFirst.bbox.x0 <= a.bbox.x0 + 2 + hanging && bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
-      const continuesLeft = /^\p{Ll}/u.test(bText) && leftOk;
+      // In a ruled table's cell the next line goes on whatever its first letter.
+      const continuesLeft =
+        (/^\p{Ll}/u.test(bText) || (cells.has(a) && cells.has(b) && sameCell(a.bbox, b.bbox))) &&
+        leftOk;
       // On a justified page a line that runs to the text edge does not end its paragraph, even
       // when the next line starts with a capital ("We can use Network" | "Property Chains to").
       // Not in tables: a number column may end at the text edge.

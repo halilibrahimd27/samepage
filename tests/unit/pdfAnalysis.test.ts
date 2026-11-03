@@ -338,4 +338,69 @@ describe('text in a typewriter font', () => {
     // A PDF's own text is read as it was: side by side in one block is one line of it.
     expect(texts('Helvetica')[0]).toBe('Ana sayfa geçersiz ya da yok Metadata %80 %27');
   });
+
+  it('reads a badge inside a line as part of its sentence, marked with its colours', () => {
+    const line = (
+      y: number,
+      x0: number,
+      text: string,
+      font = 'Inter-Regular',
+      size = 9.6,
+    ): RawLine => ({
+      bbox: { x0, y0: y, x1: x0 + 5 * text.length, y1: y + 11.7 },
+      dir: [1, 0],
+      wmode: 0,
+      chars: [...text].map((c, i) => ({
+        c,
+        x: x0 + 5 * i,
+        y: y + 9.4,
+        bbox: { x0: x0 + 5 * i, y0: y, x1: x0 + 5 * (i + 1), y1: y + 11.7 },
+        font,
+        size,
+        color: [0, 0, 0] as [number, number, number],
+      })),
+    });
+    const left = line(316.9, 48, 'yetenekler paketler hâlinde gelir.');
+    // MuPDF starts a new block at the badge: its words, then the sentence going on.
+    const badge = line(316.9, 222, 'Web3 Paketi Solidity araçlarını,', 'JetBrainsMono-Bold', 6.6);
+    const next = line(332.7, 48, 'Shield-dApp ve Operate içerir.');
+    const page: RawPage = {
+      index: 0,
+      width: 595,
+      height: 842,
+      rotation: 0,
+      blocks: [
+        { bbox: left.bbox, lines: [left] },
+        { bbox: badge.bbox, lines: [badge] },
+        { bbox: next.bbox, lines: [next] },
+      ],
+      images: [],
+      vectors: [
+        {
+          bbox: { x0: 218, y0: 318.4, x1: 280, y1: 331.1 },
+          isRectangle: false,
+          isStroked: false,
+          color: [0.93, 0.92, 1],
+        },
+        {
+          bbox: { x0: 217.5, y0: 317.9, x1: 280.5, y1: 331.6 },
+          isRectangle: false,
+          isStroked: true,
+          color: [0.8, 0.78, 0.95],
+        },
+      ],
+      links: [],
+      fonts: {},
+    };
+    const [block, ...rest] = analyzeDocument([page])[0]!.blocks;
+    expect(rest).toEqual([]);
+    expect(blockText(block!)).toBe(
+      'yetenekler paketler hâlinde gelir. Web3 Paketi Solidity araçlarını, Shield-dApp ve Operate içerir.',
+    );
+    const chip = block!.lines[0]!.spans.find((sp) => sp.chip);
+    expect(chip?.text).toMatch(/^Web3 Paketi/u);
+    expect(chip?.chip).toEqual({ fill: [0.93, 0.92, 1], stroke: [0.8, 0.78, 0.95] });
+    // Its shape goes with the block, taken off and drawn anew with the translation.
+    expect(block!.chips).toHaveLength(1);
+  });
 });

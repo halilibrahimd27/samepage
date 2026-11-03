@@ -17,6 +17,8 @@ export interface LayoutRun {
   tracking?: number;
   linkUri?: string;
   underline?: boolean;
+  /** Drawn on a badge (its fill and border). */
+  chip?: { fill: [number, number, number]; stroke?: [number, number, number] };
 }
 
 export interface LayoutLine {
@@ -58,6 +60,9 @@ export interface LayoutOptions {
   spaceFactor?: number;
 }
 
+/** Room a badge keeps around its words, in em of their size (the writer's padding). */
+export const CHIP_PAD = 0.4;
+
 interface Piece {
   text: string;
   face: FaceKey;
@@ -66,6 +71,10 @@ interface Piece {
   rise: number;
   linkUri?: string;
   underline?: boolean;
+  chip?: LayoutRun['chip'];
+  /** Room for a badge's edge before and after its words (points). */
+  padLeft?: number;
+  padRight?: number;
   /** Whitespace piece (a break opportunity). */
   space: boolean;
   /**
@@ -175,6 +184,7 @@ function toPieces(
       };
       if (s.linkUri) piece.linkUri = s.linkUri;
       if (s.underline) piece.underline = true;
+      if (s.chip && !piece.space) piece.chip = s.chip;
       pieces.push(piece);
     }
   }
@@ -292,12 +302,25 @@ export function layoutUnit(
     toPieces(runs, baseStyle, opts, (id) => breakTargets[Number(id.slice(1)) - 1]),
     measurer,
   );
+  // A badge's words keep room for its edge where the badge starts and ends (the writer draws it
+  // there): its first word before, its last after.
+  const sameChip = (a?: Piece, b?: Piece) =>
+    !!a?.chip && !!b?.chip && a.chip.fill.join() === b.chip.fill.join();
+  pieces.forEach((p, i) => {
+    if (!p.chip || p.space) return;
+    let before = i - 1;
+    while (before >= 0 && pieces[before]!.space) before--;
+    let after = i + 1;
+    while (after < pieces.length && pieces[after]!.space) after++;
+    if (!sameChip(pieces[before], p)) p.padLeft = CHIP_PAD * p.size;
+    if (!sameChip(p, pieces[after])) p.padRight = CHIP_PAD * p.size;
+  });
   const tracking = opts.trackingEm ?? 0;
   const spaceFactor = opts.spaceFactor ?? 1;
   const widthOf = (p: Piece) => {
     const w = measurer.width(p.text, p.face, p.size);
     if (p.space) return w * spaceFactor;
-    return w + tracking * p.size * [...p.text].length;
+    return w + tracking * p.size * [...p.text].length + (p.padLeft ?? 0) + (p.padRight ?? 0);
   };
   // A display formula's marker keeps the text after the formula after it, as long as that
   // costs no room: a box break the text cannot afford would shrink it (and with it every
@@ -455,13 +478,14 @@ export function layoutUnit(
               face: p.face,
               size: p.size,
               color: p.color,
-              x,
-              width: w,
+              x: x + (p.padLeft ?? 0),
+              width: w - (p.padLeft ?? 0) - (p.padRight ?? 0),
               rise: p.rise,
               tracking,
             };
             if (p.linkUri) run.linkUri = p.linkUri;
             if (p.underline) run.underline = true;
+            if (p.chip) run.chip = p.chip;
             laid.push(run);
           }
           x += w;

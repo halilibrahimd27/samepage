@@ -1,10 +1,42 @@
 import type { Rect } from '../../core/ir/types';
+import { CHIP_PAD } from '../typeset/layout';
 import type { LayoutLine } from '../typeset/layout';
 import { FACE_FILES } from '../typeset/types';
 import type { LoadedFaces } from './fonts';
 import { loadMupdf, type MupdfModule } from './mupdf';
 import { applyOutlineTitles } from './outline';
 import { sanitizePdf } from './sanitize';
+
+/**
+ * A badge behind a run (page space, y down, through the page's inverse transform): a rounded box
+ * around its letters in the badge's fill, its border drawn when it had one.
+ */
+function pill(
+  run: { x: number; width: number; size: number; chip?: { fill: number[]; stroke?: number[] } },
+  baseline: number,
+  inv: number[],
+): string {
+  const chip = run.chip!;
+  const padX = 0.9 * CHIP_PAD * run.size;
+  const x0 = run.x - padX;
+  const x1 = run.x + run.width + padX;
+  const y0 = baseline - 1.05 * run.size;
+  const y1 = baseline + 0.4 * run.size;
+  const r = Math.min(0.45 * (y1 - y0), 0.5 * (x1 - x0));
+  const k = 0.5523 * r;
+  const f = (v: number) => (Math.round(v * 100) / 100).toString();
+  const path =
+    `${f(x0 + r)} ${f(y0)} m ${f(x1 - r)} ${f(y0)} l ` +
+    `${f(x1 - r + k)} ${f(y0)} ${f(x1)} ${f(y0 + r - k)} ${f(x1)} ${f(y0 + r)} c ` +
+    `${f(x1)} ${f(y1 - r)} l ${f(x1)} ${f(y1 - r + k)} ${f(x1 - r + k)} ${f(y1)} ${f(x1 - r)} ${f(y1)} c ` +
+    `${f(x0 + r)} ${f(y1)} l ${f(x0 + r - k)} ${f(y1)} ${f(x0)} ${f(y1 - r + k)} ${f(x0)} ${f(y1 - r)} c ` +
+    `${f(x0)} ${f(y0 + r)} l ${f(x0)} ${f(y0 + r - k)} ${f(x0 + r - k)} ${f(y0)} ${f(x0 + r)} ${f(y0)} c h`;
+  const [fr, fg, fb] = chip.fill;
+  const stroke = chip.stroke
+    ? `${chip.stroke.map((v) => f(v)).join(' ')} RG 0.5 w ${path} B`
+    : `${path} f`;
+  return `q ${inv.map(f).join(' ')} cm ${f(fr!)} ${f(fg!)} ${f(fb!)} rg ${stroke} Q\n`;
+}
 
 export interface PageWrite {
   index: number;
@@ -82,6 +114,23 @@ export async function writePdf(
   ): string => {
     let ops = 'q\n';
     for (const line of lines) {
+      // Badges first, under their words: one box for the words of a badge that follow each other.
+      if (!line.origin)
+        for (let i = 0; i < line.runs.length; i++) {
+          const first = line.runs[i]!;
+          if (!first.chip) continue;
+          let last = first;
+          while (
+            i + 1 < line.runs.length &&
+            line.runs[i + 1]!.chip?.fill.join() === first.chip.fill.join()
+          )
+            last = line.runs[++i]!;
+          ops += pill(
+            { ...first, width: last.x + last.width - first.x },
+            line.baseline - first.rise,
+            inv,
+          );
+        }
       for (const run of line.runs) {
         const file = FACE_FILES[run.face];
         let entry = fontRefs.get(file);

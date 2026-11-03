@@ -19,6 +19,8 @@ export interface PdfStyle {
   fontName: string;
   linkUri?: string;
   underline?: boolean;
+  /** On a badge: its fill and border. */
+  chip?: { fill: [number, number, number]; stroke?: [number, number, number] };
 }
 
 /** One translation unit: a paragraph chain (or a single block) and its tagged text. */
@@ -30,7 +32,7 @@ export interface PdfUnit {
 }
 
 const styleKey = (s: PdfStyle) =>
-  `${s.family}|${s.bold ? 'b' : ''}${s.italic ? 'i' : ''}${s.underline ? 'u' : ''}|${s.color.map((c) => Math.round(c * 50)).join(',')}|${Math.round(s.size * 2)}|${s.linkUri ?? ''}`;
+  `${s.family}|${s.bold ? 'b' : ''}${s.italic ? 'i' : ''}${s.underline ? 'u' : ''}${s.chip ? `c${s.chip.fill.join(',')}` : ''}|${s.color.map((c) => Math.round(c * 50)).join(',')}|${Math.round(s.size * 2)}|${s.linkUri ?? ''}`;
 
 function styleOf(span: SpanIR): PdfStyle {
   const style: PdfStyle = {
@@ -43,6 +45,7 @@ function styleOf(span: SpanIR): PdfStyle {
   };
   if (span.linkUri) style.linkUri = span.linkUri;
   if (span.underline) style.underline = true;
+  if (span.chip) style.chip = span.chip;
   return style;
 }
 

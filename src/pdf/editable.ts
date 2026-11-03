@@ -40,6 +40,8 @@ export interface PageText {
   layouts: Map<string, BlockLayout>;
   /** Each page's boxes the original text was taken out of. */
   redactions: Map<number, Rect[]>;
+  /** Each page's drawn lines and badges taken off with the text (underlines, badges). */
+  lineArt?: Map<number, Rect[]>;
   /** Translations the PDF put in a note, the original kept on the page. */
   notes: { page: number; text: string }[];
 }
@@ -69,7 +71,7 @@ export interface EditablePlan {
    * the slides' `background` index them; `output`: from the translated PDF, whose covers hide
    * the words of a page that is a picture (a scan, a deck saved as pictures).
    */
-  backgrounds?: { page: number; redact: Rect[]; output?: boolean }[];
+  backgrounds?: { page: number; redact: Rect[]; lineArt?: Rect[]; output?: boolean }[];
 }
 
 const FURNITURE: Role[] = ['header', 'footer', 'page-number'];
@@ -117,6 +119,7 @@ function styledRun(text: string, style: PdfStyle | undefined, exact = false): Ed
     ...(style.bold ? { bold: true } : {}),
     ...(style.italic ? { italic: true } : {}),
     ...(style.underline ? { underline: true } : {}),
+    ...(style.chip ? { shade: hex(style.chip.fill, true)! } : {}),
     ...(style.family === 'mono' ? { mono: true } : {}),
     ...(color ? { color } : {}),
     ...(style.linkUri ? { link: style.linkUri } : {}),
@@ -1642,7 +1645,7 @@ function planPages(shown: PageIR[], text: PageText): EditablePlan {
               redact: [{ x0: 0, y0: 0, x1: page.width, y1: page.height }],
               output: true,
             }
-          : { page: page.index, redact },
+          : { page: page.index, redact, lineArt: text.lineArt?.get(page.index) ?? [] },
       );
     items.push({
       kind: 'slide',
@@ -1716,6 +1719,7 @@ function blockFrame(b: BlockIR, layout: BlockLayout): Frame {
         ...(raised ? { superscript: true } : {}),
         ...(lowered ? { subscript: true } : {}),
         ...(r.underline ? { underline: true } : {}),
+        ...(r.chip ? { shade: hex(r.chip.fill, true)! } : {}),
         ...(r.linkUri ? { link: r.linkUri } : {}),
         ...(color && color !== '000000' ? { color } : {}),
         ...(Math.abs(own - size) > 0.25 ? { size: half(own) } : {}),

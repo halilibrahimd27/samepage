@@ -173,7 +173,7 @@ export async function renderRegionsPng(
  */
 export async function renderBackgroundsPng(
   bytes: Uint8Array,
-  pages: { page: number; redact: Rect[] }[],
+  pages: { page: number; redact: Rect[]; lineArt?: Rect[] }[],
   scale: number,
   maxPixels = 2400,
 ): Promise<Thumbnail[]> {
@@ -181,7 +181,7 @@ export async function renderBackgroundsPng(
   const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
   const out: Thumbnail[] = [];
   try {
-    for (const { page: index, redact } of pages) {
+    for (const { page: index, redact, lineArt } of pages) {
       const page = doc.loadPage(index);
       try {
         if (page instanceof mupdf.PDFPage && redact.length) {
@@ -194,6 +194,17 @@ export async function renderBackgroundsPng(
             mupdf.PDFPage.REDACT_IMAGE_NONE,
             mupdf.PDFPage.REDACT_LINE_ART_NONE,
             mupdf.PDFPage.REDACT_TEXT_REMOVE,
+          );
+        }
+        // Underlines and badges that went with the text, drawn anew in the frames.
+        if (page instanceof mupdf.PDFPage && lineArt?.length) {
+          for (const r of lineArt)
+            page.createAnnotation('Redact').setRect([r.x0, r.y0, r.x1, r.y1]);
+          page.applyRedactions(
+            false,
+            mupdf.PDFPage.REDACT_IMAGE_NONE,
+            mupdf.PDFPage.REDACT_LINE_ART_REMOVE_IF_COVERED,
+            mupdf.PDFPage.REDACT_TEXT_NONE,
           );
         }
         const [x0, y0, x1, y1] = page.getBounds();

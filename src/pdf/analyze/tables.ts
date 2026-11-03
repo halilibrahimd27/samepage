@@ -22,10 +22,12 @@ export function detectTables(page: RawPage): TableRegion[] {
   const width = (r: Rect) => r.x1 - r.x0;
   const thickness = (r: Rect) => r.y1 - r.y0;
   // Graphics between two rules (chart bars) mean the lower rule is not part of the table; a
-  // row background spanning the table (\rowcolor) does not.
+  // row background spanning the table (\rowcolor) does not. Nor does the page's backdrop (a web
+  // page printed to PDF paints its content area): it lies under everything, it crosses no rule.
+  const backdrop = (b: Rect) => (b.x1 - b.x0) * (b.y1 - b.y0) > 0.4 * page.width * page.height;
   const graphics = page.vectors
     .map((v) => v.bbox)
-    .filter((b) => b.y1 - b.y0 > 3 && b.x1 - b.x0 > 2);
+    .filter((b) => b.y1 - b.y0 > 3 && b.x1 - b.x0 > 2 && !backdrop(b));
   // A rule that a shape runs across (a bar across a chart's grid line) is no table rule; cell
   // borders are thinner than a shape. A merged cell's fill that only touches a row rule beside it
   // (half a point at the shared border) does not cross it.
@@ -147,6 +149,23 @@ export function detectTables(page: RawPage): TableRegion[] {
       x1: Math.max(...g.map((r) => r.x1)),
       y1: g[g.length - 1]!.y1,
     };
+    // A header row on a band of colour right over the first rule (a web table's head) is the
+    // table's first row: its cells side by side, not one line of text.
+    const head = page.vectors
+      .map((v) => v.bbox)
+      .filter(
+        (b) =>
+          Math.abs(b.y1 - rect.y0) < 1.5 &&
+          b.y1 - b.y0 > 6 &&
+          b.y1 - b.y0 < 40 &&
+          b.x0 >= rect.x0 - 2 &&
+          b.x1 <= rect.x1 + 2,
+      );
+    const headWidth = head.reduce((n, b) => n + (b.x1 - b.x0), 0);
+    if (head.length && headWidth > 0.9 * (rect.x1 - rect.x0)) {
+      g.unshift({ ...rect, y0: Math.min(...head.map((b) => b.y0)), y1: rect.y0 });
+      rect.y0 = Math.min(...head.map((b) => b.y0));
+    }
     const inside = textLines.filter((l) => coverage(l, rect) > 0.6);
     if (inside.length < 2) continue;
     // Tables without a bottom rule: rows that continue right below the last rule, at the

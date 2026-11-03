@@ -698,7 +698,12 @@ export async function translatePdf(
   /** Blocks the last write took off the page and set anew (covered, on a picture of a page). */
   let rewritten = new Set<string>();
   /** What the last write set: each block's lines, each page's boxes taken off, the notes. */
-  let setText: PageText = { layouts: new Map(), redactions: new Map(), notes: [] };
+  let setText: PageText = {
+    layouts: new Map(),
+    redactions: new Map(),
+    lineArt: new Map(),
+    notes: [],
+  };
 
   for (let attempt = 0; attempt <= policy.postApply.maxRebuilds; attempt++) {
     rewritten = new Set<string>();
@@ -750,6 +755,8 @@ export async function translatePdf(
         const horizontal = block.direction[1] === 0;
         for (const line of block.lines) w.redact.push(redactRect(line, horizontal));
         if (block.underlines?.length) (w.lineArt ??= []).push(...block.underlines);
+        // A badge's border reaches past its shape: MuPDF takes it off only with room around it.
+        if (block.chips?.length) (w.lineArt ??= []).push(...block.chips.map((c) => grow(c, 3)));
         if (block.extraRedact?.length) w.redact.push(...block.extraRedact);
         w.lines.push(...l.lines);
       }
@@ -832,6 +839,7 @@ export async function translatePdf(
     setText = {
       layouts,
       redactions: new Map(writes.map((w) => [w.index, w.redact])),
+      lineArt: new Map(writes.map((w) => [w.index, w.lineArt ?? []])),
       notes: setNotes,
     };
     written = await writePdf(source, writes, opts.faces, {
