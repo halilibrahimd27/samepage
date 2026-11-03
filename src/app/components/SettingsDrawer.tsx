@@ -9,6 +9,7 @@ const TOGGLES = [
   ['fidelityCheck', 'settings.fidelityCheck', 'settings.fidelityCheckHint'],
   ['translateReferences', 'settings.translateReferences', null],
   ['referenceTitles', 'settings.referenceTitles', 'settings.referenceTitlesHint'],
+  ['officialTitles', 'settings.officialTitles', 'settings.officialTitlesHint'],
   ['localCitations', 'settings.localCitations', 'settings.localCitationsHint'],
   ['translateComments', 'settings.translateComments', null],
   ['translateMetadata', 'settings.translateMetadata', null],

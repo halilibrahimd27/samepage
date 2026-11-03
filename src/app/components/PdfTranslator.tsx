@@ -128,6 +128,7 @@ export function PdfTranslator(props: {
         localCitations: options.localCitations,
         translateReferences: options.translateReferences,
         referenceTitles: options.referenceTitles ?? false,
+        officialTitles: settings.officialTitles,
         dual: true,
         translateMetadata: options.translateMetadata,
         ...(options.pageRange ? { pageRange: options.pageRange } : {}),

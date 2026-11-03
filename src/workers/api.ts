@@ -81,6 +81,8 @@ export interface DocxJob {
   translateReferences: boolean;
   /** Reference titles in another language translated in brackets (APA 7, P9.6). */
   referenceTitles?: boolean;
+  /** The brackets take a cited work's own title from Crossref (only its DOI is sent). */
+  officialTitles?: boolean;
   translateMetadata: boolean;
   /** Review-step corrections: tagged source → tagged target. */
   overrides?: Record<string, string>;

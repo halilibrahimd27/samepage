@@ -8,6 +8,8 @@ export interface Settings {
   translateReferences: boolean;
   /** Reference titles in another language get their translation in brackets (APA 7). */
   referenceTitles: boolean;
+  /** The brackets take a cited work's own title from Crossref (its DOI is sent there). */
+  officialTitles: boolean;
   translateComments: boolean;
   translateMetadata: boolean;
   showTestEngine: boolean;
@@ -26,6 +28,7 @@ export function defaultSettings(languages: readonly string[]): Settings {
     fidelityCheck: true,
     translateReferences: false,
     referenceTitles: false,
+    officialTitles: false,
     translateComments: false,
     translateMetadata: false,
     showTestEngine: false,
@@ -54,6 +57,7 @@ export function parseSettings(raw: string | null, defaults: Settings): Settings 
     'fidelityCheck',
     'translateReferences',
     'referenceTitles',
+    'officialTitles',
     'translateComments',
     'translateMetadata',
     'showTestEngine',

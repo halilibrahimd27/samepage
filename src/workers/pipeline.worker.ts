@@ -20,6 +20,7 @@ import { readProjectFile, writeProjectFile } from '../core/projectFile';
 import { createBrowserPageEngine } from '../engines/browserPage';
 import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chromeBuiltin';
 import { buildBilingualDocx } from '../docx/bilingual';
+import { crossrefTitles } from '../core/crossref';
 import { docxParagraphs, docxTermTexts, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
@@ -333,6 +334,7 @@ const api: PipelineApi = {
           translateComments: job.translateComments,
           translateReferences: job.translateReferences,
           referenceTitles: job.referenceTitles ?? false,
+          ...(job.officialTitles && !job.replay ? { titleLookup: crossrefTitles } : {}),
           translateMetadata: job.translateMetadata,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           cache,
@@ -370,6 +372,7 @@ const api: PipelineApi = {
           ...(job.replay ? { replay: job.replay } : polishOptions(job)),
           translateReferences: job.translateReferences,
           referenceTitles: job.referenceTitles ?? false,
+          ...(job.officialTitles && !job.replay ? { titleLookup: crossrefTitles } : {}),
           ...(job.overrides ? { overrides: job.overrides } : {}),
           translateMetadata: job.translateMetadata,
           ...(job.pageRange ? { pageRange: job.pageRange } : {}),

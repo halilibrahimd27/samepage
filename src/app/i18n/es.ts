@@ -122,6 +122,9 @@ export const es: Record<MessageKey, string> = {
 
   'settings.title': 'Ajustes',
   'settings.close': 'Cerrar',
+  'settings.officialTitles': 'Usar entre corchetes el título oficial de Crossref',
+  'settings.officialTitlesHint':
+    'Una referencia con DOI conserva su propio título en el idioma de destino cuando su registro lo tiene, en lugar de una traducción automática. Solo se envían los DOI a Crossref (api.crossref.org); nada más sale de su dispositivo.',
   'settings.localCitations': 'Escribir «et al.» según el idioma de destino',
   'settings.localCitationsHint':
     'En las citas: turco «vd.», ruso y búlgaro «и др.», ucraniano «та ін.», polaco «i in.», otros idiomas «et al.».',
@@ -356,6 +359,8 @@ export const es: Record<MessageKey, string> = {
     'El escaneo era difícil de leer aquí; el texto reconocido puede contener errores.',
   'issue.FROM_MEMORY':
     'Tomado de su memoria de traducción (una corrección anterior o una entrada importada), no del motor.',
+  'issue.OFFICIAL_TITLE':
+    'El título entre corchetes es el propio de la obra, de su registro en Crossref, no una traducción automática.',
   'issue.UNTRANSLATED': 'La traducción era idéntica al original.',
   'issue.NUMBER_MISMATCH': 'Un número difiere entre el original y la traducción.',
   'issue.CITATION_MISMATCH': 'Una cita difiere entre el original y la traducción.',

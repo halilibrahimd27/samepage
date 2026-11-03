@@ -1,6 +1,7 @@
 import { REFERENCES_HEADING, referenceProse } from '../core/references';
 import type { TermVariance } from '../core/glossary/consistency';
 import { termsRenderedTwoWays } from '../core/pipeline/terms';
+import { officialOutcome, officialTitles, type TitleLookup } from '../core/crossref';
 import { functionWords } from '../core/detectLanguage';
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
@@ -50,6 +51,8 @@ export interface DocxOptions {
   translateReferences: boolean;
   /** Reference titles in another language get their translation in brackets (APA 7, P9.6). */
   referenceTitles?: boolean;
+  /** Looks up cited works' own titles by DOI (Crossref), for the brackets. */
+  titleLookup?: TitleLookup;
   translateMetadata: boolean;
   cache?: TranslationCache;
   signal: AbortSignal;
@@ -355,8 +358,21 @@ export async function translateDocx(
         ...contextAfter(k),
       });
   });
+  // A cited work's own title in the target language, when the user lets its DOI be looked up.
+  const official =
+    opts.titleLookup && titlesOf.size
+      ? await officialTitles(
+          [...titlesOf].map(([u, titles]) => ({
+            text: readableText(u.source, u.p?.encoded.placeholders),
+            titles,
+          })),
+          opts.pair,
+          opts.titleLookup,
+          opts.signal,
+        )
+      : new Map<string, { title: string; doi: string }>();
   for (const t of [...titlesOf.values()].flat())
-    if (!uniqueBySource.has(t.title))
+    if (!uniqueBySource.has(t.title) && !official.has(t.title))
       uniqueBySource.set(t.title, {
         id: `s${uniqueBySource.size + 1}`,
         text: t.title,
@@ -382,6 +398,7 @@ export async function translateDocx(
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const outcomeBySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
+  for (const [title, o] of official) outcomeBySource.set(title, officialOutcome(o));
   for (const [u, titles] of titlesOf) {
     const o = bracketedOutcome(u.source, titles, (t) => outcomeBySource.get(t));
     if (!o) continue;

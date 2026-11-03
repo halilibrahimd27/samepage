@@ -156,7 +156,9 @@ export type ValidationCode =
   | 'TABLE_NOT_RECOGNISED'
   | 'POST_EDITED'
   /** Taken from the translation memory (a correction or an imported entry), not the engine. */
-  | 'FROM_MEMORY';
+  | 'FROM_MEMORY'
+  /** A cited work's own title in the target language, from Crossref (its DOI). */
+  | 'OFFICIAL_TITLE';
 
 export interface ValidationIssue {
   code: ValidationCode;

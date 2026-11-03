@@ -198,6 +198,7 @@ export function BatchTranslator({
       localCitations: settings.localCitations,
       translateReferences: settings.translateReferences,
       referenceTitles: settings.referenceTitles,
+      officialTitles: settings.officialTitles,
       translateMetadata: settings.translateMetadata,
     };
     const base = it.file.name.replace(/\.(pdf|docx|pptx|tex|zip)$/i, '');

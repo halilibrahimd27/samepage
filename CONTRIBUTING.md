@@ -6,7 +6,8 @@ this page before opening a pull request.
 ## Non-negotiable rules
 
 1. **Static only.** No server, serverless function, proxy, analytics or telemetry. The app's own
-   network calls go only to the translation engine the user selected.
+   network calls go only to the translation engine the user selected, and — when the user turns
+   it on — to Crossref with the DOIs of cited works (official reference titles), nothing else.
 2. **Documents never leave the device**, except as text segments sent to that engine.
 3. **No runtime third-party scripts or CDNs.** Fonts, WASM and assets are self-hosted.
 4. **No SharedArrayBuffer / cross-origin isolation** (GitHub Pages cannot send COOP/COEP).

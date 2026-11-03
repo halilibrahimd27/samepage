@@ -124,6 +124,9 @@ export const fr: Record<MessageKey, string> = {
 
   'settings.title': 'Paramètres',
   'settings.close': 'Fermer',
+  'settings.officialTitles': 'Prendre le titre officiel dans Crossref entre crochets',
+  'settings.officialTitlesHint':
+    'Une référence avec un DOI garde son propre titre dans la langue cible quand sa notice en a un, au lieu d’une traduction automatique. Seuls les DOI sont envoyés à Crossref (api.crossref.org)\u202F; rien d’autre ne quitte votre appareil.',
   'settings.localCitations': 'Écrire «\u00A0et al.\u00A0» à la manière de la langue cible',
   'settings.localCitationsHint':
     'Dans les citations\u202F: turc «\u00A0vd.\u00A0», russe et bulgare «\u00A0и др.\u00A0», ukrainien «\u00A0та ін.\u00A0», polonais «\u00A0i in.\u00A0», autres langues «\u00A0et al.\u00A0».',
@@ -359,6 +362,8 @@ export const fr: Record<MessageKey, string> = {
     'Le scan était difficile à lire ici\u202F; le texte reconnu peut contenir des erreurs.',
   'issue.FROM_MEMORY':
     'Repris de votre mémoire de traduction (une correction antérieure ou une entrée importée), et non du moteur.',
+  'issue.OFFICIAL_TITLE':
+    'Le titre entre crochets est celui de l’œuvre, tiré de sa notice Crossref, et non une traduction automatique.',
   'issue.UNTRANSLATED': 'La traduction était identique à la source.',
   'issue.NUMBER_MISMATCH': 'Un nombre diffère entre la source et la traduction.',
   'issue.CITATION_MISMATCH': 'Une citation diffère entre la source et la traduction.',

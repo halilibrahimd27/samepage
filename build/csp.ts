@@ -12,6 +12,8 @@ export const CSP_DIRECTIVES: Record<string, string[]> = {
   'connect-src': [
     "'self'",
     'https://api.anthropic.com',
+    // Official reference titles by DOI, only when the user turns it on.
+    'https://api.crossref.org',
     'http://localhost:*',
     'http://127.0.0.1:*',
   ],

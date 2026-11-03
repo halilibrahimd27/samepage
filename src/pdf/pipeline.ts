@@ -12,6 +12,7 @@ import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/typ
 import { blockText, extractAndAnalyze, type OcrOptions } from './analyze';
 import { TABLE_CAPTION } from './analyze/tables';
 import { termsRenderedTwoWays } from '../core/pipeline/terms';
+import { officialOutcome, officialTitles, type TitleLookup } from '../core/crossref';
 import type { TermVariance } from '../core/glossary/consistency';
 import { unionAll, xOverlap } from '../core/ir/geometry';
 import {
@@ -67,6 +68,8 @@ export interface PdfOptions {
   translateReferences?: boolean;
   /** Reference titles in another language get their translation in brackets (APA 7, P9.6). */
   referenceTitles?: boolean;
+  /** Looks up cited works' own titles by DOI (Crossref), for the brackets. */
+  titleLookup?: TitleLookup;
   cache?: TranslationCache;
   signal: AbortSignal;
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
@@ -500,6 +503,19 @@ export async function translatePdf(
     ).sort((x, y) => x.bbox.y0 - y.bbox.y0)[0];
     return under ? { context: blockText(under) } : {};
   };
+  // A cited work's own title in the target language, when the user lets its DOI be looked up.
+  const official =
+    opts.titleLookup && titlesOf.size
+      ? await officialTitles(
+          [...titlesOf].map(([u, titles]) => ({
+            text: readableText(u.encoded.source, u.encoded.placeholders),
+            titles,
+          })),
+          opts.pair,
+          opts.titleLookup,
+          opts.signal,
+        )
+      : new Map<string, { title: string; doi: string }>();
   const unique = new Map<string, SegmentRequest>();
   for (const u of units)
     if (!titlesOf.has(u) && !unique.has(u.encoded.source))
@@ -516,7 +532,7 @@ export async function translatePdf(
       unique.set(t, { id: `s${unique.size + 1}`, text: t, role: 'heading' });
   }
   for (const t of [...titlesOf.values()].flat())
-    if (!unique.has(t.title))
+    if (!unique.has(t.title) && !official.has(t.title))
       unique.set(t.title, { id: `s${unique.size + 1}`, text: t.title, role: 'reference' });
   const requests = [...unique.values()];
   const outcomes = await translateSegments({
@@ -538,6 +554,7 @@ export async function translatePdf(
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const bySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
+  for (const [title, o] of official) bySource.set(title, officialOutcome(o));
   for (const [u, titles] of titlesOf) {
     const titled = bracketedOutcome(u.encoded.source, titles, (t) => bySource.get(t));
     // No title translated: the entry is drawn as it was, and the reason reported.

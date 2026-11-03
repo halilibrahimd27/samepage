@@ -123,6 +123,9 @@ export const de: Record<MessageKey, string> = {
 
   'settings.title': 'Einstellungen',
   'settings.close': 'Schließen',
+  'settings.officialTitles': 'In den Klammern den offiziellen Titel aus Crossref verwenden',
+  'settings.officialTitlesHint':
+    'Ein zitiertes Werk mit DOI behält seinen eigenen Titel in der Zielsprache, wenn sein Eintrag einen hat, statt einer maschinellen Übersetzung. Nur die DOIs werden an Crossref (api.crossref.org) gesendet; sonst verlässt nichts Ihr Gerät.',
   'settings.localCitations': '„et al.“ nach den Konventionen der Zielsprache schreiben',
   'settings.localCitationsHint':
     'In Zitaten: Türkisch „vd.“, Russisch und Bulgarisch „и др.“, Ukrainisch „та ін.“, Polnisch „i in.“, andere Sprachen „et al.“.',
@@ -361,6 +364,8 @@ export const de: Record<MessageKey, string> = {
     'Der Scan war hier schwer lesbar; der erkannte Text kann Fehler enthalten.',
   'issue.FROM_MEMORY':
     'Aus Ihrem Übersetzungsspeicher übernommen (eine frühere Korrektur oder ein importierter Eintrag), nicht von der Engine.',
+  'issue.OFFICIAL_TITLE':
+    'Der Titel in Klammern ist der eigene Titel des Werks aus seinem Crossref-Eintrag, keine maschinelle Übersetzung.',
   'issue.UNTRANSLATED': 'Die Übersetzung war mit dem Original identisch.',
   'issue.NUMBER_MISMATCH': 'Eine Zahl weicht zwischen Original und Übersetzung ab.',
   'issue.CITATION_MISMATCH': 'Ein Zitat weicht zwischen Original und Übersetzung ab.',

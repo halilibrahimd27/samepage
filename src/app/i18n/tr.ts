@@ -119,6 +119,9 @@ export const tr: Record<MessageKey, string> = {
 
   'settings.title': 'Ayarlar',
   'settings.close': 'Kapat',
+  'settings.officialTitles': 'Köşeli parantezde Crossref’teki resmi başlığı kullan',
+  'settings.officialTitlesHint':
+    'DOI’si olan bir kaynağın kaydında hedef dilde başlığı varsa makine çevirisi yerine o yazılır. Crossref’e (api.crossref.org) yalnızca DOI’ler gönderilir; cihazınızdan başka hiçbir şey çıkmaz.',
   'settings.localCitations': '“et al.” ifadesini hedef dilin kuralıyla yaz',
   'settings.localCitationsHint':
     'Atıflarda: Türkçe “vd.”, Rusça ve Bulgarca “и др.”, Ukraynaca “та ін.”, Lehçe “i in.”, diğer dillerde “et al.”.',
@@ -345,6 +348,8 @@ export const tr: Record<MessageKey, string> = {
   'issue.OCR_LOW_CONFIDENCE': 'Tarama burada zor okundu; tanınan metinde hata olabilir.',
   'issue.FROM_MEMORY':
     'Motordan değil, çeviri belleğinizden (önceki bir düzeltmeniz ya da içe aktarılan bir kayıt) alındı.',
+  'issue.OFFICIAL_TITLE':
+    'Köşeli parantezdeki başlık makine çevirisi değil, eserin Crossref kaydındaki kendi başlığıdır.',
   'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
   'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',
   'issue.CITATION_MISMATCH': 'Kaynak ile çeviri arasında bir atıf farklı.',

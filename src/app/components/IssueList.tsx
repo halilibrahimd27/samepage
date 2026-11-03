@@ -21,6 +21,7 @@ const EXPLAINED = new Set([
   'TABLE_NOT_RECOGNISED',
   'POST_EDITED',
   'FROM_MEMORY',
+  'OFFICIAL_TITLE',
 ]);
 
 /** Issues of one paragraph: meaning findings with their back-translation, then the others. */

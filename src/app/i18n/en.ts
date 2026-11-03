@@ -116,6 +116,9 @@ export const en = {
 
   'settings.title': 'Settings',
   'settings.close': 'Close',
+  'settings.officialTitles': 'Use the official title from Crossref in the brackets',
+  'settings.officialTitlesHint':
+    'A cited work with a DOI keeps its own title in the target language when its record has one, not a machine translation. Only the DOIs are sent to Crossref (api.crossref.org); nothing else leaves your device.',
   'settings.localCitations': 'Write “et al.” the target language’s way',
   'settings.localCitationsHint':
     'In citations: Turkish “vd.”, Russian and Bulgarian “и др.”, Ukrainian “та ін.”, Polish “i in.”, other languages “et al.”.',
@@ -346,6 +349,8 @@ export const en = {
     'The scan was hard to read here; the recognised text may contain errors.',
   'issue.FROM_MEMORY':
     'Taken from your translation memory (an earlier correction or an imported entry), not from the engine.',
+  'issue.OFFICIAL_TITLE':
+    'The title in brackets is the work’s own, from its Crossref record, not a machine translation.',
   'issue.UNTRANSLATED': 'The translation was identical to the source.',
   'issue.NUMBER_MISMATCH': 'A number differs between source and translation.',
   'issue.CITATION_MISMATCH': 'A citation differs between source and translation.',

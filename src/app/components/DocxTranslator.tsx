@@ -103,6 +103,7 @@ export function DocxTranslator({
     translateComments: options.translateComments ?? settings.translateComments,
     translateReferences: options.translateReferences,
     referenceTitles: options.referenceTitles ?? false,
+    officialTitles: settings.officialTitles,
     translateMetadata: options.translateMetadata,
     ...(Object.keys(edits).length ? { overrides: edits } : {}),
   });
