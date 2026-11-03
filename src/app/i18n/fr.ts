@@ -35,6 +35,7 @@ export const fr: Record<MessageKey, string> = {
   'batch.done': 'Terminé',
   'batch.failed': 'Échec',
   'batch.skipped': 'Déjà en {lang}\u202F: laissé tel quel',
+  'batch.memory': '{count} de votre mémoire de traduction',
   'batch.summary':
     '{translated} traduits · {warnings} à revoir · {untranslated} laissés en original',
   'batch.score': 'mise en page {score}/100',
@@ -183,6 +184,25 @@ export const fr: Record<MessageKey, string> = {
   'settings.clearCache': 'Vider le cache de traduction',
   'settings.cacheCleared': 'Cache de traduction vidé.',
   'settings.playground': 'Ouvrir le bac à sable de texte (outil de développement)',
+  'memory.title': 'Mémoire de traduction',
+  'memory.hint':
+    'Vos corrections et les traductions de samepage sont conservées dans ce navigateur. Un paragraphe que vous avez corrigé, ou issu d’une mémoire importée, est traduit de la même façon la fois suivante. Exportez-la en fichier TMX pour OmegaT, Trados ou memoQ, ou pour l’emporter sur un autre ordinateur.',
+  'memory.count': '{entries} entrées · {manual} de vos corrections · {imported} importées',
+  'memory.pair': 'Paire de langues à exporter',
+  'memory.allPairs': 'Toutes les paires de langues',
+  'memory.export': 'Exporter (.tmx)',
+  'memory.import': 'Importer (.tmx)',
+  'memory.imported': 'Entrées importées\u202F: {added}.',
+  'memory.older': 'Vos traductions plus récentes de {count} paragraphes ont été conservées.',
+  'memory.skipped': '{count} unités illisibles ont été ignorées.',
+  'memory.tooLarge': 'Ce fichier dépasse {mb} Mo, la limite d’une mémoire de traduction.',
+  'memory.unreadable': 'Ce fichier n’a pas pu être lu comme mémoire de traduction TMX.',
+  'memory.clear': 'Vider la mémoire de traduction',
+  'memory.clearConfirm':
+    'Supprimer les {entries} entrées, vos corrections comprises\u202F? Cette action est irréversible.',
+  'memory.clearYes': 'Tout supprimer',
+  'memory.clearNo': 'Conserver',
+  'memory.cleared': 'Mémoire de traduction vidée.',
   'playground.title': 'Bac à sable de texte',
   'playground.description':
     'Collez du texte, traduisez-le avec n’importe quel moteur et examinez les résultats de validation et de fidélité. Séparez les paragraphes par une ligne vide. Balisage\u202F: **gras**, *italique*, $formule$.',
@@ -311,6 +331,10 @@ export const fr: Record<MessageKey, string> = {
   'report.repairedHint':
     'Paragraphes signalés par le contrôle du sens : retraduits et retenus seulement une fois le contrôle réussi',
   'report.technical': 'Détails techniques',
+  'report.fromMemory': 'De votre mémoire de traduction',
+  'report.memory': 'Mémoire de traduction\u202F: {n}',
+  'report.memoryHint':
+    'Paragraphes repris de vos corrections ou d’une mémoire importée au lieu du moteur',
   'meaning.title': 'Vérification du sens',
   'meaning.back': 'Rétrotraduction',
   'meaning.negationLost':
@@ -333,6 +357,8 @@ export const fr: Record<MessageKey, string> = {
     'Le tableau de cette légende n’a pas été reconnu : ses cellules ont été traduites comme du texte courant. Vérifiez-le.',
   'issue.OCR_LOW_CONFIDENCE':
     'Le scan était difficile à lire ici\u202F; le texte reconnu peut contenir des erreurs.',
+  'issue.FROM_MEMORY':
+    'Repris de votre mémoire de traduction (une correction antérieure ou une entrée importée), et non du moteur.',
   'issue.UNTRANSLATED': 'La traduction était identique à la source.',
   'issue.NUMBER_MISMATCH': 'Un nombre diffère entre la source et la traduction.',
   'issue.CITATION_MISMATCH': 'Une citation diffère entre la source et la traduction.',

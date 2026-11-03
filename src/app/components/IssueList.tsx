@@ -20,6 +20,7 @@ const EXPLAINED = new Set([
   'PUNCTUATION_CHANGED',
   'TABLE_NOT_RECOGNISED',
   'POST_EDITED',
+  'FROM_MEMORY',
 ]);
 
 /** Issues of one paragraph: meaning findings with their back-translation, then the others. */

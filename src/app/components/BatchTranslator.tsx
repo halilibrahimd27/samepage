@@ -21,6 +21,7 @@ import type { EngineConfig } from '../engineConfig';
 import { latexSample, rejectionMessage } from '../fileInfo';
 import { formatBytes, phaseMessage } from '../format';
 import { useI18n } from '../i18n';
+import { fromMemory } from '../issues';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { ProgressBar } from './ProgressBar';
@@ -52,7 +53,14 @@ interface Item {
   message?: string;
   progress?: { done: number; total: number; phase?: ProgressPhase | undefined };
   outputs?: { name: string; blob: Blob }[];
-  summary?: { translated: number; warnings: number; untranslated: number; score?: number };
+  summary?: {
+    translated: number;
+    warnings: number;
+    untranslated: number;
+    score?: number;
+    /** Paragraphs taken from the translation memory instead of the engine. */
+    memory: number;
+  };
 }
 
 /**
@@ -208,6 +216,7 @@ export function BatchTranslator({
           warnings: s.warnings,
           untranslated: s.untranslated,
           score: s.score,
+          memory: res.report.units.filter(fromMemory).length,
         },
         outputs: [
           { name: `${base}.${target}.pdf`, blob: new Blob([res.mono.slice()], { type: MIME.pdf }) },
@@ -236,7 +245,12 @@ export function BatchTranslator({
     const s = res.report.summary;
     return {
       status: 'done',
-      summary: { translated: s.translated, warnings: s.warnings, untranslated: s.untranslated },
+      summary: {
+        translated: s.translated,
+        warnings: s.warnings,
+        untranslated: s.untranslated,
+        memory: res.report.segments.filter(fromMemory).length,
+      },
       outputs: [
         {
           name: `${base}.${target}.${ext}`,
@@ -395,6 +409,9 @@ export function BatchTranslator({
             {it.status === 'done' && it.summary && (
               <p className="text-sm text-slate-700" data-testid="batch-summary">
                 {t('batch.summary', it.summary)}
+                {it.summary.memory > 0
+                  ? ` · ${t('batch.memory', { count: it.summary.memory })}`
+                  : ''}
                 {it.summary.score !== undefined
                   ? ` · ${t('batch.score', {
                       score: it.summary.score.toLocaleString(lang, { maximumFractionDigits: 1 }),

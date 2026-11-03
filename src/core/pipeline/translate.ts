@@ -16,6 +16,7 @@ import {
   type TranslationEngine,
 } from '../../engines/types';
 import { cacheKey, type CacheEntry, type TranslationCache } from '../cache/cache';
+import { fitsSource, type MemoryEntry, type MemoryHook } from '../memory/memory';
 import {
   academicHeading,
   documentAcronyms,
@@ -75,6 +76,11 @@ export interface TranslateJob {
   replay?: Record<string, StoredOutcome>;
   /** Every segment is in the pair's source language (a part split off by its own language). */
   oneLanguage?: boolean;
+  /**
+   * The translation memory: a correction or an imported translation of the exact tagged source
+   * is used instead of the engine (and reported); the engine's translations are kept for it.
+   */
+  memory?: MemoryHook;
 }
 
 /**
@@ -147,6 +153,35 @@ const promptVersion = (engine: TranslationEngine, ctx: TranslateContext) =>
     : PROMPT_VERSION;
 
 /**
+ * The language of each tagged text written in another one than the source (an English abstract
+ * of a Turkish paper), by text: the language `translateSegments` translates it from.
+ */
+export function ownLanguages(texts: string[], source: string): Map<string, string> {
+  const own = new Map<string, string>();
+  // Languages of the paragraphs long enough to tell (the source's when nothing else shows).
+  const tally = new Map<string, number>();
+  let long = 0;
+  const short: string[] = [];
+  for (const text of texts) {
+    const plain = plainText(text);
+    const lang = paragraphLanguage(plain, source);
+    if (lang && lang !== source) own.set(text, lang);
+    if ((plain.match(/\p{L}+/gu)?.length ?? 0) >= 8) {
+      long++;
+      tally.set(lang ?? source, (tally.get(lang ?? source) ?? 0) + 1);
+    } else if (!lang) short.push(text);
+  }
+  // A paper mostly in another language than the one given (an Indonesian paper taken for
+  // English): its short lines that tell nothing ("1 = sangat tidak dikenal") are in it too.
+  const [major, n] = [...tally].sort((a, b) => b[1] - a[1])[0] ?? [source, 0];
+  if (major !== source && long >= 5 && n > 0.5 * long)
+    for (const text of short)
+      if (/\p{L}{2}/u.test(plainText(text)) && inScriptOf(plainText(text), major))
+        own.set(text, major);
+  return own;
+}
+
+/**
  * Segments written in another language than the document's are translated from their own (an
  * English abstract of a Turkish paper, the Arabic body of a paper whose abstract is English):
  * given as the document's language, the engine returns them as they were or makes up text.
@@ -154,32 +189,15 @@ const promptVersion = (engine: TranslationEngine, ctx: TranslateContext) =>
  */
 async function byOwnLanguage(job: TranslateJob): Promise<SegmentOutcome[] | null> {
   const { pair } = job.ctx;
-  const own = new Map<string, string>();
-  // Languages of the paragraphs long enough to tell (the source's when nothing else shows).
-  const tally = new Map<string, number>();
-  let long = 0;
-  const short: SegmentRequest[] = [];
-  for (const s of job.segments) {
-    const plain = plainText(s.text);
-    const lang = paragraphLanguage(plain, pair.source);
-    if (lang && lang !== pair.source) own.set(s.id, lang);
-    if ((plain.match(/\p{L}+/gu)?.length ?? 0) >= 8) {
-      long++;
-      tally.set(lang ?? pair.source, (tally.get(lang ?? pair.source) ?? 0) + 1);
-    } else if (!lang) short.push(s);
-  }
-  // A paper mostly in another language than the one given (an Indonesian paper taken for
-  // English): its short lines that tell nothing ("1 = sangat tidak dikenal") are in it too.
-  const [major, n] = [...tally].sort((a, b) => b[1] - a[1])[0] ?? [pair.source, 0];
-  if (major !== pair.source && long >= 5 && n > 0.5 * long)
-    for (const s of short)
-      if (/\p{L}{2}/u.test(plainText(s.text)) && inScriptOf(plainText(s.text), major))
-        own.set(s.id, major);
+  const own = ownLanguages(
+    job.segments.map((s) => s.text),
+    pair.source,
+  );
   if (!own.size) return null;
   const outcomes = new Map<string, SegmentOutcome>();
   const groups = new Map<string, SegmentRequest[]>();
   for (const s of job.segments) {
-    const lang = own.get(s.id);
+    const lang = own.get(s.text);
     if (lang === pair.target)
       outcomes.set(s.id, {
         id: s.id,
@@ -317,8 +335,43 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   );
   const keyOf = new Map(segments.map((s, i) => [s.id, keys[i]!]));
   const hits = job.cache ? await job.cache.get(keys) : new Map<string, CacheEntry>();
+  // The user's corrections and imported translations, by the source as the document has it.
+  const remembered = job.memory
+    ? await job.memory.find(
+        ctx.pair,
+        job.segments.map((s) => s.text),
+      )
+    : new Map<string, MemoryEntry>();
 
   const outcomes = new Map<string, SegmentOutcome>();
+  /**
+   * A translation from the memory, validated like a manual edit: every finding stays in the
+   * report as a warning, and the report says where the text came from.
+   */
+  const fromMemory = (id: string, source: string, entry: MemoryEntry): SegmentOutcome => ({
+    id,
+    text: entry.target,
+    untranslated: false,
+    cached: false,
+    attempts: 0,
+    issues: [
+      ...validateTranslation({
+        source,
+        target: entry.target,
+        sourceLang: ctx.pair.source,
+        targetLang: ctx.pair.target,
+        glossary: ctx.glossary,
+        checkLanguage: false,
+      }).map((i) => (i.severity === 'error' ? { ...i, severity: 'warning' as const } : i)),
+      {
+        code: 'FROM_MEMORY',
+        severity: 'info',
+        detail: `taken from the translation memory (${entry.origin === 'manual' ? 'your correction' : 'imported'})`,
+      },
+    ],
+    notes: ['memory'],
+    findings: [],
+  });
   const validate = (req: SegmentRequest, text: string, notes: string[]) => {
     const issues = validateTranslation({
       source: req.text,
@@ -383,6 +436,8 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   const acronymNames = [...acronyms].map((a) => ({ source: a, target: a, exact: true }));
   for (const s of segments) {
     const hit = hits.get(keyOf.get(s.id)!);
+    const source = originalText.get(s.id)!;
+    const memo = remembered.get(source);
     const heading = headings
       ? academicHeading(s.text, ctx.pair.source, ctx.pair.target, metrics, s.role === 'heading')
       : null;
@@ -395,7 +450,10 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       heading === null &&
       ((/⟦N\d+⟧|[*∗†‡§¶]/.test(s.text) && isNameList(plainText(s.text).replace(/[*∗†‡§¶]/g, ''))) ||
         isOrcidAuthorLine(linked));
-    if (authors) {
+    // The user's word comes first, even over a heading table or names kept as written.
+    if (memo && fitsSource(source, memo.target)) {
+      outcomes.set(s.id, fromMemory(s.id, source, memo));
+    } else if (authors) {
       outcomes.set(s.id, {
         id: s.id,
         text: s.text,
@@ -860,7 +918,13 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   if (job.fidelityCheck && engine.checkFidelity) {
     const toCheck = segments
       .map((s) => ({ s, o: outcomes.get(s.id)! }))
-      .filter(({ s, o }) => !o.untranslated && !(o.cached && hits.get(keyOf.get(s.id)!)?.findings));
+      // The memory's text is the user's: not read again, so never revised by a repair.
+      .filter(
+        ({ s, o }) =>
+          !o.untranslated &&
+          !o.notes.includes('memory') &&
+          !(o.cached && hits.get(keyOf.get(s.id)!)?.findings),
+      );
     const pairs = toCheck.map(({ s, o }) => ({
       id: s.id,
       source: s.text,
@@ -1181,11 +1245,27 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   // After caching: the cache keeps the engine's text, the option applies on every run.
   if (job.localCitations) {
     for (const o of outcomes.values()) {
-      if (!o.untranslated) o.text = localizeEtAl(o.text, ctx.pair.target);
+      if (!o.untranslated && !o.notes.includes('memory'))
+        o.text = localizeEtAl(o.text, ctx.pair.target);
     }
   }
+  // The engine's translations, for the memory's export (not the test engine's made-up text).
+  if (job.memory && engine.id !== 'pseudo')
+    job.memory.keep(
+      ctx.pair,
+      segments.flatMap((s) => {
+        const o = outcomes.get(s.id)!;
+        const source = originalText.get(s.id)!;
+        return o.untranslated || o.text === source || o.notes.some((n) => NOT_TRANSLATED.has(n))
+          ? []
+          : [{ source, target: o.text }];
+      }),
+    );
   return segments.map((s) => outcomes.get(s.id)!);
 }
+
+/** Outcomes that are no translation by the engine (kept as written, or from the memory). */
+const NOT_TRANSLATED = new Set(['memory', 'names', 'as-written']);
 
 /**
  * The sentences of a tagged paragraph, when it has several and no inline formatting spans a

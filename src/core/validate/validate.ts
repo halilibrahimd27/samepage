@@ -154,7 +154,9 @@ export type ValidationCode =
   | 'PUNCTUATION_CHANGED'
   | 'SENTENCE_LOST'
   | 'TABLE_NOT_RECOGNISED'
-  | 'POST_EDITED';
+  | 'POST_EDITED'
+  /** Taken from the translation memory (a correction or an imported entry), not the engine. */
+  | 'FROM_MEMORY';
 
 export interface ValidationIssue {
   code: ValidationCode;

@@ -4,6 +4,7 @@ import { termsRenderedTwoWays } from '../core/pipeline/terms';
 import { functionWords } from '../core/detectLanguage';
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
+import type { MemoryHook } from '../core/memory/memory';
 import type { TermText } from '../core/glossary/detect';
 import type { Role } from '../core/ir/types';
 import { ONE_WORD_LABEL, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
@@ -55,6 +56,8 @@ export interface DocxOptions {
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
   /** Manual corrections from the review step: tagged source → tagged target (reported as manual). */
   overrides?: Record<string, string>;
+  /** The translation memory: corrections and imported translations used instead of the engine. */
+  memory?: MemoryHook;
 }
 
 export interface DocxSegmentReport {
@@ -375,6 +378,7 @@ export async function translateDocx(
     ...(opts.replay ? { replay: opts.replay } : {}),
     localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
+    ...(opts.memory ? { memory: opts.memory } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const outcomeBySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
@@ -530,6 +534,8 @@ export async function translateDocx(
         { pair: opts.pair, glossary: opts.glossary, numberLocalization: opts.numberLocalization },
         segReports
           .filter((r) => (r.status === 'translated' || r.status === 'warning') && !r.manual)
+          // The user's own wording (a correction, an imported translation) is not the engine's.
+          .filter((r) => !r.issues.some((i) => i.code === 'FROM_MEMORY'))
           .filter((r) => r.role !== 'reference')
           .map((r) => ({ id: r.id, source: r.source, target: r.target })),
         opts.glossary,

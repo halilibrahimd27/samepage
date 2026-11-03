@@ -35,6 +35,7 @@ export const tr: Record<MessageKey, string> = {
   'batch.done': 'Bitti',
   'batch.failed': 'Başarısız',
   'batch.skipped': 'Zaten {lang}: olduğu gibi bırakıldı',
+  'batch.memory': '{count} çeviri belleğinizden',
   'batch.summary':
     '{translated} çevrildi · {warnings} gözden geçirilecek · {untranslated} özgün dilde kaldı',
   'batch.score': 'düzen {score}/100',
@@ -177,6 +178,25 @@ export const tr: Record<MessageKey, string> = {
   'settings.clearCache': 'Çeviri önbelleğini temizle',
   'settings.cacheCleared': 'Çeviri önbelleği temizlendi.',
   'settings.playground': 'Metin deneme alanını aç (geliştirici aracı)',
+  'memory.title': 'Çeviri belleği',
+  'memory.hint':
+    'Düzeltmeleriniz ve samepage’in çevirileri bu tarayıcıda saklanır. Düzelttiğiniz ya da içe aktarılan bir bellekte bulunan paragraf bir dahaki sefere aynı biçimde çevrilir. Belleği OmegaT, Trados veya memoQ için ya da başka bir bilgisayara taşımak için TMX dosyası olarak dışa aktarın.',
+  'memory.count': '{entries} kayıt · {manual} düzeltmeniz · {imported} içe aktarılan',
+  'memory.pair': 'Dışa aktarılacak dil çifti',
+  'memory.allPairs': 'Tüm dil çiftleri',
+  'memory.export': 'Dışa aktar (.tmx)',
+  'memory.import': 'İçe aktar (.tmx)',
+  'memory.imported': 'İçe aktarılan kayıt: {added}.',
+  'memory.older': '{count} paragrafın daha yeni çevirileriniz korundu.',
+  'memory.skipped': '{count} birim okunamadı ve atlandı.',
+  'memory.tooLarge': 'Bu dosya, çeviri belleği sınırı olan {mb} MB’tan büyük.',
+  'memory.unreadable': 'Bu dosya TMX çeviri belleği olarak okunamadı.',
+  'memory.clear': 'Çeviri belleğini temizle',
+  'memory.clearConfirm':
+    'Düzeltmeleriniz de dahil {entries} kaydın tümü silinsin mi? Bu geri alınamaz.',
+  'memory.clearYes': 'Tümünü sil',
+  'memory.clearNo': 'Vazgeç',
+  'memory.cleared': 'Çeviri belleği temizlendi.',
   'playground.title': 'Metin deneme alanı',
   'playground.description':
     'Metni yapıştırın, herhangi bir motorla çevirin, doğrulama ve sadakat sonuçlarını inceleyin. Paragrafları boş satırla ayırın. Biçim: **kalın**, *italik*, $formül$.',
@@ -301,6 +321,10 @@ export const tr: Record<MessageKey, string> = {
   'report.repairedHint':
     'Anlam denetiminin sorun bulduğu paragraflar: yeniden çevrildi, denetimden geçtikten sonra benimsendi',
   'report.technical': 'Teknik ayrıntılar',
+  'report.fromMemory': 'Çeviri belleğinizden',
+  'report.memory': 'Çeviri belleği: {n}',
+  'report.memoryHint':
+    'Motor yerine düzeltmelerinizden ya da içe aktarılan bir bellekten alınan paragraflar',
   'meaning.title': 'Anlam kontrolü',
   'meaning.back': 'Geri çeviri',
   'meaning.negationLost':
@@ -319,6 +343,8 @@ export const tr: Record<MessageKey, string> = {
   'issue.TABLE_NOT_RECOGNISED':
     'Bu başlığın tablosu tanınamadı: hücreleri düz metin gibi çevrildi. Lütfen kontrol edin.',
   'issue.OCR_LOW_CONFIDENCE': 'Tarama burada zor okundu; tanınan metinde hata olabilir.',
+  'issue.FROM_MEMORY':
+    'Motordan değil, çeviri belleğinizden (önceki bir düzeltmeniz ya da içe aktarılan bir kayıt) alındı.',
   'issue.UNTRANSLATED': 'Çeviri kaynakla aynı kaldı.',
   'issue.NUMBER_MISMATCH': 'Kaynak ile çeviri arasında bir sayı farklı.',
   'issue.CITATION_MISMATCH': 'Kaynak ile çeviri arasında bir atıf farklı.',
