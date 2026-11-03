@@ -4,6 +4,52 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] — 2026-11-03
+
+### Added
+
+- Terms rendered two ways are found after translating: "informed consent" as "bilgilendirilmiş
+  onam" in three paragraphs and "onay" in two. A term is shown only when the engine confirms both
+  renderings (its own translation of the term, each rendering translated back). The one chosen
+  goes into the glossary and only the paragraphs with the term are translated again — a glossary
+  term now changes the cached translation of the paragraphs it occurs in, not of all. In a batch,
+  the terms are read across all the files of a language pair.
+- Translation memory: corrections and imported translations are reused for the same paragraph
+  and reported ("From your translation memory"). Export and import as TMX 1.4b in Settings, with
+  size and entry limits for files from elsewhere.
+- A bilingual review file for PDFs (source | translation | notes in Word), each paragraph with
+  its page, status and issues.
+- Reference titles in brackets can take the cited work's own title from Crossref by its DOI —
+  DergiPark records hold the Turkish title and the English one. Off by default; only the DOIs
+  are sent, to `api.crossref.org`, and the report says which titles came from there.
+- Flagged sentences can be polished free by Chrome's built-in AI (Gemini Nano) on the device,
+  where Chrome writes the target language (English; not Turkish), as an alternative to Claude.
+  Each revision is checked like any translation.
+- Install samepage as an app with its own icons; share a PDF, Word, PowerPoint or LaTeX file to
+  it from another app (Android) or open such files with the installed app (desktop). One file
+  opens as if dropped, several go to the batch.
+
+### Fixed
+
+- A table drawn in a slide's picture (a deck saved as pictures with a text layer) came out as one
+  line per row, every cell run into the first column: it is read cell by cell, in the PDF and
+  in the Word file, a number column's header set right in its cell.
+- Pages hid text of the Word file of a slide deck: a title's second line, the labels of cards,
+  the descenders of a table's rows — Pages keeps a frame at its height and hides a line it has no
+  room for. Frames are now as high as their lines come out, with a line to spare.
+- A line of a picture's text layer measured a point larger than the line before it started a new
+  paragraph ("…, recall’ı" | "%68: tek metrik yanıltır").
+- A figure of panels (a Venn diagram per panel, each with its legend, "npm" and "PyPI" over them)
+  went into the Word file as pictures with its legends as paragraphs beside them: it is one
+  picture with all the short text between its panels.
+- arXiv's stamp in the left margin was set a letter per line in Pages: it goes in as a picture of
+  it, in its place.
+- A PDF note (a translation that did not fit) put its icon over the next cell of a table: the icon
+  is in the margin beside its text.
+- A table's one-word header ("Tool" → "Alet") is translated with the table's caption as its
+  context ("Araç").
+- A glossary pack imported before the stored glossary had loaded replaced it.
+
 ## [1.3.1] — 2026-11-03
 
 ### Fixed

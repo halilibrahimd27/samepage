@@ -54,12 +54,18 @@ the paper says.
   hardened claims ("results suggest" → "results reveal") and changed quantifiers ("most" → "all"),
   asking again in English before it reports one. You can
   compare every paragraph sentence by sentence, even in a language you do not read. With your own
-  Claude key, the flagged sentences are revised automatically (British or American spelling).
+  Claude key, the flagged sentences are revised automatically (British or American spelling); into
+  English, Chrome's built-in AI can revise them instead, free and on your device.
+- **One term, one translation.** A term the translation renders two ways ("informed consent" as
+  "bilgilendirilmiş onam" here and "onay" there) is found after translating, and shown only when
+  the engine confirms both are translations of it. Pick one: it goes into the glossary and only
+  the paragraphs with the term are translated again. In a batch, across all its files.
 - **Abstract only.** For journals that ask for a second-language abstract: samepage finds the
   title, abstract and keywords, lets you edit them and translates just those.
 - **References the APA way.** The reference list stays as published; optionally, titles in another
   language get their translation in brackets after them (APA 7): “Makine çevirisi [Machine
-  translation].”
+  translation].” With a DOI, the bracket can take the work's own title from Crossref instead of a
+  machine translation (off by default; only the DOI is sent).
 - **A glossary from your paper.** Tool names, code and field terms ("confidence interval",
   "randomized controlled trial") are suggested to keep or translate consistently. Nothing is
   applied until you tick it.
@@ -68,12 +74,20 @@ the paper says.
 - **Save your work as a project.** A `.samepage` file keeps the document, its translation, your
   corrections and glossary. Open it later — in any browser, on any computer — and carry on
   without translating again. API keys are never saved in it.
+- **Translation memory.** Your corrections and imported translations are reused for the same
+  paragraph in your next paper and marked in the report. Export it as a TMX file (OmegaT, Trados,
+  memoQ, another computer) or import one, in Settings.
+- **A review file for your editor.** Source and translation side by side in Word, paragraph by
+  paragraph, with its page and what to check — for PDFs as for Word files.
 - **An honest quality report.** A layout score per page and every compromise listed — nothing is
   dropped or shrunk silently: a lost percent sign or bracket, a misread number in a scan, a
   table that was not recognised. Correct any paragraph and rebuild the document in place.
 - **Scanned papers too.** PDFs without a text layer are read with OCR on your device.
-- **Private by design.** No backend, no account, no analytics. Your glossary and the translation
-  cache stay in your browser.
+- **Private by design.** No backend, no account, no analytics. Your glossary, translation memory
+  and the translation cache stay in your browser.
+- **An app on your phone and computer.** Install samepage ("Install" in Chrome or Edge, "Add to
+  Home screen" on Android) and share a PDF, Word, PowerPoint or LaTeX file to it from another app,
+  or open such files with it. Shared files are handed over inside the browser, never uploaded.
 
 ## How it works
 
@@ -126,6 +140,8 @@ quality":
 | Chrome built-in translator       | Nowhere — translated on your device (desktop Chrome and Edge)               |
 | Advanced: Claude API / local LLM | Anthropic under your own key, or your own computer (`localhost`)            |
 | Optional: polish with Claude     | Only the sentences the meaning check flags, to Anthropic under your own key |
+| Optional: polish with Chrome AI  | Nowhere — Chrome's own model on your device (into English, desktop Chrome)  |
+| Optional: official titles        | Only the DOIs of cited works, to Crossref (`api.crossref.org`)              |
 
 - **No analytics, no telemetry, no third-party scripts in the app.** Fonts, OCR models and
   WebAssembly are served from this site, and a Content Security Policy limits the app's own
