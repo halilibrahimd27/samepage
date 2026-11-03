@@ -4,7 +4,8 @@ import { useI18n } from '../i18n';
 const ACCEPT =
   '.pdf,.docx,.pptx,.tex,.zip,.samepage,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
-export function DropZone({ onFile }: { onFile: (file: File) => void }) {
+/** One file opens as before; several go to the batch. */
+export function DropZone({ onFiles }: { onFiles: (files: File[]) => void }) {
   const { t } = useI18n();
   const inputId = useId();
   const [over, setOver] = useState(false);
@@ -12,8 +13,8 @@ export function DropZone({ onFile }: { onFile: (file: File) => void }) {
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) onFile(file);
+    const files = [...e.dataTransfer.files];
+    if (files.length) onFiles(files);
   };
 
   return (
@@ -50,12 +51,13 @@ export function DropZone({ onFile }: { onFile: (file: File) => void }) {
         <input
           id={inputId}
           type="file"
+          multiple
           accept={ACCEPT}
           className="sr-only"
           data-testid="file-input"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onFile(file);
+            const files = [...(e.target.files ?? [])];
+            if (files.length) onFiles(files);
             e.target.value = '';
           }}
         />

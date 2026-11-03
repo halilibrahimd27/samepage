@@ -1,0 +1,433 @@
+import { proxy } from 'comlink';
+import { useEffect, useRef, useState } from 'react';
+import { detectLanguage } from '../../core/detectLanguage';
+import { languageName, type LanguageCode } from '../../core/languages';
+import type { ProgressPhase } from '../../core/pipeline/translate';
+import type { PdfInspection } from '../../pdf/engine';
+import { checkFile } from '../../security/fileCheck';
+import { LIMITS } from '../../security/limits';
+import type {
+  DocxJob,
+  DocxJobResult,
+  JobError,
+  LatexJobResult,
+  PdfJob,
+  PdfJobResult,
+} from '../../workers/api';
+import { sheetStore } from '../bridges/browserTranslator';
+import { downloadBlob } from '../download';
+import { engineBridge, runErrorText } from '../engineBridge';
+import type { EngineConfig } from '../engineConfig';
+import { latexSample, rejectionMessage } from '../fileInfo';
+import { formatBytes, phaseMessage } from '../format';
+import { useI18n } from '../i18n';
+import { pipelineClient } from '../pipelineClient';
+import type { Settings } from '../settings';
+import { ProgressBar } from './ProgressBar';
+import { TranslationSheet } from './TranslationSheet';
+
+const LONG_JOB_MS = 2 * 60 * 60_000;
+/** Files translated in one go. */
+export const BATCH_MAX_FILES = 20;
+const MIME = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  tex: 'text/x-tex',
+  zip: 'application/zip',
+};
+
+type Kind = 'pdf' | 'docx' | 'pptx' | 'latex';
+type Status = 'reading' | 'ready' | 'queued' | 'translating' | 'done' | 'failed' | 'skipped';
+
+interface Item {
+  id: string;
+  file: File;
+  status: Status;
+  kind?: Kind;
+  pageCount?: number;
+  detected?: LanguageCode;
+  message?: string;
+  progress?: { done: number; total: number; phase?: ProgressPhase | undefined };
+  outputs?: { name: string; blob: Blob }[];
+  summary?: { translated: number; warnings: number; untranslated: number; score?: number };
+}
+
+/**
+ * Several files translated one after another: each from its own language (detected from its
+ * text) into the chosen one, with the same engine and settings. Each result can be downloaded
+ * as it is done, and all of them as one .zip.
+ */
+export function BatchTranslator({
+  files,
+  config,
+  settings,
+  onClear,
+}: {
+  files: File[];
+  config: EngineConfig;
+  settings: Settings;
+  onClear: () => void;
+}) {
+  const { t, lang } = useI18n();
+  const [items, setItems] = useState<Item[]>(() =>
+    files
+      .slice(0, BATCH_MAX_FILES)
+      .map((file, k) => ({ id: `${k}-${file.name}`, file, status: 'reading' as const })),
+  );
+  const [running, setRunning] = useState(false);
+  const [download, setDownload] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const stopped = useRef(false);
+  const jobId = useRef<string | null>(null);
+  const update = (id: string, patch: Partial<Item>) =>
+    setItems((all) => all.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  const jobErrorText = (e: JobError) =>
+    e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
+
+  // Each file is checked and its language read, one after another.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      for (const it of items) {
+        if (!active) return;
+        const check = await checkFile(it.file);
+        if (!check.ok) {
+          update(it.id, { status: 'failed', message: rejectionMessage(check.rejection, t, lang) });
+          continue;
+        }
+        if (check.kind === 'project') {
+          update(it.id, { status: 'failed', message: t('batch.project') });
+          continue;
+        }
+        const kind = check.kind;
+        try {
+          let sample = '';
+          let pageCount: number | undefined;
+          if (kind === 'pdf') {
+            const inspected = await pipelineClient.call<PdfInspection>(
+              (api) => api.inspectPdf(it.file),
+              60_000,
+            );
+            if (!inspected.ok) {
+              update(it.id, {
+                status: 'failed',
+                message:
+                  inspected.reason === 'encrypted'
+                    ? t('error.encrypted')
+                    : inspected.reason === 'too-many-pages'
+                      ? t('error.tooManyPages', {
+                          count: inspected.pageCount,
+                          limit: LIMITS.pdfMaxPages,
+                        })
+                      : t('error.corrupt'),
+              });
+              continue;
+            }
+            sample = inspected.sample;
+            pageCount = inspected.pageCount;
+          } else if (kind === 'latex') sample = await latexSample(it.file);
+          else
+            sample = await pipelineClient
+              .call<string>((api) => api.sampleDocx(it.file), 60_000)
+              .catch(() => '');
+          const detected = detectLanguage(sample)?.lang;
+          update(it.id, {
+            status: 'ready',
+            kind,
+            ...(pageCount !== undefined ? { pageCount } : {}),
+            ...(detected ? { detected } : {}),
+          });
+        } catch (e) {
+          update(it.id, { status: 'failed', message: runErrorText(e, t) });
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, for the files chosen
+  }, []);
+
+  async function translate(it: Item): Promise<Partial<Item>> {
+    const source = it.detected ?? config.source;
+    if (source === config.target) return { status: 'skipped' };
+    const pair = { source, target: config.target };
+    const id = crypto.randomUUID();
+    jobId.current = id;
+    const glossary = await pipelineClient
+      .call((api) => api.loadGlossary(pair))
+      .then((entries) => entries.filter((g) => g.source.trim() && g.target.trim()))
+      .catch(() => []);
+    const bridge = await engineBridge(config.engine, pair, setDownload);
+    setDownload(null);
+    const onProgress = proxy((done: number, total: number, phase?: ProgressPhase) =>
+      update(it.id, { progress: { done, total, phase } }),
+    );
+    const common = {
+      jobId: id,
+      file: it.file,
+      engine: config.spec(),
+      ...config.extras(),
+      pair,
+      glossary,
+      numberLocalization: false,
+      fidelityCheck: settings.fidelityCheck,
+      localCitations: settings.localCitations,
+      translateReferences: settings.translateReferences,
+      referenceTitles: settings.referenceTitles,
+      translateMetadata: settings.translateMetadata,
+    };
+    const base = it.file.name.replace(/\.(pdf|docx|pptx|tex|zip)$/i, '');
+    const target = config.target;
+    if (it.kind === 'pdf') {
+      const job: PdfJob = { ...common, dual: false };
+      const res = await pipelineClient.call<PdfJobResult>(
+        (api) => api.translatePdf(job, onProgress, bridge),
+        LONG_JOB_MS,
+      );
+      if (!res.ok) return { status: 'failed', message: jobErrorText(res) };
+      const s = res.report.summary;
+      return {
+        status: 'done',
+        summary: {
+          translated: s.translated,
+          warnings: s.warnings,
+          untranslated: s.untranslated,
+          score: s.score,
+        },
+        outputs: [
+          { name: `${base}.${target}.pdf`, blob: new Blob([res.mono.slice()], { type: MIME.pdf }) },
+          ...(res.editable
+            ? [
+                {
+                  name: `${base}.${target}.docx`,
+                  blob: new Blob([res.editable.slice()], { type: MIME.docx }),
+                },
+              ]
+            : []),
+        ],
+      };
+    }
+    const job: DocxJob = { ...common, translateComments: settings.translateComments };
+    const res = await pipelineClient.call<DocxJobResult | LatexJobResult>(
+      (api) =>
+        it.kind === 'latex'
+          ? api.translateLatex(job, onProgress, bridge)
+          : api.translateDocx(job, onProgress, bridge),
+      LONG_JOB_MS,
+    );
+    if (!res.ok) return { status: 'failed', message: jobErrorText(res) };
+    const ext =
+      it.kind === 'latex' ? ('zip' in res && res.zip ? 'zip' : 'tex') : (it.kind ?? 'docx');
+    const s = res.report.summary;
+    return {
+      status: 'done',
+      summary: { translated: s.translated, warnings: s.warnings, untranslated: s.untranslated },
+      outputs: [
+        {
+          name: `${base}.${target}.${ext}`,
+          blob: new Blob([res.bytes.slice()], { type: MIME[ext as keyof typeof MIME] }),
+        },
+      ],
+    };
+  }
+
+  async function translateAll() {
+    const problem = config.problem(t);
+    if (problem) return setError(problem);
+    setError(null);
+    stopped.current = false;
+    setRunning(true);
+    const todo = items.filter((it) => it.status === 'ready' || it.status === 'failed');
+    setItems((all) =>
+      all.map((it) =>
+        todo.some((x) => x.id === it.id) && it.kind ? { ...it, status: 'queued' } : it,
+      ),
+    );
+    for (const it of todo) {
+      if (stopped.current) break;
+      if (!it.kind) continue;
+      update(it.id, { status: 'translating', progress: undefined, message: undefined });
+      try {
+        update(it.id, await translate(it));
+      } catch (e) {
+        update(it.id, { status: 'failed', message: runErrorText(e, t) });
+      }
+    }
+    // What the stop left waiting can go again.
+    setItems((all) => all.map((it) => (it.status === 'queued' ? { ...it, status: 'ready' } : it)));
+    jobId.current = null;
+    setRunning(false);
+    setDownload(null);
+  }
+
+  function stop() {
+    stopped.current = true;
+    sheetStore.cancel();
+    const id = jobId.current;
+    if (id) void pipelineClient.call((api) => api.cancel(id));
+  }
+
+  async function downloadAll() {
+    const { default: JSZip } = await import('jszip');
+    const zip = new JSZip();
+    for (const it of items) for (const o of it.outputs ?? []) zip.file(o.name, o.blob);
+    const blob = await zip.generateAsync({ type: 'blob' });
+    downloadBlob(blob, `samepage.${config.target}.zip`);
+  }
+
+  const reading = items.some((it) => it.status === 'reading');
+  const done = items.filter((it) => it.status === 'done');
+  const current = items.find((it) => it.status === 'translating');
+  const position = current ? items.indexOf(current) + 1 : 0;
+  const statusText = (it: Item) =>
+    it.status === 'skipped'
+      ? t('batch.skipped', { lang: languageName(config.target, lang) })
+      : t(`batch.${it.status}`);
+
+  return (
+    <section className="flex flex-col gap-4" data-testid="batch">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">{t('batch.title', { count: items.length })}</h2>
+        <button
+          type="button"
+          className="text-sm text-blue-700 underline disabled:opacity-50"
+          onClick={onClear}
+          disabled={running}
+        >
+          {t('batch.clear')}
+        </button>
+      </div>
+      {files.length > BATCH_MAX_FILES && (
+        <p role="status" className="text-sm text-amber-800">
+          {t('batch.tooMany', { limit: BATCH_MAX_FILES })}
+        </p>
+      )}
+      <p className="text-sm text-slate-600">{t('batch.hint')}</p>
+      <ul className="flex flex-col divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {items.map((it) => (
+          <li key={it.id} className="flex flex-col gap-2 p-4" data-testid="batch-item">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{it.file.name}</span>
+                <span className="text-sm text-slate-600">
+                  {it.kind ? `${it.kind.toUpperCase()} · ` : ''}
+                  {formatBytes(it.file.size, lang)}
+                  {it.pageCount !== undefined
+                    ? ` · ${t('file.pages', { count: it.pageCount })}`
+                    : ''}
+                  {it.detected ? ` · ${languageName(it.detected, lang)}` : ''}
+                </span>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  it.status === 'done'
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : it.status === 'failed'
+                      ? 'bg-red-100 text-red-900'
+                      : it.status === 'translating'
+                        ? 'bg-blue-100 text-blue-900'
+                        : 'bg-slate-100 text-slate-700'
+                }`}
+                data-testid="batch-status"
+              >
+                {statusText(it)}
+              </span>
+            </div>
+            {it.status === 'translating' && it.progress && (
+              <>
+                <span className="text-sm text-slate-600">
+                  {t(phaseMessage(it.progress.phase), it.progress)}
+                </span>
+                <ProgressBar
+                  done={it.progress.done}
+                  total={it.progress.total}
+                  phase={it.progress.phase}
+                />
+              </>
+            )}
+            {it.message && (
+              <p role="alert" className="text-sm text-red-800">
+                {it.message}
+              </p>
+            )}
+            {it.status === 'done' && it.summary && (
+              <p className="text-sm text-slate-700" data-testid="batch-summary">
+                {t('batch.summary', it.summary)}
+                {it.summary.score !== undefined
+                  ? ` · ${t('batch.score', {
+                      score: it.summary.score.toLocaleString(lang, { maximumFractionDigits: 1 }),
+                    })}`
+                  : ''}
+              </p>
+            )}
+            {it.outputs && (
+              <div className="flex flex-wrap gap-2">
+                {it.outputs.map((o) => (
+                  <button
+                    key={o.name}
+                    type="button"
+                    onClick={() => downloadBlob(o.blob, o.name)}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                  >
+                    {o.name.endsWith('.pdf')
+                      ? t('download.pdf')
+                      : t('batch.download', { name: o.name })}
+                  </button>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void translateAll()}
+          disabled={
+            running ||
+            reading ||
+            !items.some((it) => it.status === 'ready' || it.status === 'failed')
+          }
+          className="w-full rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white shadow-sm shadow-blue-900/20 transition-colors sm:w-auto hover:bg-blue-800 disabled:opacity-50"
+          data-testid="batch-translate"
+        >
+          {t('batch.translateAll')}
+        </button>
+        {running && (
+          <button
+            type="button"
+            onClick={stop}
+            className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+          >
+            {t('playground.cancel')}
+          </button>
+        )}
+        {done.length > 1 && !running && (
+          <button
+            type="button"
+            onClick={() => void downloadAll()}
+            className="rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white shadow-sm hover:bg-emerald-800"
+            data-testid="batch-download-all"
+          >
+            {t('batch.downloadAll')}
+          </button>
+        )}
+        {running && current && (
+          <span className="text-sm text-slate-600" aria-live="polite">
+            {download !== null
+              ? t('playground.downloading', { percent: download })
+              : t('batch.progress', { n: position, total: items.length, name: current.file.name })}
+          </span>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-red-800">
+          {error}
+        </p>
+      )}
+      <TranslationSheet />
+    </section>
+  );
+}

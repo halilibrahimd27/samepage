@@ -5,17 +5,19 @@ import { WorkerFailedError } from '../../core/pipeline/workerClient';
 import type { ProjectManifest } from '../../core/project';
 import type { OpenedProject } from '../../core/projectFile';
 import type { PdfInspection } from '../../pdf/engine';
-import { checkFile, type DocKind, type FileRejection } from '../../security/fileCheck';
+import { checkFile, type DocKind } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
 import { AbstractTranslator } from '../components/AbstractTranslator';
+import { BatchTranslator } from '../components/BatchTranslator';
 import { DocxTranslator } from '../components/DocxTranslator';
 import { PdfTranslator } from '../components/PdfTranslator';
 import { DropZone } from '../components/DropZone';
 import { EngineConfigPanel } from '../components/EngineConfigPanel';
 import type { EngineConfig } from '../engineConfig';
 import { extensionFile } from '../extension';
+import { latexSample, rejectionMessage } from '../fileInfo';
 import { formatBytes } from '../format';
-import { useI18n, type Translate } from '../i18n';
+import { useI18n } from '../i18n';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 
@@ -37,34 +39,6 @@ type DocState =
     }
   | { status: 'error'; file: File; message: string; workerFailed?: boolean };
 
-function rejectionMessage(r: FileRejection, t: Translate, lang: string): string {
-  switch (r.reason) {
-    case 'empty':
-      return t('error.empty');
-    case 'unsupported':
-      return t('error.unsupported');
-    case 'docm':
-      return t('error.docm');
-    case 'too-large':
-      return t('error.tooLarge', {
-        kind: r.kind.toUpperCase(),
-        limit: formatBytes(r.limitBytes, lang),
-      });
-  }
-}
-
-/** Prose of a LaTeX file for language detection: commands, math and comments removed. */
-async function latexSample(file: File): Promise<string> {
-  // A project .zip is not read here: the language is checked by the user.
-  if (!/\.tex$/i.test(file.name)) return '';
-  const text = await file.slice(0, 200_000).text();
-  return text
-    .replace(/%.*$/gm, ' ')
-    .replace(/\$[^$]*\$/g, ' ')
-    .replace(/\\[a-zA-Z@]+\*?(\[[^\]]*\])?/g, ' ')
-    .replace(/[{}]/g, ' ');
-}
-
 export function Workspace({ settings, config }: { settings: Settings; config: EngineConfig }) {
   const { t, lang } = useI18n();
   const [doc, setDoc] = useState<DocState | null>(null);
@@ -72,6 +46,8 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
   const [mode, setMode] = useState<'document' | 'abstract'>('document');
   /** The project file the document came from (P9.5): its translations are reopened. */
   const [project, setProject] = useState<ProjectManifest | null>(null);
+  /** Several files chosen at once: translated one after another. */
+  const [batch, setBatch] = useState<File[] | null>(null);
   const request = useRef(0);
 
   // The samepage browser extension (P9.12) hands over the PDF the user chose: a message from this
@@ -205,10 +181,28 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     }
   }
 
+  if (batch)
+    return (
+      <div className="flex flex-col gap-6">
+        <EngineConfigPanel config={config} settings={settings} />
+        <BatchTranslator
+          files={batch}
+          config={config}
+          settings={settings}
+          onClear={() => setBatch(null)}
+        />
+      </div>
+    );
+
   return (
     <div className="flex flex-col gap-6">
       {doc === null ? (
-        <DropZone onFile={(f) => void openFile(f)} />
+        <DropZone
+          onFiles={(files) => {
+            if (files.length > 1) setBatch(files);
+            else void openFile(files[0]!);
+          }}
+        />
       ) : (
         <section
           className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
