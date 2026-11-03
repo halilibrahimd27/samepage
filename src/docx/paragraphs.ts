@@ -76,7 +76,23 @@ const IGNORED_RPR = new Set([
  */
 const A_RPR_ATTRS = new Set(['b', 'i', 'u', 'strike', 'baseline', 'cap', 'sz']);
 
-function rPrKey(rPr: XElement | null): string {
+/**
+ * Text Word sets in the complex-script or East Asian font. Other text shows none of those
+ * properties: runs of Hungarian that differ only in their w:cs font ("képerny" | "alapú") are
+ * one style.
+ */
+const COMPLEX_OR_ASIAN =
+  /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}\p{Script=Tibetan}\p{Script=Devanagari}\p{Script=Bengali}\p{Script=Gurmukhi}\p{Script=Gujarati}\p{Script=Oriya}\p{Script=Tamil}\p{Script=Telugu}\p{Script=Kannada}\p{Script=Malayalam}\p{Script=Sinhala}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}]/u;
+/** Properties of complex-script and East Asian text only. */
+const COMPLEX_RPR = new Set(['bCs', 'iCs', 'szCs', 'ea', 'cs']);
+const LATIN_FONT_ATTRS = new Set(['ascii', 'hAnsi', 'asciiTheme', 'hAnsiTheme']);
+const FONT_RPR = new Set(['rFonts', 'latin', 'ea', 'cs', 'sym']);
+
+/**
+ * Style key of run properties. `latin`: the run's text is neither complex-script nor East Asian.
+ * `fontless`: fonts left out, for a word split where a font lacks a letter.
+ */
+function rPrKey(rPr: XElement | null, opts: { latin?: boolean; fontless?: boolean } = {}): string {
   if (!rPr) return '';
   const own: string[] = [];
   if (rPr.namespaceURI === A) {
@@ -85,14 +101,24 @@ function rPrKey(rPr: XElement | null): string {
       if (A_RPR_ATTRS.has(a.localName ?? '')) own.push(`@${a.localName}=${a.value}`);
     }
   }
+  const dialectA = rPr.namespaceURI === A;
   return [
     ...own.sort(),
     ...elementChildren(rPr)
-      .filter((c) => !IGNORED_RPR.has(c.localName ?? ''))
+      .filter((c) => {
+        const name = c.localName ?? '';
+        if (IGNORED_RPR.has(name)) return false;
+        if (opts.fontless && FONT_RPR.has(name)) return false;
+        // w:cs is the complex-script switch itself; a:cs is a font.
+        if (opts.latin && COMPLEX_RPR.has(name) && (dialectA || name !== 'cs')) return false;
+        return true;
+      })
       .map((c) => {
         const attrs: string[] = [];
         for (let i = 0; i < c.attributes.length; i++) {
           const a = c.attributes.item(i)!;
+          if (opts.latin && c.localName === 'rFonts' && !LATIN_FONT_ATTRS.has(a.localName ?? ''))
+            continue;
           attrs.push(`${a.localName}=${a.value}`);
         }
         return `${c.localName}[${attrs.sort().join(',')}]`;
@@ -112,6 +138,49 @@ function wrapperKey(w: XElement): string {
 
 function styleOf(rPr: XElement | null, wrappers: XElement[]): RunStyle {
   return { key: `${wrappers.map(wrapperKey).join('>')}|${rPrKey(rPr)}`, rPr, wrappers };
+}
+
+/** Symbol fonts draw letters as other signs ("a" in Symbol is α): never merged into text. */
+const SYMBOL_FONT = /symbol|wingdings|webdings|dingbat|marlett|mt extra/i;
+
+const fontOf = (rPr: XElement | null) =>
+  rPr?.getElementsByTagNameNS(W, 'rFonts')[0]?.getAttributeNS(W, 'ascii') ||
+  rPr?.getElementsByTagNameNS(A, 'latin')[0]?.getAttribute('typeface') ||
+  '';
+
+/**
+ * Neighbouring runs that look alike become one style before encoding, so no tag splits them:
+ * text that is neither complex-script nor East Asian and differs only in properties of those
+ * scripts (the w:cs font of "képerny" and "alapú"), and a word split over runs that differ only
+ * in font, in the style of its longer part — Word sets a letter the font lacks in another one
+ * ("MUNKAID" + "Ő" in Times New Roman + " ÖSSZEHASONLÍTÁS"). As a tag inside the word, Google
+ * translated the pieces apart ("<t1>ESERLERİN</t1> KARŞILAŞTIRILMASI").
+ */
+function mendLookalikes(runs: InlineRun<RunStyle>[]) {
+  const keyOf = (s: RunStyle, opts: { latin?: boolean; fontless?: boolean }) =>
+    `${s.wrappers.map(wrapperKey).join('>')}|${rPrKey(s.rPr, opts)}`;
+  for (let changed = true, rounds = 0; changed && rounds < 4; rounds++) {
+    changed = false;
+    for (let i = 1; i < runs.length; i++) {
+      const [a, b] = [runs[i - 1]!, runs[i]!];
+      if (a.type !== 'text' || b.type !== 'text' || a.style.key === b.style.key) continue;
+      if (COMPLEX_OR_ASIAN.test(a.text + b.text)) continue;
+      let style: RunStyle | null = null;
+      if (keyOf(a.style, { latin: true }) === keyOf(b.style, { latin: true })) style = a.style;
+      else if (
+        /\p{L}\p{M}*$/u.test(a.text) &&
+        /^\p{L}/u.test(b.text) &&
+        ![a, b].some((r) => SYMBOL_FONT.test(fontOf(r.style.rPr))) &&
+        keyOf(a.style, { latin: true, fontless: true }) ===
+          keyOf(b.style, { latin: true, fontless: true })
+      )
+        style = a.text.length >= b.text.length ? a.style : b.style;
+      if (!style) continue;
+      runs[i - 1] = { ...a, style };
+      runs[i] = { ...b, style };
+      changed = true;
+    }
+  }
 }
 
 /** Run-level children that become atoms, with their placeholder kind. */
@@ -345,6 +414,7 @@ export function extractW(
       }
     }
   }
+  mendLookalikes(runs);
   const encoded = encode(runs, (s) => s.key);
   const plain = runs
     .filter((r) => r.type === 'text')
@@ -396,6 +466,7 @@ export function extractA(
       });
     }
   }
+  mendLookalikes(runs);
   const encoded = encode(runs, (s) => s.key);
   const plain = runs
     .filter((r) => r.type === 'text')
@@ -458,22 +529,46 @@ export function rightToLeftShare(text: string): number {
 /** Most letters Arabic or Hebrew. */
 const rightToLeft = (text: string) => rightToLeftShare(text) >= 0.5;
 
+/** Fonts made for Arabic, Persian, Urdu or Hebrew: their Latin letters, if any, are an afterthought. */
+const RIGHT_TO_LEFT_FONT =
+  /arab|naskh|kufi|majalla|typesetting|lotus|nazanin|mitra|\bzar\b|yagut|titr|traffic|\bbadr\b|mohanad|andalus|aldhabi|urdu|nastal|jameel|scheherazade|amiri|uthman|kfgqpc|quran|david|miriam|narkisim|frank ?ruehl|levenim|gisha|aharoni|hebrew/i;
+
 /**
  * A run of Arabic or Hebrew now in a left-to-right language: not right to left any more, and
  * bold or italic as Word showed it as complex script. Its size stays the document's for Latin
- * text: Arabic is set larger (16 pt beside 12) for its smaller letters.
+ * text where it has one: Arabic is set larger (16 pt beside 12) for its smaller letters. A size
+ * the same for both was chosen for the Arabic (14 pt of Sakkal Majalla): Latin takes 6/7 of it.
+ * A Latin font made for Arabic becomes Times New Roman (missing on most machines, Sakkal Majalla
+ * came out in a wide sans; nor has it "ş", "ğ", "ı").
  */
-function turnLeftToRight(rPr: XElement) {
+function turnLeftToRight(rPr: XElement, inherited: InheritedSize = {}) {
   const kids = elementChildren(rPr);
   const find = (local: string) => kids.find((c) => is(c, W, local));
   if (find('rtl')) setProperty(rPr, RPR_ORDER, 'rtl', '0');
   if (on(find('bCs')) && !find('b')) setProperty(rPr, RPR_ORDER, 'b', null);
   if (on(find('iCs')) && !find('i')) setProperty(rPr, RPR_ORDER, 'i', null);
+  const fonts = find('rFonts');
+  for (const attr of ['ascii', 'hAnsi'])
+    if (RIGHT_TO_LEFT_FONT.test(fonts?.getAttributeNS(W, attr) ?? ''))
+      fonts!.setAttributeNS(W, `w:${attr}`, 'Times New Roman');
+  // Its own size, or its styles' ("Normal (Web)": 14 pt for both).
+  const sz = find('sz')?.getAttributeNS(W, 'val') || inherited.sz;
+  const szCs = find('szCs')?.getAttributeNS(W, 'val') || inherited.szCs;
+  if (sz && sz === szCs)
+    setProperty(rPr, RPR_ORDER, 'sz', String(Math.round((Number(sz) * 6) / 7)));
+}
+
+/** Type sizes (half-points) a run takes from its styles and the document's defaults. */
+export interface InheritedSize {
+  sz?: string;
+  szCs?: string;
 }
 
 export interface RebuildOptions {
   targetLang: string;
   breakLongTokens: boolean;
+  /** Sizes from the paragraph's and run's styles, by style ids. */
+  styleSize?: (paragraphStyle: string | null, runStyle: string | null) => InheritedSize;
 }
 
 /**
@@ -530,13 +625,29 @@ export function rebuild(
     return parent;
   };
 
+  const styleOfPara =
+    (pPr &&
+      elementChildren(pPr)
+        .find((c) => is(c, W, 'pStyle'))
+        ?.getAttributeNS(W, 'val')) ||
+    null;
   const cloneRPr = (rPr: XElement | null): XElement | null => {
-    if (!rPr) return null;
-    const c = rPr.cloneNode(true) as XElement;
+    // A turned run without properties still takes a Latin size for its styles' Arabic one.
+    if (!rPr && !(turn && opts.styleSize)) return null;
+    const c = rPr
+      ? (rPr.cloneNode(true) as XElement)
+      : p.para.ownerDocument!.createElementNS(W, 'w:rPr');
     if (p.dialect === 'w') {
       for (const lang of elementChildren(c).filter((x) => is(x, W, 'lang')))
         lang.setAttributeNS(W, 'w:val', locale);
-      if (turn) turnLeftToRight(c);
+      if (turn) {
+        const runStyle =
+          elementChildren(c)
+            .find((x) => is(x, W, 'rStyle'))
+            ?.getAttributeNS(W, 'val') || null;
+        turnLeftToRight(c, opts.styleSize?.(styleOfPara, runStyle));
+      }
+      if (!rPr && !c.firstChild) return null;
     } else if (c.hasAttribute('lang')) {
       c.setAttribute('lang', locale);
     }

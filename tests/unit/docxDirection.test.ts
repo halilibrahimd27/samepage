@@ -32,6 +32,44 @@ describe('right-to-left text in a Word document', () => {
     expect(xml).toContain('Arap şiiri');
   });
 
+  it('sets Latin letters in a Latin font, at a Latin size, when the size was the Arabic one', () => {
+    const run = (props: string) =>
+      `<w:pPr><w:bidi/></w:pPr><w:r><w:rPr>${props}<w:rtl/></w:rPr><w:t>الحمد لله رب العالمين</w:t></w:r>`;
+    const both = translate(
+      run(
+        '<w:rFonts w:ascii="Sakkal Majalla" w:hAnsi="Sakkal Majalla" w:cs="Sakkal Majalla"/><w:sz w:val="28"/><w:szCs w:val="28"/>',
+      ),
+      (s) => s.replace('الحمد لله رب العالمين', "Hamd alemlerin Rabbi Allah'a"),
+    );
+    expect(both).toContain(
+      '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Sakkal Majalla"/>',
+    );
+    expect(both).toContain('<w:sz w:val="24"/><w:szCs w:val="28"/>');
+    // A Latin size of its own is kept, and so is a Latin font.
+    const own = translate(
+      run(
+        '<w:rFonts w:ascii="Calibri" w:cs="Traditional Arabic"/><w:sz w:val="24"/><w:szCs w:val="32"/>',
+      ),
+      (s) => s.replace('الحمد لله رب العالمين', "Hamd alemlerin Rabbi Allah'a"),
+    );
+    expect(own).toContain('w:ascii="Calibri"');
+    expect(own).toContain('<w:sz w:val="24"/><w:szCs w:val="32"/>');
+  });
+
+  it('takes the Arabic size of its style down to a Latin one', () => {
+    const para = paragraph(
+      '<w:pPr><w:pStyle w:val="NormalWeb"/><w:bidi/></w:pPr><w:r><w:rPr><w:rtl/></w:rPr><w:t>الحمد لله</w:t></w:r><w:r><w:t> رب العالمين</w:t></w:r>',
+    );
+    const p = extractW(para, 'body');
+    rebuild(p, decode('Hamd alemlerin Rabbi', p.encoded), {
+      targetLang: 'tr',
+      breakLongTokens: false,
+      styleSize: (style) => (style === 'NormalWeb' ? { sz: '28', szCs: '28' } : {}),
+    });
+    const xml = serializeXml(para as unknown as Parameters<typeof serializeXml>[0]);
+    expect(xml).toContain('<w:sz w:val="24"/>');
+  });
+
   it('reads left to right on a slide too', () => {
     const A = NS.a;
     const para = parseXml(

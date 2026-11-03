@@ -22,6 +22,7 @@ import {
   rebuild,
   rightToLeftShare,
   type ExtractedParagraph,
+  type RebuildOptions,
 } from './paragraphs';
 import { inFixedTableCell, repairContainers, type DocxRepair } from './repair';
 import { fitSlideText, slideRole, textBodyOf } from './pptx';
@@ -385,6 +386,8 @@ export async function translateDocx(
     byBody.set(u.body, entry);
     bodies.set(u.part, byBody);
   }
+  const stylesText = format === 'docx' ? await pkg.readText('word/styles.xml') : null;
+  const styleSize = stylesText ? sizesOfStyles(parseXml(stylesText)) : undefined;
   const segReports: DocxSegmentReport[] = [];
   for (const u of [...units].reverse()) {
     if (u.skipped) {
@@ -451,6 +454,7 @@ export async function translateDocx(
     const d4 = rebuild(p, decode(o.text, p.encoded), {
       targetLang: opts.pair.target,
       breakLongTokens: fixed,
+      ...(styleSize ? { styleSize } : {}),
     });
     if (d4)
       repairs.push({
@@ -484,7 +488,6 @@ export async function translateDocx(
   }
 
   // Language of the document defaults → target (spelling/hyphenation in Word).
-  const stylesText = format === 'docx' ? await pkg.readText('word/styles.xml') : null;
   if (stylesText) {
     const styles = parseXml(stylesText);
     for (const lang of Array.from(styles.getElementsByTagNameNS(NS.w, 'lang'))) {
@@ -531,6 +534,49 @@ export async function translateDocx(
  * typescript in Courier), where it is the document's own face. A lab sheet or a tutorial may be
  * half code.
  */
+/**
+ * The type sizes a run takes from its character style, its paragraph's style (each along its
+ * basedOn chain) and the document's defaults: half-points of Latin and complex-script text.
+ */
+function sizesOfStyles(styles: XDocument): NonNullable<RebuildOptions['styleSize']> {
+  const byId = new Map<string, XElement>();
+  for (const st of Array.from(styles.getElementsByTagNameNS(NS.w, 'style')))
+    byId.set(st.getAttributeNS(NS.w, 'styleId') ?? '', st);
+  const own = (el: XElement | undefined | null, local: string) => {
+    const rPr = el
+      ? Array.from(el.childNodes).find(
+          (c): c is XElement => c.nodeType === 1 && (c as XElement).localName === 'rPr',
+        )
+      : undefined;
+    return rPr?.getElementsByTagNameNS(NS.w, local)[0]?.getAttributeNS(NS.w, 'val') || undefined;
+  };
+  const chain = (id: string | null, local: string): string | undefined => {
+    for (let k = 0, at = id; at && k < 10; k++) {
+      const st = byId.get(at);
+      if (!st) return undefined;
+      const v = own(st, local);
+      if (v) return v;
+      at = st.getElementsByTagNameNS(NS.w, 'basedOn')[0]?.getAttributeNS(NS.w, 'val') ?? null;
+    }
+    return undefined;
+  };
+  const defaults = styles.getElementsByTagNameNS(NS.w, 'rPrDefault')[0];
+  const normal = Array.from(byId.values()).find(
+    (st) =>
+      st.getAttributeNS(NS.w, 'type') === 'paragraph' &&
+      /^(?:1|true)$/u.test(st.getAttributeNS(NS.w, 'default') ?? ''),
+  );
+  const size = (paragraphStyle: string | null, runStyle: string | null, local: string) =>
+    chain(runStyle, local) ??
+    chain(paragraphStyle ?? normal?.getAttributeNS(NS.w, 'styleId') ?? null, local) ??
+    own(defaults, local);
+  return (paragraphStyle, runStyle) => {
+    const sz = size(paragraphStyle, runStyle, 'sz');
+    const szCs = size(paragraphStyle, runStyle, 'szCs');
+    return { ...(sz ? { sz } : {}), ...(szCs ? { szCs } : {}) };
+  };
+}
+
 function codeFontIsCode(doc: XDocument): boolean {
   let mono = 0;
   let all = 0;
