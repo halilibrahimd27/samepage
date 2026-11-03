@@ -338,3 +338,29 @@ describe('a deck of slides in Word', () => {
     expect(result.backgrounds).toBeUndefined();
   });
 });
+
+describe('text turned in the margin', () => {
+  it('keeps arXiv’s stamp where the page has it, turned', async () => {
+    const stamp: BlockIR = {
+      ...block('p0-s', 'header', 200, ['arXiv:2412.05259v1 [cs.SE] 6 Dec 2024'], {
+        x0: 14,
+        x1: 34,
+        size: 20,
+        align: 'left',
+      }),
+      bbox: { x0: 14, y0: 200, x1: 34, y1: 560 },
+      direction: [0, -1],
+    };
+    const result = plan([page(0, [stamp, block('p0-b', 'body', 100, [words, words])])]);
+    const turned = result.items.find((i) => i.kind === 'stamp');
+    expect(turned).toMatchObject({ text: 'arXiv:2412.05259v1 [cs.SE] 6 Dec 2024', upward: true });
+    const docx = await buildEditableDocx(result.items, [], {
+      locale: 'tr-TR',
+      page: { width: 612, height: 792 },
+    });
+    const xml = await (await JSZip.loadAsync(docx)).file('word/document.xml')!.async('string');
+    expect(xml).toContain('w:horzAnchor="page"');
+    expect(xml).toContain('<w:textDirection w:val="btLr"/>');
+    expect(xml).toContain('arXiv:2412.05259v1');
+  });
+});

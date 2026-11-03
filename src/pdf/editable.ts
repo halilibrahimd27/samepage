@@ -35,6 +35,8 @@ export interface EditableUnit {
   runs: DecodedRun<PdfStyle>[];
   /** The scale the PDF set the translation at to fit its box (1 = the source's size). */
   scale?: number;
+  /** False where the PDF left the source as it was (on a picture of the page, not covered). */
+  written?: boolean;
 }
 
 export interface EditablePlan {
@@ -49,9 +51,10 @@ export interface EditablePlan {
   layout?: WordLayout;
   /**
    * Slides: pages to render without the text set in frames (`redact`), behind it, in the order
-   * the slides' `background` index them.
+   * the slides' `background` index them; `output`: from the translated PDF, whose covers hide
+   * the words of a page that is a picture (a scan, a deck saved as pictures).
    */
-  backgrounds?: { page: number; redact: Rect[] }[];
+  backgrounds?: { page: number; redact: Rect[]; output?: boolean }[];
 }
 
 const FURNITURE: Role[] = ['header', 'footer', 'page-number'];
@@ -1014,7 +1017,30 @@ export function planEditable(
       order.filter((b) => !absorbed.has(b.id) && !FURNITURE.includes(b.role)),
       layout,
     );
-    furniture += order.filter((b) => FURNITURE.includes(b.role)).length;
+    // A stamp turned in the margin (arXiv's id and date) keeps its place on the page, as it is.
+    const stamps = order.filter(
+      (b) => FURNITURE.includes(b.role) && b.direction[1] !== 0 && textOfBlock(b).trim(),
+    );
+    for (const b of stamps) {
+      const spans = b.lines.flatMap((l) => l.spans);
+      const color = spans[0] && hex(spans[0].color, true);
+      items.push({
+        kind: 'stamp',
+        text: b.lines
+          .map((l) => l.spans.map((s) => s.text).join(''))
+          .join(' ')
+          .trim(),
+        x: b.bbox.x0,
+        y: b.bbox.y0,
+        width: b.bbox.x1 - b.bbox.x0,
+        height: b.bbox.y1 - b.bbox.y0,
+        upward: b.direction[1] < 0,
+        size: half(mainSize(b)),
+        font: wordFont(spans),
+        ...(color && color !== '000000' ? { color } : {}),
+      });
+    }
+    furniture += order.filter((b) => FURNITURE.includes(b.role)).length - stamps.length;
     // A picture goes before the first block below it that shares its column.
     const anchors = new Map<string, Picture[]>();
     const trailing: Picture[] = [];
@@ -1290,12 +1316,9 @@ function authorGrid(page: PageIR, end: number): BlockIR[][][] | null {
     .filter((cells) => cells.length >= 2);
 }
 
-/**
- * A deck of slides: every page much wider than tall (16:9, 4:3), with text of its own (a scanned
- * deck's recognised text would be set twice over its picture).
- */
+/** A deck of slides: every page much wider than tall (16:9, 4:3). */
 export function slideDeck(pages: PageIR[]): boolean {
-  return pages.length > 0 && pages.every((p) => p.width >= 1.25 * p.height && !p.ocr);
+  return pages.length > 0 && pages.every((p) => p.width >= 1.25 * p.height);
 }
 
 /** Top of a font's line to its baseline, and baseline to bottom, in em (Windows metrics). */
@@ -1351,6 +1374,9 @@ function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
           )
         : [b];
       for (const x of blocks) done.add(x.id);
+      // On a picture of the page, text the PDF did not cover (numbers, names kept as they are)
+      // shows in the picture already: a frame would set it twice.
+      if (page.ocr && (!u || u.written === false)) continue;
       // Its blocks in another column: their text is in this frame, taken off the picture.
       for (const x of u?.unit.blocks ?? [])
         if (here.has(x.id) && !blocks.includes(x) && !done.has(x.id)) {
@@ -1450,7 +1476,17 @@ function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
       for (const x of blocks)
         redact.push(x.bbox, ...(x.underlines ?? []), ...(x.extraRedact ?? []));
     }
-    backgrounds.push({ page: page.index, redact });
+    // A picture of a page has its words in it: the translated PDF covers them; all its text is
+    // set in frames.
+    backgrounds.push(
+      page.ocr
+        ? {
+            page: page.index,
+            redact: [{ x0: 0, y0: 0, x1: page.width, y1: page.height }],
+            output: true,
+          }
+        : { page: page.index, redact },
+    );
     items.push({
       kind: 'slide',
       width: page.width,

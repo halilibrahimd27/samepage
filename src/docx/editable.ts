@@ -85,7 +85,23 @@ export type EditableItem =
    * A slide: a page of its own at the slide's size, its picture without text behind (`background`
    * indexes the PNGs), its text in frames where the slide sets it.
    */
-  | { kind: 'slide'; width: number; height: number; background?: number; frames: Frame[] };
+  | { kind: 'slide'; width: number; height: number; background?: number; frames: Frame[] }
+  /**
+   * Text turned in the page's margin (arXiv's id and date), kept where the page has it (points
+   * from its top left corner); `upward` reads bottom to top.
+   */
+  | {
+      kind: 'stamp';
+      text: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      upward: boolean;
+      size: number;
+      font: string;
+      color?: string;
+    };
 
 /** Text set at a place on a slide (points from the page's top left corner). */
 export interface Frame {
@@ -257,6 +273,27 @@ class Package {
           }/><w:jc w:val="${JC[p.align]}"/></w:pPr>${this.runs(p.runs, p.size, p.font)}</w:p>`,
       )
       .join('');
+  }
+
+  /**
+   * Text turned in the margin: a floating table of one cell at its place, its text turned.
+   * Word 2007 and WPS turn a table cell's text, not a frame's.
+   */
+  stamp(s: Extract<EditableItem, { kind: 'stamp' }>): string {
+    const none = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+      .map((side) => `<w:${side} w:val="nil"/>`)
+      .join('');
+    const width = twips(s.width + 2);
+    return (
+      `<w:tbl><w:tblPr><w:tblpPr w:leftFromText="0" w:rightFromText="0" w:vertAnchor="page" w:horzAnchor="page" ` +
+      `w:tblpX="${twips(Math.max(0, s.x - 1))}" w:tblpY="${twips(Math.max(0, s.y - 2))}"/><w:tblOverlap w:val="overlap"/>` +
+      `<w:tblW w:w="${width}" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/>` +
+      `<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
+      `<w:tblGrid><w:gridCol w:w="${width}"/></w:tblGrid><w:tr><w:trPr><w:trHeight w:val="${twips(s.height + 4)}" w:hRule="exact"/></w:trPr>` +
+      `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:textDirection w:val="${s.upward ? 'btLr' : 'tbRl'}"/><w:vAlign w:val="center"/></w:tcPr>` +
+      `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>` +
+      `${runXml({ text: s.text, ...(s.color ? { color: s.color } : {}) }, false, s.size, s.font)}</w:p></w:tc></w:tr></w:tbl>`
+    );
   }
 
   /** A slide's picture behind its text, over the whole page. */
@@ -528,12 +565,31 @@ export async function buildEditableDocx(
   const gap = layout?.gap ?? 0;
   const columnWidth = (textWidth - gap * (columns - 1)) / columns;
   const pkg = new Package(10);
-  const wide = (item: EditableItem) => columns > 1 && item.kind !== 'slide' && !!item.wide;
-  const xml = (item: EditableItem) => {
+  const wide = (item: EditableItem) =>
+    columns > 1 && item.kind !== 'slide' && item.kind !== 'stamp' && !!item.wide;
+  // A stamp in the margin goes in before the item after it (its anchor), in that item's section.
+  const before = new Map<EditableItem, string>();
+  const flow: EditableItem[] = [];
+  let pending = '';
+  for (const item of items) {
+    if (item.kind === 'stamp') pending += pkg.stamp(item);
+    else {
+      if (pending) before.set(item, pending);
+      pending = '';
+      flow.push(item);
+    }
+  }
+  if (pending) {
+    const end: EditableItem = { kind: 'paragraph', style: 'body', align: 'left', runs: [] };
+    before.set(end, pending);
+    flow.push(end);
+  }
+  const xml = (item: EditableItem) => (before.get(item) ?? '') + own(item);
+  const own = (item: EditableItem) => {
     const width = wide(item) ? textWidth : columnWidth;
     if (item.kind === 'paragraph') return pkg.paragraph(item);
     if (item.kind === 'table') return pkg.table(item, width);
-    if (item.kind === 'slide') return '';
+    if (item.kind === 'slide' || item.kind === 'stamp') return '';
     // Pictures keep their size on the page, shrunk to the text area when larger.
     const fit = Math.min(1, width / item.width, (0.9 * textHeight) / item.height);
     return pkg.picture(item.picture, item.width * fit, item.height * fit);
@@ -562,11 +618,11 @@ export async function buildEditableDocx(
       `${s.background !== undefined ? pkg.background(s.background, s.width, s.height) : ''}</w:p>` +
       (last ? sect : '');
   });
-  for (let i = slides.length ? items.length : 0; i < items.length;) {
-    const across = wide(items[i]!);
+  for (let i = slides.length ? flow.length : 0; i < flow.length;) {
+    const across = wide(flow[i]!);
     let j = i;
-    while (j < items.length && wide(items[j]!) === across) body += xml(items[j++]!);
-    if (j < items.length) {
+    while (j < flow.length && wide(flow[j]!) === across) body += xml(flow[j++]!);
+    if (j < flow.length) {
       body += `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/>${section(across ? 1 : columns, first)}</w:pPr></w:p>`;
       first = false;
     } else body += section(across ? 1 : columns, first);
