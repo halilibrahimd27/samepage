@@ -4,6 +4,19 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.2] — 2026-11-03
+
+### Fixed
+
+- Tables of a PDF printed from a web page were not found: the page paints its content area,
+  and that backdrop was taken for a shape crossing every row rule. The table's head row on its
+  band of colour is a row of it, and a cell's lines stay one cell whatever their first letter
+  ("1 · Savunma odaklı" and its description no longer run together as one line over the cell).
+- Badges inside a line ("Web3 Paketi" on a pill) cut the sentence into four paragraphs whose
+  translations ran over the badges. The badge is read as part of its sentence; the old badge is
+  taken off and drawn anew around its translated words, in its colours, with room on both sides.
+  In the Word file its words are shaded in the badge's colour.
+
 ## [1.5.1] — 2026-11-03
 
 ### Fixed
