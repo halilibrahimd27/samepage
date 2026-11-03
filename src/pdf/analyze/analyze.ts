@@ -1424,6 +1424,20 @@ function linkChains(
     const gap = b.lines[0]!.baseline - prev.lines[prev.lines.length - 1]!.baseline;
     return gap < 2 * (lineStep(prev) ?? 1.2 * avgSize(b));
   });
+  // A document that sets its paragraphs off by a first-line indent (a novel, a thesis): a
+  // column or page that opens on a line not indented goes on with the paragraph before it, also
+  // after a full stop ("… paid M. Waldman a visit." | "His manners in private …"). Only with
+  // nothing but running heads and page numbers between them.
+  const multi = inFlow.filter((b) => b.lines.length >= 2);
+  const indentStyle =
+    multi.length >= 10 &&
+    multi.filter((b) => b.lines[0]!.bbox.x0 - b.lines[1]!.bbox.x0 > 0.5 * avgSize(b)).length >=
+      0.5 * multi.length;
+  const furniture = (x: BlockIR) => ['header', 'footer', 'page-number'].includes(x.role);
+  const nothingBetween = (a: BlockIR, b: BlockIR) =>
+    ordered
+      .slice(ordered.indexOf(a) + 1, ordered.indexOf(b))
+      .every((x) => furniture(x) || x.role === 'footnote');
   for (let i = 0; i + 1 < sequence.length; i++) {
     const a = sequence[i]!;
     if (labelLike(a)) continue;
@@ -1447,7 +1461,7 @@ function linkChains(
     const textB = blockText(b);
     const runsOn = /^\p{Ll}/u.test(textB) && !ITEM.test(textB);
     if (
-      !TERMINAL.test(lastText) &&
+      (!TERMINAL.test(lastText) || (indentStyle && lastLineFull(a) && nothingBetween(a, b))) &&
       (lastLineFull(a) || runsOn) &&
       notIndented &&
       Math.abs(avgSize(a) - sizeB) < 0.3
@@ -1465,8 +1479,10 @@ function linkChains(
 function absorbDropCaps(blocks: BlockIR[], bodySize: number, words: Set<string>): BlockIR[] {
   const absorbed = new Set<BlockIR>();
   for (const cap of blocks) {
-    const letter = blockText(cap);
-    if (!/^\p{Lu}$/u.test(letter) || avgSize(cap) < 1.8 * bodySize) continue;
+    const letter = blockText(cap).trim();
+    // Its opening quote may stand with it (a novel's chapter in a character's words: "‘I").
+    const core = /^[‘'“"«„(]?(\p{Lu})$/u.exec(letter)?.[1];
+    if (!core || avgSize(cap) < 1.8 * bodySize) continue;
     const capHeight = cap.bbox.y1 - cap.bbox.y0;
     const para = blocks.find(
       (b) =>
@@ -1475,14 +1491,15 @@ function absorbDropCaps(blocks: BlockIR[], bodySize: number, words: Set<string>)
         /^\p{L}/u.test(blockText(b)) &&
         b.bbox.y0 >= cap.bbox.y0 - bodySize &&
         b.bbox.y0 <= cap.bbox.y0 + capHeight / 2 &&
-        // The first lines are indented beside the letter (its font box is wider than its ink).
+        // The first lines are indented beside the letter (its font box is wider than its ink);
+        // a paragraph of two lines has all its lines there.
         b.lines[0]!.bbox.x0 > cap.bbox.x0 + 2 &&
-        b.lines[0]!.bbox.x0 - b.bbox.x0 > 3 &&
+        (b.lines[0]!.bbox.x0 - b.bbox.x0 > 3 || b.lines[0]!.bbox.x0 >= cap.bbox.x1 - 2) &&
         b.lines[0]!.bbox.x0 - cap.bbox.x1 < 3 * bodySize,
     );
     if (!para) continue;
     const firstWord = /^\p{L}+/u.exec(blockText(para))![0];
-    const joined = words.has((letter + firstWord).toLowerCase());
+    const joined = words.has((core + firstWord).toLowerCase());
     const line = para.lines[0]!;
     const first = line.spans[0]!;
     para.lines[0] = {

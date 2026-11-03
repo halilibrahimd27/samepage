@@ -224,4 +224,54 @@ describe('text in a typewriter font', () => {
     expect(copies).toHaveLength(1);
     expect(copies[0]!.extraRedact?.length).toBe(2);
   });
+
+  it('joins a chapter’s large first letter to its words, with its opening quote', () => {
+    const line = (y: number, x0: number, text: string, size = 10): RawLine => ({
+      bbox: { x0, y0: y, x1: x0 + 5 * text.length, y1: y + size * 1.2 },
+      dir: [1, 0],
+      wmode: 0,
+      chars: [...text].map((c, i) => ({
+        c,
+        x: x0 + 5 * i * (size / 10),
+        y: y + size,
+        bbox: { x0: x0 + 5 * i, y0: y, x1: x0 + 5 * (i + 1), y1: y + size * 1.2 },
+        font: 'MinionPro-Regular',
+        size,
+        color: [0, 0, 0] as [number, number, number],
+      })),
+    });
+    const body = (y: number) =>
+      line(y, 31, 'It is the running text of the novel, on over the whole line');
+    const chapter = (letter: string, rest: string): RawPage => ({
+      index: 0,
+      width: 322,
+      height: 484,
+      rotation: 0,
+      blocks: [
+        { bbox: { x0: 31, y0: 105, x1: 50, y1: 141 }, lines: [line(105, 31, letter, 28.5)] },
+        // Two lines beside the letter, the paragraph ends there.
+        {
+          bbox: { x0: 51, y0: 110, x1: 272, y1: 135 },
+          lines: [line(110, 51, rest), line(122, 51, 'was from my own Elizabeth:')],
+        },
+        { bbox: { x0: 31, y0: 150, x1: 320, y1: 200 }, lines: [body(150), body(162), body(174)] },
+      ],
+      images: [],
+      vectors: [],
+      links: [],
+      fonts: {},
+    });
+    const first = (letter: string, rest: string) =>
+      blockText(
+        analyzeDocument([chapter(letter, rest)])[0]!.blocks.find((b) =>
+          blockText(b).includes('Elizabeth'),
+        )!,
+      );
+    expect(first('O', 'n my return, I found the following letter from my')).toMatch(
+      /^On my return/u,
+    );
+    expect(first('‘I', 't is with considerable difficulty that I remember')).toMatch(
+      /^‘It is with/u,
+    );
+  });
 });
