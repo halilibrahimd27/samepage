@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4173;
+// E2E_PORT: another port, when 4173 serves another checkout's build (it would be reused).
+const PORT = Number(process.env.E2E_PORT ?? 4173);
 
 // E2E runs against the production build so the CSP <meta> is active.
 export default defineConfig({

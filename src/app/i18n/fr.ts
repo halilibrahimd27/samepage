@@ -20,6 +20,8 @@ export const fr: Record<MessageKey, string> = {
   'drop.hint':
     'ou choisissez un fichier, ou plusieurs à traduire ensemble (ou un projet .samepage à rouvrir). Ils sont traités dans votre navigateur et ne sont jamais envoyés ailleurs.',
   'drop.choose': 'Choisir des fichiers',
+  'incoming.lost':
+    'Un fichier envoyé à samepage n’a pas pu être reçu. Veuillez l’envoyer à nouveau ou le choisir ici.',
   'batch.title': '{count} fichiers',
   'batch.hint':
     'Chaque fichier est traduit depuis sa propre langue vers celle choisie, l’un après l’autre, avec le moteur et les réglages ci-dessus\u202F; un fichier déjà dans cette langue passe dans l’autre. La langue de chaque fichier peut être changée. Téléchargez chaque fichier une fois terminé, ou tous à la fin.',

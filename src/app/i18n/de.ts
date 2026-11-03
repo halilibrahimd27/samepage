@@ -21,6 +21,8 @@ export const de: Record<MessageKey, string> = {
   'drop.hint':
     'oder eine Datei auswählen, mehrere zum gemeinsamen Übersetzen (bzw. ein .samepage-Projekt zum erneuten Öffnen). Sie werden in Ihrem Browser verarbeitet und nie hochgeladen.',
   'drop.choose': 'Dateien auswählen',
+  'incoming.lost':
+    'Eine an samepage gesendete Datei konnte nicht empfangen werden. Bitte senden Sie sie erneut oder wählen Sie sie hier aus.',
   'batch.title': '{count} Dateien',
   'batch.hint':
     'Jede Datei wird aus ihrer eigenen Sprache in die gewählte übersetzt, eine nach der anderen, mit der Engine und den Einstellungen oben; eine Datei, die schon in dieser Sprache ist, geht in die andere. Die Sprache jeder Datei lässt sich ändern. Laden Sie jede Datei herunter, sobald sie fertig ist, oder alle am Ende.',
