@@ -23,6 +23,10 @@ export function meaningParts(detail: string): { kind: string; back?: string } {
   return back ? { kind, back: back.replace(/^“|”$/g, '') } : { kind };
 }
 
+/** Taken from the translation memory (a correction or an imported entry) instead of the engine. */
+export const fromMemory = (s: { issues: { code: string }[] }) =>
+  s.issues.some((i) => i.code === 'FROM_MEMORY');
+
 /** Sort key: errors first, then meaning findings, then warnings. */
 export function urgency(issues: ShownIssue[]): number {
   if (issues.some((i) => i.severity === 'error')) return 0;

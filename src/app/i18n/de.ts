@@ -34,6 +34,7 @@ export const de: Record<MessageKey, string> = {
   'batch.done': 'Fertig',
   'batch.failed': 'Fehlgeschlagen',
   'batch.skipped': 'Bereits auf {lang}: unverändert gelassen',
+  'batch.memory': '{count} aus Ihrem Übersetzungsspeicher',
   'batch.summary':
     '{translated} übersetzt · {warnings} zu prüfen · {untranslated} im Original belassen',
   'batch.score': 'Layout {score}/100',
@@ -180,6 +181,26 @@ export const de: Record<MessageKey, string> = {
   'settings.clearCache': 'Übersetzungscache leeren',
   'settings.cacheCleared': 'Übersetzungscache geleert.',
   'settings.playground': 'Text-Playground öffnen (Entwicklerwerkzeug)',
+  'memory.title': 'Übersetzungsspeicher',
+  'memory.hint':
+    'Ihre Korrekturen und die Übersetzungen von samepage werden in diesem Browser gespeichert. Ein Absatz, den Sie korrigiert haben oder der aus einem importierten Speicher stammt, wird beim nächsten Mal genauso übersetzt. Exportieren Sie ihn als TMX-Datei für OmegaT, Trados oder memoQ oder um ihn auf einen anderen Computer mitzunehmen.',
+  'memory.count': '{entries} Einträge · {manual} Ihre Korrekturen · {imported} importiert',
+  'memory.pair': 'Zu exportierendes Sprachpaar',
+  'memory.allPairs': 'Alle Sprachpaare',
+  'memory.export': 'Exportieren (.tmx)',
+  'memory.import': 'Importieren (.tmx)',
+  'memory.imported': 'Importierte Einträge: {added}.',
+  'memory.older': 'Ihre neueren Übersetzungen von {count} Absätzen wurden behalten.',
+  'memory.skipped': '{count} Einheiten konnten nicht gelesen werden und wurden übersprungen.',
+  'memory.tooLarge':
+    'Diese Datei ist größer als {mb} MB, die Grenze für einen Übersetzungsspeicher.',
+  'memory.unreadable': 'Diese Datei konnte nicht als TMX-Übersetzungsspeicher gelesen werden.',
+  'memory.clear': 'Übersetzungsspeicher leeren',
+  'memory.clearConfirm':
+    'Alle {entries} Einträge löschen, auch Ihre Korrekturen? Das lässt sich nicht rückgängig machen.',
+  'memory.clearYes': 'Alles löschen',
+  'memory.clearNo': 'Behalten',
+  'memory.cleared': 'Übersetzungsspeicher geleert.',
   'playground.title': 'Text-Playground',
   'playground.description':
     'Fügen Sie Text ein, übersetzen Sie ihn mit einer beliebigen Engine und prüfen Sie Validierungs- und Treueergebnisse. Absätze durch eine Leerzeile trennen. Auszeichnung: **fett**, *kursiv*, $Formel$.',
@@ -310,6 +331,10 @@ export const de: Record<MessageKey, string> = {
   'report.repairedHint':
     'Absätze, die die Bedeutungsprüfung beanstandet hat: neu übersetzt und erst übernommen, als die Prüfung bestanden war',
   'report.technical': 'Technische Details',
+  'report.fromMemory': 'Aus Ihrem Übersetzungsspeicher',
+  'report.memory': 'Übersetzungsspeicher: {n}',
+  'report.memoryHint':
+    'Absätze, die statt von der Engine aus Ihren Korrekturen oder einem importierten Speicher stammen',
   'meaning.title': 'Bedeutungsprüfung',
   'meaning.back': 'Rückübersetzung',
   'meaning.negationLost':
@@ -332,6 +357,8 @@ export const de: Record<MessageKey, string> = {
     'Die Tabelle zu dieser Beschriftung wurde nicht erkannt: Ihre Zellen wurden als Fließtext übersetzt. Bitte prüfen.',
   'issue.OCR_LOW_CONFIDENCE':
     'Der Scan war hier schwer lesbar; der erkannte Text kann Fehler enthalten.',
+  'issue.FROM_MEMORY':
+    'Aus Ihrem Übersetzungsspeicher übernommen (eine frühere Korrektur oder ein importierter Eintrag), nicht von der Engine.',
   'issue.UNTRANSLATED': 'Die Übersetzung war mit dem Original identisch.',
   'issue.NUMBER_MISMATCH': 'Eine Zahl weicht zwischen Original und Übersetzung ab.',
   'issue.CITATION_MISMATCH': 'Ein Zitat weicht zwischen Original und Übersetzung ab.',

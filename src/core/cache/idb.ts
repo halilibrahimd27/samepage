@@ -33,14 +33,14 @@ function openDb(): Promise<IDBDatabase> {
   return opening;
 }
 
-const done = (tx: IDBTransaction) =>
+export const done = (tx: IDBTransaction) =>
   new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
   });
 
-const request = <R>(req: IDBRequest<R>) =>
+export const request = <R>(req: IDBRequest<R>) =>
   new Promise<R>((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));

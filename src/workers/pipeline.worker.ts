@@ -1,8 +1,17 @@
 import { expose, transfer } from 'comlink';
+import { version } from '../../package.json';
 import { IdbCache, loadAllGlossaries, loadGlossary, saveGlossary } from '../core/cache/idb';
+import { IdbMemory } from '../core/memory/idb';
+import { folded, MemorySession, type MemoryEntry } from '../core/memory/memory';
+import { readTmx, tmxText, writeTmx } from '../core/memory/tmx';
 import { glossariesToPack, readGlossaryFile, termbaseToCsv } from '../core/glossary/pack';
 import { buildGlossarySample } from '../core/glossary/glossary';
-import { estimateCost, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
+import {
+  estimateCost,
+  ownLanguages,
+  translateSegments,
+  type ProgressPhase,
+} from '../core/pipeline/translate';
 import { encode, plainText, verbatimOf } from '../core/segment/codec';
 import { parsePlaygroundMarkup, styleKey } from '../core/segment/markup';
 import { findPaperParts } from '../core/abstract';
@@ -14,7 +23,12 @@ import { buildBilingualDocx } from '../docx/bilingual';
 import { docxParagraphs, docxTermTexts, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
-import { EngineError, type SegmentRequest, type TranslationEngine } from '../engines/types';
+import {
+  EngineError,
+  type LangPair,
+  type SegmentRequest,
+  type TranslationEngine,
+} from '../engines/types';
 import { inspectPdf, loadFaces, renderPagePng, type LoadedFaces } from '../pdf/engine';
 import { translatePdf } from '../pdf/pipeline';
 import { LatexRejectedError, translateLatex } from '../latex/pipeline';
@@ -22,7 +36,8 @@ import { browserOcrLoader } from '../pdf/ocr/assets';
 import { createOcr } from '../pdf/ocr/tesseract';
 import { extractAndAnalyze, pdfParagraphs, pdfTermTexts } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
-import { LIMITS } from '../security/limits';
+import { LIMITS, TMX_LIMITS } from '../security/limits';
+import type { DocxReport } from '../docx/pipeline';
 import type { DocxJob, JobError, PdfJob, PipelineApi, TextJob } from './api';
 
 const THUMBNAIL_WIDTH = 240;
@@ -31,6 +46,7 @@ const FRONT_PAGES = 3;
 /** Pages read for glossary suggestions. */
 const TERM_PAGES = 40;
 const cache = new IdbCache();
+const memory = new IdbMemory();
 const controllers = new Map<string, AbortController>();
 
 /** Bundled Noto faces, fetched from public/fonts on the first PDF job and kept for the session. */
@@ -72,6 +88,41 @@ function polishOptions(job: TextJob | DocxJob | PdfJob) {
       : {}),
     ...(job.englishSpelling ? { englishSpelling: job.englishSpelling } : {}),
   };
+}
+
+/**
+ * Writes what a finished document job learned into the translation memory: the engine's
+ * translations and the review step's corrections, each correction under the language its
+ * paragraph was translated from (a paragraph in another language than the document's is
+ * translated from its own; one already in the target language is no translation).
+ */
+async function learn(
+  session: MemorySession,
+  pair: LangPair,
+  segments: { source: string; target: string; manual: boolean }[],
+): Promise<void> {
+  const own = segments.some((s) => s.manual)
+    ? ownLanguages([...new Set(segments.map((s) => s.source))], pair.source)
+    : new Map<string, string>();
+  const corrections = segments.flatMap((s) => {
+    const from = own.get(s.source) ?? pair.source;
+    return s.manual && from !== pair.target
+      ? [{ pair: { source: from, target: pair.target }, source: s.source, target: s.target }]
+      : [];
+  });
+  try {
+    await session.finish(corrections);
+  } catch {
+    // Storage full or unavailable: the document is done all the same (the cache failing would
+    // have stopped the job before).
+  }
+}
+
+/** The segments of a Word, PowerPoint or LaTeX report that were translated or edited. */
+function wordSegments(report: DocxReport) {
+  return report.segments
+    .filter((s) => s.status !== 'skipped')
+    .map((s) => ({ source: s.sourceTagged, target: s.targetTagged, manual: s.manual }));
 }
 
 function encodeParagraphs(job: TextJob) {
@@ -266,6 +317,7 @@ const api: PipelineApi = {
   async translateDocx(job, onProgress, chrome) {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);
+    const session = new MemorySession(memory);
     try {
       const { bytes, report, translations } = await translateDocx(
         new Uint8Array(await job.file.arrayBuffer()),
@@ -284,12 +336,14 @@ const api: PipelineApi = {
           translateMetadata: job.translateMetadata,
           ...(job.overrides ? { overrides: job.overrides } : {}),
           cache,
+          memory: session,
           signal: controller.signal,
           ...(onProgress
             ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
             : {}),
         },
       );
+      await learn(session, job.pair, wordSegments(report));
       return transfer({ ok: true as const, bytes, report, translations }, [bytes.buffer]);
     } catch (error) {
       return toJobError(error, controller.signal);
@@ -301,6 +355,7 @@ const api: PipelineApi = {
   async translatePdf(job, onProgress, chrome) {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);
+    const session = new MemorySession(memory);
     try {
       const { mono, dual, editable, report, translations } = await translatePdf(
         new Uint8Array(await job.file.arrayBuffer()),
@@ -325,11 +380,21 @@ const api: PipelineApi = {
           dual: job.dual,
           editable: true,
           cache,
+          memory: session,
           signal: controller.signal,
           ...(onProgress
             ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
             : {}),
         },
+      );
+      await learn(
+        session,
+        job.pair,
+        report.units.map((u) => ({
+          source: u.sourceTagged,
+          target: u.targetTagged,
+          manual: u.manual,
+        })),
       );
       return transfer({ ok: true as const, mono, dual, editable, report, translations }, [
         mono.buffer,
@@ -368,6 +433,7 @@ const api: PipelineApi = {
   async translateLatex(job, onProgress, chrome) {
     const controller = new AbortController();
     controllers.set(job.jobId, controller);
+    const session = new MemorySession(memory);
     try {
       const { bytes, zip, report, translations } = await translateLatex(
         new Uint8Array(await job.file.arrayBuffer()),
@@ -382,12 +448,14 @@ const api: PipelineApi = {
           ...(job.replay ? { replay: job.replay } : polishOptions(job)),
           ...(job.overrides ? { overrides: job.overrides } : {}),
           cache,
+          memory: session,
           signal: controller.signal,
           ...(onProgress
             ? { onProgress: (d: number, t: number, p?: ProgressPhase) => void onProgress(d, t, p) }
             : {}),
         },
       );
+      await learn(session, job.pair, wordSegments(report));
       return transfer({ ok: true as const, bytes, zip, report, translations }, [bytes.buffer]);
     } catch (error) {
       return toJobError(error, controller.signal);
@@ -433,6 +501,25 @@ const api: PipelineApi = {
     return termbaseToCsv(glossariesToPack(await loadAllGlossaries()));
   },
   clearCache: () => cache.clear(),
+
+  memoryStats: () => memory.stats(),
+  async exportMemory(pair) {
+    return writeTmx(await memory.all(pair), version);
+  },
+  async importMemory(file) {
+    if (file.size > TMX_LIMITS.maxBytes) return { ok: false, reason: 'too-large' };
+    const read = readTmx(tmxText(new Uint8Array(await file.arrayBuffer())));
+    if (!read) return { ok: false, reason: 'unreadable' };
+    const now = Date.now();
+    const entries = read.units.map((u): MemoryEntry => ({
+      ...u,
+      origin: 'imported',
+      updated: u.updated ?? now,
+    }));
+    const added = await memory.put(entries);
+    return { ok: true, added, older: folded(entries).size - added, skipped: read.skipped };
+  },
+  clearMemory: () => memory.clear(),
 };
 
 expose(api);

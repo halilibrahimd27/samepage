@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { pipelineClient } from '../pipelineClient';
 import { useI18n, UI_LANGS, type UiLang } from '../i18n';
 import type { Settings } from '../settings';
+import { MemoryPanel } from './MemoryPanel';
 
 const TOGGLES = [
   ['autoTranslate', 'settings.autoTranslate', 'settings.autoTranslateHint'],
@@ -93,6 +94,7 @@ export function SettingsDrawer(props: {
           </label>
         ))}
       </div>
+      <MemoryPanel open={props.open} />
       <div className="mt-8 flex flex-col items-start gap-3 border-t border-slate-200 pt-6 text-sm">
         <button
           type="button"

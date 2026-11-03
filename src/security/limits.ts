@@ -12,3 +12,13 @@ export const LIMITS = {
 
 /** A `.samepage` project: the largest document plus its translations (P9.5). */
 export const PROJECT_MAX_BYTES = LIMITS.pdfMaxBytes + 50 * 1024 * 1024;
+
+/**
+ * A TMX translation memory to import: the file, the translation units read from it (the rest
+ * are skipped and counted) and the length of one segment.
+ */
+export const TMX_LIMITS = {
+  maxBytes: 20 * 1024 * 1024,
+  maxUnits: 20_000,
+  maxSegmentChars: 20_000,
+} as const;

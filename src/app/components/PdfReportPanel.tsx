@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { PdfReport } from '../../pdf/pipeline';
 import { useI18n } from '../i18n';
-import { urgency, type ShownIssue } from '../issues';
+import { fromMemory, urgency, type ShownIssue } from '../issues';
 import { IssueList } from './IssueList';
 import type { LangPair } from '../../engines/types';
 import { BackTranslation } from './BackTranslation';
@@ -43,6 +43,7 @@ export function PdfReportPanel({
       (u) =>
         u.manual ||
         u.sourceTagged in edits ||
+        fromMemory(u) ||
         u.status !== 'translated' ||
         // Slight reductions are summarised above, not listed per paragraph.
         u.scale < 0.75 ||
@@ -58,6 +59,7 @@ export function PdfReportPanel({
   const repaired = report.units.filter((u) =>
     u.issues.some((i) => i.code === 'POST_EDITED'),
   ).length;
+  const remembered = report.units.filter(fromMemory).length;
   const list = view === 'all' ? report.units : view === 'meaning' ? meaning : attention;
   const { missingGlyphs, issues, repairs, score, status, overflowNotes, ocr, ...counts } =
     report.summary;
@@ -92,6 +94,15 @@ export function PdfReportPanel({
               data-testid="meaning-repaired"
             >
               {t('report.repaired', { n: repaired })}
+            </span>
+          )}
+          {remembered > 0 && (
+            <span
+              className="rounded bg-sky-100 px-2 py-0.5 text-sm text-sky-900"
+              title={t('report.memoryHint')}
+              data-testid="memory-used"
+            >
+              {t('report.memory', { n: remembered })}
             </span>
           )}
         </span>
@@ -157,10 +168,16 @@ export function PdfReportPanel({
                   <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[u.status]}`}>
                     {t(`pdfReport.status.${u.status}`)}
                   </span>
-                  {(u.manual || u.sourceTagged in edits) && (
+                  {u.manual || u.sourceTagged in edits ? (
                     <span className="rounded bg-violet-100 px-1.5 py-0.5 text-violet-900">
                       {t('review.manual')}
                     </span>
+                  ) : (
+                    fromMemory(u) && (
+                      <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-900">
+                        {t('report.fromMemory')}
+                      </span>
+                    )
                   )}
                   {u.fallback && (
                     <span className="rounded bg-violet-100 px-1.5 py-0.5 text-violet-900">

@@ -1,4 +1,5 @@
 import type { TranslationCache } from '../core/cache/cache';
+import type { MemoryHook } from '../core/memory/memory';
 import { localeFor } from '../core/languages';
 import { storedTranslations, type StoredOutcome } from '../core/project';
 import { bracketedOutcome, titlesToTranslate, type ReferenceTitle } from '../core/referenceTitles';
@@ -67,6 +68,8 @@ export interface PdfOptions {
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
   /** Review-step corrections: tagged source → tagged target. */
   overrides?: Record<string, string>;
+  /** The translation memory: corrections and imported translations used instead of the engine. */
+  memory?: MemoryHook;
   /** Layout repair strategies (all by default). */
   strategies?: RepairInput['strategies'];
   /** Translate bookmarks and the document title (P6.3). */
@@ -480,6 +483,7 @@ export async function translatePdf(
     ...(opts.replay ? { replay: opts.replay } : {}),
     localCitations: opts.localCitations ?? false,
     ...(opts.cache ? { cache: opts.cache } : {}),
+    ...(opts.memory ? { memory: opts.memory } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const bySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
@@ -510,14 +514,17 @@ export async function translatePdf(
   const repairInputs: RepairUnitInput[] = [];
   const preIssues: Issue[] = [];
   for (const u of units) {
+    const base = bySource.get(u.encoded.source)!;
     const o =
       opts.overrides?.[u.encoded.source] !== undefined
         ? {
-            ...bySource.get(u.encoded.source)!,
+            ...base,
             text: opts.overrides[u.encoded.source]!,
             untranslated: false,
+            // The edit replaces whatever the text came from.
+            issues: base.issues.filter((i) => i.code !== 'FROM_MEMORY'),
           }
-        : bySource.get(u.encoded.source)!;
+        : base;
     const report: PdfUnitReport = {
       id: u.id,
       role: u.role,

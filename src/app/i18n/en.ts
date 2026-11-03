@@ -31,6 +31,7 @@ export const en = {
   'batch.done': 'Done',
   'batch.failed': 'Failed',
   'batch.skipped': 'Already in {lang}: left as it is',
+  'batch.memory': '{count} from your translation memory',
   'batch.summary':
     '{translated} translated · {warnings} to review · {untranslated} left in the original',
   'batch.score': 'layout {score}/100',
@@ -173,6 +174,25 @@ export const en = {
   'settings.clearCache': 'Clear translation cache',
   'settings.cacheCleared': 'Translation cache cleared.',
   'settings.playground': 'Open the text playground (developer tool)',
+  'memory.title': 'Translation memory',
+  'memory.hint':
+    'Your corrections and samepage’s translations are kept in this browser. A paragraph you corrected, or one from an imported memory, is translated the same way next time. Export it as a TMX file for OmegaT, Trados or memoQ, or to take it to another computer.',
+  'memory.count': '{entries} entries · {manual} your corrections · {imported} imported',
+  'memory.pair': 'Language pair to export',
+  'memory.allPairs': 'All language pairs',
+  'memory.export': 'Export (.tmx)',
+  'memory.import': 'Import (.tmx)',
+  'memory.imported': 'Entries imported: {added}.',
+  'memory.older': 'Your newer translations of {count} paragraphs were kept.',
+  'memory.skipped': '{count} units could not be read and were skipped.',
+  'memory.tooLarge': 'This file is larger than {mb} MB, the limit for a translation memory.',
+  'memory.unreadable': 'This file could not be read as a TMX translation memory.',
+  'memory.clear': 'Clear translation memory',
+  'memory.clearConfirm':
+    'Delete all {entries} entries, your corrections too? This cannot be undone.',
+  'memory.clearYes': 'Delete everything',
+  'memory.clearNo': 'Keep it',
+  'memory.cleared': 'Translation memory cleared.',
   'playground.title': 'Text playground',
   'playground.description':
     'Paste text, translate it with any engine and inspect validation and fidelity results. Separate paragraphs with a blank line. Markup: **bold**, *italic*, $formula$.',
@@ -299,6 +319,10 @@ export const en = {
   'report.repairedHint':
     'Paragraphs the meaning check found off: translated again and kept only once the check passed',
   'report.technical': 'Technical details',
+  'report.fromMemory': 'From your translation memory',
+  'report.memory': 'Translation memory: {n}',
+  'report.memoryHint':
+    'Paragraphs taken from your corrections or an imported memory instead of the engine',
   'meaning.title': 'Meaning check',
   'meaning.back': 'Back-translation',
   'meaning.negationLost': 'a negation may be lost — the sentence may now say the opposite.',
@@ -318,6 +342,8 @@ export const en = {
     'The table under or above this caption was not recognised: its cells were translated as running text. Please check it.',
   'issue.OCR_LOW_CONFIDENCE':
     'The scan was hard to read here; the recognised text may contain errors.',
+  'issue.FROM_MEMORY':
+    'Taken from your translation memory (an earlier correction or an imported entry), not from the engine.',
   'issue.UNTRANSLATED': 'The translation was identical to the source.',
   'issue.NUMBER_MISMATCH': 'A number differs between source and translation.',
   'issue.CITATION_MISMATCH': 'A citation differs between source and translation.',

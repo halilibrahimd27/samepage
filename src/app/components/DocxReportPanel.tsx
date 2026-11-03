@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { DocxReport } from '../../docx/pipeline';
-import { urgency } from '../issues';
+import { fromMemory, urgency } from '../issues';
 import { IssueList } from './IssueList';
 import type { LangPair } from '../../engines/types';
 import { BackTranslation } from './BackTranslation';
@@ -34,7 +34,8 @@ export function DocxReportPanel({
         s.status === 'warning' ||
         s.status === 'untranslated' ||
         s.manual ||
-        s.sourceTagged in edits,
+        s.sourceTagged in edits ||
+        fromMemory(s),
     )
     .map((seg, order) => ({ seg, order, rank: urgency(seg.issues) }))
     .sort((a, b) => a.rank - b.rank || a.order - b.order)
@@ -44,6 +45,7 @@ export function DocxReportPanel({
   const repaired = report.segments.filter((s) =>
     s.issues.some((i) => i.code === 'POST_EDITED'),
   ).length;
+  const remembered = report.segments.filter(fromMemory).length;
   const list = view === 'all' ? report.segments : view === 'meaning' ? meaning : attention;
   const { repairs, ...counts } = report.summary;
 
@@ -68,6 +70,15 @@ export function DocxReportPanel({
               data-testid="meaning-repaired"
             >
               {t('report.repaired', { n: repaired })}
+            </span>
+          )}
+          {remembered > 0 && (
+            <span
+              className="rounded bg-sky-100 px-2 py-0.5 text-sm text-sky-900"
+              title={t('report.memoryHint')}
+              data-testid="memory-used"
+            >
+              {t('report.memory', { n: remembered })}
             </span>
           )}
         </span>
@@ -123,10 +134,16 @@ export function DocxReportPanel({
                   <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[s.status]}`}>
                     {t(`report.status.${s.status}`)}
                   </span>
-                  {(s.manual || s.sourceTagged in edits) && (
+                  {s.manual || s.sourceTagged in edits ? (
                     <span className="rounded bg-violet-100 px-1.5 py-0.5 text-violet-900">
                       {t('review.manual')}
                     </span>
+                  ) : (
+                    fromMemory(s) && (
+                      <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-900">
+                        {t('report.fromMemory')}
+                      </span>
+                    )
                   )}
                   <span className="text-slate-500">
                     {s.part} · {s.role}

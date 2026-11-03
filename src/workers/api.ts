@@ -10,6 +10,7 @@ import type { EngineId, LangPair } from '../engines/types';
 import type { PdfInspection, Thumbnail } from '../pdf/engine';
 import type { PageIR } from '../core/ir/types';
 import type { PaperParts } from '../core/abstract';
+import type { MemoryStats } from '../core/memory/memory';
 import type { TermSuggestion } from '../core/glossary/detect';
 import type { ProjectManifest, StoredOutcome } from '../core/project';
 import type { OpenedProject } from '../core/projectFile';
@@ -133,6 +134,19 @@ export type LatexJobResult =
     }
   | JobError;
 
+/** What a TMX import brought into the translation memory. */
+export type MemoryImport =
+  | {
+      ok: true;
+      /** Entries written. */
+      added: number;
+      /** Entries not taken: the memory holds a newer correction or import of the same source. */
+      older: number;
+      /** Translation units that could not be read (or were over the limit). */
+      skipped: number;
+    }
+  | { ok: false; reason: 'too-large' | 'unreadable' };
+
 export type TextJobResult =
   | { ok: true; segments: TextSegment[]; tagSurvival: { survived: number; total: number } }
   | JobError;
@@ -203,4 +217,11 @@ export interface PipelineApi {
   writeProject(manifest: ProjectManifest, source: Blob): Promise<Uint8Array>;
   /** Reads an untrusted `.samepage` file; the source buffer is transferred. */
   readProject(file: Blob): Promise<OpenedProject>;
+  /** Entry counts of the translation memory, by origin and language pair. */
+  memoryStats(): Promise<MemoryStats>;
+  /** The translation memory as a TMX 1.4b file: every entry, or one language pair's. */
+  exportMemory(pair?: LangPair): Promise<string>;
+  /** Reads an untrusted TMX file into the translation memory (as imported entries). */
+  importMemory(file: Blob): Promise<MemoryImport>;
+  clearMemory(): Promise<void>;
 }

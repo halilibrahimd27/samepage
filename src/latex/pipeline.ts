@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import type { TranslationCache } from '../core/cache/cache';
+import type { MemoryHook } from '../core/memory/memory';
 import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { storedTranslations, type StoredOutcome } from '../core/project';
 import { decode, encode, readableText, verbatimOf, type Encoded } from '../core/segment/codec';
@@ -23,6 +24,8 @@ export interface LatexOptions {
   englishSpelling?: 'american' | 'british';
   replay?: Record<string, StoredOutcome>;
   overrides?: Record<string, string>;
+  /** The translation memory: corrections and imported translations used instead of the engine. */
+  memory?: MemoryHook;
   cache?: TranslationCache;
   signal: AbortSignal;
   onProgress?: (done: number, total: number, phase?: ProgressPhase) => void;
@@ -207,6 +210,7 @@ export async function translateLatex(
     ...(opts.postEditor ? { postEditor: opts.postEditor } : {}),
     ...(opts.replay ? { replay: opts.replay } : {}),
     ...(opts.cache ? { cache: opts.cache } : {}),
+    ...(opts.memory ? { memory: opts.memory } : {}),
     ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
   });
   const bySource = new Map(requests.map((r, i) => [r.text, outcomes[i]!]));
@@ -223,7 +227,16 @@ export async function translateLatex(
       const raw = opts.overrides?.[enc.source];
       const manual = raw === undefined ? undefined : repairManual(enc.source, raw);
       const base = bySource.get(enc.source)!;
-      const o = manual !== undefined ? { ...base, text: manual, untranslated: false } : base;
+      const o =
+        manual !== undefined
+          ? {
+              ...base,
+              text: manual,
+              untranslated: false,
+              // The edit replaces whatever the text came from.
+              issues: base.issues.filter((i) => i.code !== 'FROM_MEMORY'),
+            }
+          : base;
       let text: string | null = null;
       if (!o.untranslated) {
         try {

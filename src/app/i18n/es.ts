@@ -33,6 +33,7 @@ export const es: Record<MessageKey, string> = {
   'batch.done': 'Terminado',
   'batch.failed': 'Error',
   'batch.skipped': 'Ya está en {lang}: se deja como está',
+  'batch.memory': '{count} de su memoria de traducción',
   'batch.summary':
     '{translated} traducidos · {warnings} para revisar · {untranslated} en el original',
   'batch.score': 'maquetación {score}/100',
@@ -179,6 +180,25 @@ export const es: Record<MessageKey, string> = {
   'settings.clearCache': 'Borrar la caché de traducción',
   'settings.cacheCleared': 'Caché de traducción borrada.',
   'settings.playground': 'Abrir el campo de pruebas de texto (herramienta para desarrolladores)',
+  'memory.title': 'Memoria de traducción',
+  'memory.hint':
+    'Sus correcciones y las traducciones de samepage se guardan en este navegador. Un párrafo que usted corrigió, o que procede de una memoria importada, se traduce igual la próxima vez. Expórtela como archivo TMX para OmegaT, Trados o memoQ, o para llevarla a otro ordenador.',
+  'memory.count': '{entries} entradas · {manual} correcciones suyas · {imported} importadas',
+  'memory.pair': 'Par de idiomas que exportar',
+  'memory.allPairs': 'Todos los pares de idiomas',
+  'memory.export': 'Exportar (.tmx)',
+  'memory.import': 'Importar (.tmx)',
+  'memory.imported': 'Entradas importadas: {added}.',
+  'memory.older': 'Se conservaron sus traducciones más recientes de {count} párrafos.',
+  'memory.skipped': '{count} unidades no se pudieron leer y se omitieron.',
+  'memory.tooLarge': 'Este archivo supera los {mb} MB, el límite de una memoria de traducción.',
+  'memory.unreadable': 'Este archivo no se pudo leer como memoria de traducción TMX.',
+  'memory.clear': 'Vaciar la memoria de traducción',
+  'memory.clearConfirm':
+    '¿Eliminar las {entries} entradas, también sus correcciones? No se puede deshacer.',
+  'memory.clearYes': 'Eliminar todo',
+  'memory.clearNo': 'Conservar',
+  'memory.cleared': 'Memoria de traducción vaciada.',
   'playground.title': 'Campo de pruebas de texto',
   'playground.description':
     'Pegue texto, tradúzcalo con cualquier motor e inspeccione los resultados de validación y fidelidad. Separe los párrafos con una línea en blanco. Marcado: **negrita**, *cursiva*, $fórmula$.',
@@ -306,6 +326,10 @@ export const es: Record<MessageKey, string> = {
   'report.repairedHint':
     'Párrafos señalados por el control de sentido: traducidos de nuevo y aceptados solo tras superar el control',
   'report.technical': 'Detalles técnicos',
+  'report.fromMemory': 'De su memoria de traducción',
+  'report.memory': 'Memoria de traducción: {n}',
+  'report.memoryHint':
+    'Párrafos tomados de sus correcciones o de una memoria importada en lugar del motor',
   'meaning.title': 'Comprobación del significado',
   'meaning.back': 'Retrotraducción',
   'meaning.negationLost':
@@ -328,6 +352,8 @@ export const es: Record<MessageKey, string> = {
     'No se reconoció la tabla de este título: sus celdas se tradujeron como texto corrido. Revísela.',
   'issue.OCR_LOW_CONFIDENCE':
     'El escaneo era difícil de leer aquí; el texto reconocido puede contener errores.',
+  'issue.FROM_MEMORY':
+    'Tomado de su memoria de traducción (una corrección anterior o una entrada importada), no del motor.',
   'issue.UNTRANSLATED': 'La traducción era idéntica al original.',
   'issue.NUMBER_MISMATCH': 'Un número difiere entre el original y la traducción.',
   'issue.CITATION_MISMATCH': 'Una cita difiere entre el original y la traducción.',
