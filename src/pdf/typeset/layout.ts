@@ -18,7 +18,11 @@ export interface LayoutRun {
   linkUri?: string;
   underline?: boolean;
   /** Drawn on a badge (its fill and border). */
-  chip?: { fill: [number, number, number]; stroke?: [number, number, number] };
+  chip?: {
+    fill: [number, number, number];
+    stroke?: [number, number, number];
+    box?: { pad: number; above: number; below: number };
+  };
 }
 
 export interface LayoutLine {
@@ -312,8 +316,9 @@ export function layoutUnit(
     while (before >= 0 && pieces[before]!.space) before--;
     let after = i + 1;
     while (after < pieces.length && pieces[after]!.space) after++;
-    if (!sameChip(pieces[before], p)) p.padLeft = CHIP_PAD * p.size;
-    if (!sameChip(p, pieces[after])) p.padRight = CHIP_PAD * p.size;
+    const pad = (p.chip.box?.pad ?? CHIP_PAD) * p.size;
+    if (!sameChip(pieces[before], p)) p.padLeft = pad;
+    if (!sameChip(p, pieces[after])) p.padRight = pad;
   });
   const tracking = opts.trackingEm ?? 0;
   const spaceFactor = opts.spaceFactor ?? 1;

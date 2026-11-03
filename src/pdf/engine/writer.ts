@@ -12,16 +12,25 @@ import { sanitizePdf } from './sanitize';
  * around its letters in the badge's fill, its border drawn when it had one.
  */
 function pill(
-  run: { x: number; width: number; size: number; chip?: { fill: number[]; stroke?: number[] } },
+  run: {
+    x: number;
+    width: number;
+    size: number;
+    chip?: {
+      fill: number[];
+      stroke?: number[];
+      box?: { pad: number; above: number; below: number };
+    };
+  },
   baseline: number,
   inv: number[],
 ): string {
   const chip = run.chip!;
-  const padX = 0.9 * CHIP_PAD * run.size;
+  const padX = 0.9 * (chip.box?.pad ?? CHIP_PAD) * run.size;
   const x0 = run.x - padX;
   const x1 = run.x + run.width + padX;
-  const y0 = baseline - 1.05 * run.size;
-  const y1 = baseline + 0.4 * run.size;
+  const y0 = baseline - (chip.box?.above ?? 1.05) * run.size;
+  const y1 = baseline + (chip.box?.below ?? 0.4) * run.size;
   const r = Math.min(0.45 * (y1 - y0), 0.5 * (x1 - x0));
   const k = 0.5523 * r;
   const f = (v: number) => (Math.round(v * 100) / 100).toString();

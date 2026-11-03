@@ -20,7 +20,11 @@ export interface PdfStyle {
   linkUri?: string;
   underline?: boolean;
   /** On a badge: its fill and border. */
-  chip?: { fill: [number, number, number]; stroke?: [number, number, number] };
+  chip?: {
+    fill: [number, number, number];
+    stroke?: [number, number, number];
+    box?: { pad: number; above: number; below: number };
+  };
 }
 
 /** One translation unit: a paragraph chain (or a single block) and its tagged text. */

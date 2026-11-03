@@ -18,6 +18,8 @@ export interface RawChar {
 export interface Chip {
   fill: [number, number, number];
   stroke?: [number, number, number];
+  /** Its box round the letters, in ems of their size: beside them, above and below the baseline. */
+  box?: { pad: number; above: number; below: number };
 }
 
 export interface RawLine {

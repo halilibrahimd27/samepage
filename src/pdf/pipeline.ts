@@ -923,8 +923,10 @@ export async function translatePdf(
       const d = policy.postApply.maskDilatePt;
       const masks = [
         ...pages[w.index]!.blocks.flatMap((b) => b.lines.map((l) => l.bbox)),
-        // What we erase on purpose (a twin copy of a paragraph, a drop cap) is no damage.
+        // What we erase on purpose (a twin copy of a paragraph, a drop cap, an underline, a badge
+        // drawn anew with its words) is no damage.
         ...w.redact,
+        ...(w.lineArt ?? []),
         ...(w.cover ?? []).map((c) => c.rect),
         ...w.lines.flatMap((line) =>
           line.runs.map((run) => ({
@@ -934,11 +936,12 @@ export async function translatePdf(
             y1: line.baseline + run.size * 0.3,
           })),
         ),
+        // A note's icon, at its rect's top left (in the margin beside its text).
         ...(w.notes ?? []).map((n) => ({
-          x0: n.rect.x1 - 4,
+          x0: n.rect.x0 - 2,
           y0: n.rect.y0 - 2,
-          x1: n.rect.x1 + 16,
-          y1: n.rect.y0 + 18,
+          x1: n.rect.x0 + 20,
+          y1: n.rect.y0 + 20,
         })),
       ].map((r) => ({
         x0: (r.x0 - d) * scale,

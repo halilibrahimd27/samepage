@@ -188,7 +188,10 @@ function toLine(rawChars: RawChar[], page: RawPage): LineIR {
   )[0];
   const baseline =
     main?.baseline ?? (chars.length ? chars.reduce((s, c) => s + c.y, 0) / chars.length : 0);
-  return { bbox: unionAll(spans.map((s) => s.bbox)), baseline, spans };
+  const bbox = unionAll(spans.map((s) => s.bbox));
+  // A line that opens with a badge starts where the badge does, its text a padding further in.
+  const opening = spans[0]?.chip?.box ? spans[0].chip.box.pad * spans[0].size : 0;
+  return { bbox: { ...bbox, x0: bbox.x0 - opening }, baseline, spans };
 }
 
 /**
@@ -254,9 +257,11 @@ function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
  */
 function joinInlineChips(page: RawPage): { blocks: RawTextBlock[]; chips: Rect[] } {
   // A pill: a filled shape about a line high and a few words wide; its border is drawn apart.
+  // Not white: the paper's own colour behind a few words (Word's shading) is no badge.
   const fills = page.vectors.filter(
     (v) =>
       !v.isStroked &&
+      !v.color.every((c) => c > 0.95) &&
       v.bbox.y1 - v.bbox.y0 >= 6 &&
       v.bbox.y1 - v.bbox.y0 <= 24 &&
       v.bbox.x1 - v.bbox.x0 >= 8 &&
@@ -270,6 +275,65 @@ function joinInlineChips(page: RawPage): { blocks: RawTextBlock[]; chips: Rect[]
     Math.abs(a.y0 - b.y0) < 1.5 &&
     Math.abs(a.x1 - b.x1) < 1.5 &&
     Math.abs(a.y1 - b.y1) < 1.5;
+  const borderOf = (pill: Rect) =>
+    page.vectors.find((v) => v.isStroked && near(v.bbox, expand(pill, 0.5)));
+  /** A badge's colours and its box round its first letter, drawn again in the same proportions. */
+  const chipOf = (pill: RawPage['vectors'][number], first: RawChar): Chip => {
+    const border = borderOf(pill.bbox);
+    const em = Math.max(first.size, 1);
+    const within = (v: number, lo: number, hi: number) =>
+      Math.round(Math.min(hi, Math.max(lo, v)) * 100) / 100;
+    return {
+      fill: pill.color,
+      ...(border ? { stroke: border.color } : {}),
+      box: {
+        pad: within((first.bbox.x0 - pill.bbox.x0) / em, 0.2, 1),
+        above: within((first.y - pill.bbox.y0) / em, 0.8, 1.6),
+        below: within((pill.bbox.y1 - first.y) / em, 0.2, 0.8),
+      },
+    };
+  };
+  /**
+   * Badges MuPDF left in their line (at its start, or within it): marked where they stand. Only a
+   * pill wrapped tightly round some of the line's words, the line going on outside it: a shaded
+   * cell or a box holds all of its text.
+   */
+  const markInPlace = (block: RawTextBlock, line: RawLine) => {
+    const lineMid = (line.bbox.y0 + line.bbox.y1) / 2;
+    const lineHeight = line.bbox.y1 - line.bbox.y0;
+    const isInk = (c: RawChar) => /\S/u.test(c.c);
+    let chars = line.chars;
+    let start: number | undefined;
+    for (const pill of fills) {
+      const p = pill.bbox;
+      if (Math.abs((p.y0 + p.y1) / 2 - lineMid) > 0.3 * lineHeight) continue;
+      if (p.y1 - p.y0 > 2 * lineHeight || p.x1 < line.bbox.x0 || p.x0 > line.bbox.x1) continue;
+      const inside = chars.map((c) => {
+        const x = (c.bbox.x0 + c.bbox.x1) / 2;
+        return x > p.x0 && x < p.x1;
+      });
+      const ink = chars.flatMap((c, i) => (inside[i] && isInk(c) ? [i] : []));
+      if (!ink.length || ink.every((i) => chars[i]!.chip)) continue;
+      if (!chars.some((c, i) => !inside[i] && isInk(c))) continue;
+      const size = chars[ink[0]!]!.size;
+      const tight =
+        chars[ink[0]!]!.bbox.x0 - p.x0 < 1.2 * size &&
+        p.x1 - chars[ink[ink.length - 1]!]!.bbox.x1 < 1.2 * size;
+      if (!tight) continue;
+      const chip = chipOf(pill, chars[ink[0]!]!);
+      chars = chars.map((c, i) =>
+        inside[i] && i >= ink[0]! && i <= ink[ink.length - 1]! ? { ...c, chip } : c,
+      );
+      chips.push(union(p, borderOf(p)?.bbox ?? p));
+      if (ink[0] === chars.findIndex(isInk)) start = p.x0;
+    }
+    if (chars === line.chars) return;
+    // A line that opens with a badge starts where the badge does, its text a padding further in.
+    const bbox =
+      start === undefined ? line.bbox : { ...line.bbox, x0: Math.min(line.bbox.x0, start) };
+    block.lines[block.lines.indexOf(line)] = { ...line, bbox, chars };
+    if (start !== undefined) touched.add(block);
+  };
   for (const block of blocks) {
     for (const line of [...block.lines]) {
       if (line.dir[1] !== 0) continue;
@@ -280,28 +344,32 @@ function joinInlineChips(page: RawPage): { blocks: RawTextBlock[]; chips: Rect[]
       const pill = fills.find(
         (v) => cx > v.bbox.x0 && cx < v.bbox.x1 && cy > v.bbox.y0 && cy < v.bbox.y1,
       );
-      if (!pill) continue;
       // The text it goes on: left of the badge on the same line, a word gap away.
-      const host = blocks
-        .flatMap((b) => b.lines.map((l) => ({ b, l })))
-        .find(
-          ({ l }) =>
-            l !== line &&
-            l.dir[1] === 0 &&
-            l.bbox.x1 <= pill.bbox.x0 + 1 &&
-            pill.bbox.x0 - l.bbox.x1 < 12 &&
-            Math.abs((l.bbox.y0 + l.bbox.y1) / 2 - (pill.bbox.y0 + pill.bbox.y1) / 2) <
-              0.5 * (l.bbox.y1 - l.bbox.y0),
-        );
-      if (!host) continue;
-      const border = page.vectors.find((v) => v.isStroked && near(v.bbox, expand(pill.bbox, 0.5)));
-      const chip: Chip = { fill: pill.color, ...(border ? { stroke: border.color } : {}) };
+      const host =
+        pill &&
+        blocks
+          .flatMap((b) => b.lines.map((l) => ({ b, l })))
+          .find(
+            ({ l }) =>
+              l !== line &&
+              l.dir[1] === 0 &&
+              l.bbox.x1 <= pill.bbox.x0 + 1 &&
+              pill.bbox.x0 - l.bbox.x1 < 12 &&
+              Math.abs((l.bbox.y0 + l.bbox.y1) / 2 - (pill.bbox.y0 + pill.bbox.y1) / 2) <
+                0.5 * (l.bbox.y1 - l.bbox.y0),
+          );
+      if (!pill || !host) {
+        markInPlace(block, line);
+        continue;
+      }
+      const border = borderOf(pill.bbox);
       // The badge's words and the spaces between them; not a space at its edges.
       const inside = line.chars.map((c) => {
         const x = (c.bbox.x0 + c.bbox.x1) / 2;
         return x > pill.bbox.x0 && x < pill.bbox.x1;
       });
       const ink = line.chars.flatMap((c, i) => (inside[i] && /\S/u.test(c.c) ? [i] : []));
+      const chip = chipOf(pill, line.chars[ink[0]!]!);
       const marked = line.chars.map((c, i) =>
         inside[i] && i >= ink[0]! && i <= ink[ink.length - 1]! ? { ...c, chip } : c,
       );
@@ -320,7 +388,32 @@ function joinInlineChips(page: RawPage): { blocks: RawTextBlock[]; chips: Rect[]
       touched.add(host.b);
     }
   }
-  // Blocks the badges cut apart: one over the next at the text's pitch, from one left edge.
+  // Blocks the badges cut apart: one over the next at the text's pitch, from one left edge — not
+  // the next item of a list (a mark left of its first line).
+  // A list's mark: a bullet set as text, or drawn (a small dot or square, as a web page does).
+  const marks = [
+    ...page.blocks
+      .flatMap((b) => b.lines)
+      .filter((l) =>
+        /^[•◦▪▫‣●○■□➢✓–-]$/u.test(
+          l.chars
+            .map((c) => c.c)
+            .join('')
+            .trim(),
+        ),
+      ),
+    ...page.vectors
+      .filter((v) => v.bbox.x1 - v.bbox.x0 <= 6 && v.bbox.y1 - v.bbox.y0 <= 6)
+      .map((v) => ({ bbox: v.bbox })),
+  ];
+  const item = (l: RawLine) =>
+    marks.some(
+      (m) =>
+        m.bbox.x1 <= l.bbox.x0 + 1 &&
+        l.bbox.x0 - m.bbox.x1 < 20 &&
+        Math.abs((m.bbox.y0 + m.bbox.y1) / 2 - (l.bbox.y0 + l.bbox.y1) / 2) <
+          0.6 * (l.bbox.y1 - l.bbox.y0),
+    );
   const out: RawTextBlock[] = [];
   for (const b of blocks.filter((x) => x.lines.length)) {
     const prev = out[out.length - 1];
@@ -331,6 +424,7 @@ function joinInlineChips(page: RawPage): { blocks: RawTextBlock[]; chips: Rect[]
       prev &&
       last &&
       (touched.has(prev) || touched.has(b)) &&
+      !item(next) &&
       Math.abs(next.bbox.x0 - prev.lines[0]!.bbox.x0) < 2 &&
       next.bbox.y0 - last.bbox.y1 < 0.8 * size &&
       next.bbox.y0 > last.bbox.y0
@@ -501,7 +595,7 @@ function splitParagraphs(
   return groups;
 }
 
-function alignment(lines: LineIR[], box: Rect): BlockIR['align'] {
+function alignment(lines: LineIR[], box: Rect, layout?: PageLayout): BlockIR['align'] {
   if (lines.length < 2) {
     const l = lines[0]!;
     const leftGap = l.bbox.x0 - box.x0;
@@ -520,7 +614,11 @@ function alignment(lines: LineIR[], box: Rect): BlockIR['align'] {
   const body = lines.slice(0, -1);
   const fullRight = body.filter((l) => box.x1 - l.bbox.x1 < tol).length / body.length;
   const fullLeft = body.filter((l) => l.bbox.x0 - box.x0 < 12).length / body.length;
-  if (fullRight > 0.8 && fullLeft > 0.6) return 'justify';
+  // Of two lines the first sets the box's width itself: justified only when it ends at one of
+  // the page's text edges (a two-line reference on a ragged page does not).
+  const twoJustified = !layout || layout.edges.some((e) => Math.abs(e - body[0]!.bbox.x1) < tol);
+  if (fullRight > 0.8 && fullLeft > 0.6)
+    return body.length > 1 || twoJustified ? 'justify' : 'left';
   // Centred lines have different lengths; lines that all fill the width are not "centred".
   if (
     lines.every((l) => Math.abs(centre(l) - mid) < 3) &&
@@ -571,6 +669,8 @@ interface PageLayout {
    * a one-and-a-half-spaced thesis). Paragraph gaps are measured against it.
    */
   lineStepEm: number;
+  /** Where many long lines end together: the page's right text edges. */
+  edges: number[];
   /** The text edge a block's lines run to (a column's right margin). */
   edgeFor: (block: Rect) => number;
 }
@@ -588,12 +688,17 @@ function pageLayout(page: RawPage): PageLayout {
     if (g && x - g[g.length - 1]! <= 3) g.push(x);
     else groups.push([x]);
   }
-  const edges = groups
-    .filter((g) => g.length >= Math.max(3, 0.15 * ends.length))
-    .map((g) => Math.max(...g));
-  const onEdge = groups.filter((g) => edges.includes(Math.max(...g))).flat().length;
+  // An edge is where many lines end together, within a few points. Ragged lines ending a point or
+  // two apart all across a column chain into one group, yet few of them meet in any one place.
+  const need = Math.max(3, 0.15 * ends.length);
+  const meet = (g: number[]) =>
+    Math.max(...g.map((x) => g.filter((y) => y <= x && x - y <= 3).length)) >= need;
+  const edgeGroups = groups.filter(meet);
+  const edges = edgeGroups.map((g) => Math.max(...g));
+  const onEdge = edgeGroups.flat().length;
   return {
     justified: ends.length >= 6 && onEdge >= 0.5 * ends.length,
+    edges,
     edgeFor: (r) => edges.find((e) => e >= r.x1 - 3) ?? r.x1,
     lineStepEm: usualLineStep(page),
   };
@@ -746,7 +851,7 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
         role: 'unknown',
         translatable: true,
         lines,
-        align: alignment(lines, bbox),
+        align: alignment(lines, bbox, layout),
         direction: dir,
         columnIndex: 0,
         readingOrder: 0,
@@ -859,6 +964,10 @@ function dropDuplicates(blocks: BlockIR[]): BlockIR[] {
 /** The span with the most characters (not a leading paragraph number or mark). */
 const mainSpan = (line: LineIR) =>
   line.spans.reduce((best, sp) => (sp.text.length > best.text.length ? sp : best), line.spans[0]!);
+/** The first and the last span with letters in it: the words either side of a line break. */
+const opener = (line: LineIR) => line.spans.find((sp) => sp.text.trim()) ?? line.spans[0]!;
+const closer = (line: LineIR) =>
+  [...line.spans].reverse().find((sp) => sp.text.trim()) ?? line.spans[line.spans.length - 1]!;
 
 /** A line ending in a sentence end, not in an abbreviation of a citation ("Lang et al."). */
 const endsSentence = (text: string) =>
@@ -908,9 +1017,12 @@ function mergeSplitParagraphs(
       const hanging = /^\s*\d{1,3}[.)]?\s+\S/u.test(aFirstText) ? 3 * size : 0;
       const leftOk =
         bFirst.bbox.x0 <= a.bbox.x0 + 2 + hanging && bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
-      // In a ruled table's cell the next line goes on whatever its first letter.
+      // In a ruled table's cell the next line goes on whatever its first letter, and so does one
+      // after a separator ("Sigstore (sigstore.dev) ·" | "Open Policy Agent …").
       const continuesLeft =
-        (/^\p{Ll}/u.test(bText) || (cells.has(a) && cells.has(b) && sameCell(a.bbox, b.bbox))) &&
+        (/^\p{Ll}/u.test(bText) ||
+          /[·•–—→]$/u.test(aText) ||
+          (cells.has(a) && cells.has(b) && sameCell(a.bbox, b.bbox))) &&
         leftOk;
       // On a justified page a line that runs to the text edge does not end its paragraph, even
       // when the next line starts with a capital ("We can use Network" | "Property Chains to").
@@ -932,23 +1044,53 @@ function mergeSplitParagraphs(
         ) > 3 &&
         fontA.name === fontB.name &&
         fontA.bold === fontB.bold;
+      // A list item's next lines hang under its text, right of its number or bullet ("4. Models:
+      // … + SHAP." | "Class imbalance …"): they go on whatever the line before ends with. A line
+      // may open with a badge not taken for one, its text a padding further right.
+      const under = (l: LineIR) =>
+        Math.abs(l.bbox.x0 - bFirst.bbox.x0) < Math.max(1.5, 0.45 * size);
+      const hangsUnder =
+        !cells.has(a) &&
+        !cells.has(b) &&
+        BULLET.test(aFirstText.trimStart()) &&
+        !BULLET.test(bText) &&
+        bFirst.bbox.x0 - a.lines[0]!.bbox.x0 > 0.5 * size &&
+        bFirst.bbox.x0 - a.lines[0]!.bbox.x0 < 3 * size &&
+        [...a.lines.slice(1), ...b.lines].every(under) &&
+        // Not a bold numbered heading over its text; a title in italics goes on.
+        opener(a.lines[0]!).font.bold === opener(bFirst).font.bold;
       // A block that opens with a superscript mark is a new item (the next affiliation).
       const lead = bFirst.spans[0]!;
       const opensWithMark =
         MARK_ONLY.test(lead.text.trim()) &&
         lead.size < 0.8 * Math.max(...bFirst.spans.map((x) => x.size));
+      // Small caps mix sizes within a line: a relative tolerance. A line going on at the left may
+      // be mostly smaller type (a web address in code), the words either side of the break the
+      // same size; not a centred line under another (an ORCID line under an affiliation).
+      const close = (x: number, y: number) =>
+        Math.abs(x - y) < Math.max(0.3, 0.08 * Math.max(x, y));
+      const sameSize = close(mainSpan(aLast).size, size);
+      const sameAtBreak =
+        (continuesLeft || hangsUnder) && close(closer(aLast).size, opener(bFirst).size);
+      const em = sameSize ? size : opener(bFirst).size;
       if (
-        !endsSentence(aText) &&
+        (!endsSentence(aText) || hangsUnder) &&
         !opensWithMark &&
-        (continuesLeft || continuesFull || continuesCentred) &&
-        step > 0.5 * size &&
-        (step < Math.max(1.6, layout.lineStepEm + 0.3) * size || (regular && step < 3 * size)) &&
-        // Small caps mix sizes within a line: a relative tolerance.
-        Math.abs(mainSpan(aLast).size - size) < Math.max(0.3, 0.08 * size)
+        (continuesLeft || continuesFull || continuesCentred || hangsUnder) &&
+        step > 0.5 * em &&
+        (step < Math.max(1.6, layout.lineStepEm + 0.3) * em || (regular && step < 3 * em)) &&
+        (sameSize || sameAtBreak)
       ) {
         const lines = [...a.lines, ...b.lines];
         const bbox = union(a.bbox, b.bbox);
-        out[out.length - 1] = { ...a, lines, bbox, align: alignment(lines, bbox) };
+        const chips = [...(a.chips ?? []), ...(b.chips ?? [])];
+        out[out.length - 1] = {
+          ...a,
+          lines,
+          bbox,
+          align: alignment(lines, bbox, layout),
+          ...(chips.length ? { chips } : {}),
+        };
         return;
       }
     }

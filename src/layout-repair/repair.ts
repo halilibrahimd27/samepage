@@ -185,20 +185,23 @@ export function repairDocument(input: RepairInput): RepairOutput {
 
   // Filled boxes holding text (a paragraph's shading, line by line in Word's PDFs) are
   // backgrounds: text set over them collides with nothing. Not a card drawn in a picture of the
-  // page: only its own text may stand on it, a title above runs into it.
+  // page: only its own text may stand on it, a title above runs into it. A badge's pill under a
+  // translated word goes with the word: it is drawn anew wherever the translation sets it.
   const backgroundsByPage = new Map<number, Set<PageIR['vectors'][number]>>();
   const backgroundsOf = (pageIndex: number) => {
     let set = backgroundsByPage.get(pageIndex);
     if (!set) {
       const page = pages[pageIndex]!;
       const lines = page.blocks.flatMap((b) => b.lines.map((l) => l.bbox));
+      const chips = page.blocks.filter((b) => translated.has(b.id)).flatMap((b) => b.chips ?? []);
       set = new Set(
         page.vectors.filter(
           (v) =>
-            v.isRectangle &&
-            !v.isStroked &&
-            !v.picture &&
-            lines.some((l) => coverage(l, v.bbox) > 0.8),
+            (v.isRectangle &&
+              !v.isStroked &&
+              !v.picture &&
+              lines.some((l) => coverage(l, v.bbox) > 0.8)) ||
+            chips.some((c) => coverage(v.bbox, c) > 0.8),
         ),
       );
       backgroundsByPage.set(pageIndex, set);
@@ -544,8 +547,12 @@ export function repairDocument(input: RepairInput): RepairOutput {
         const lastBox = blocks[blocks.length - 1]!.bbox;
         const headBox = head?.blocks[0]!.bbox;
         const headGap = headBox ? Math.max(0, headBox.y0 - lastBox.y1) : 0;
-        // Room down to whatever stands below this part of the column, or the page's content end.
-        const below = fixed
+        // Room down to whatever stands below this part of the column, or the page's content end:
+        // paragraphs set in another part's flow too, which only ever move down.
+        const others = members
+          .filter((m) => !region.includes(m) && m !== head)
+          .map((m) => m.blocks[0]!.bbox);
+        const below = [...fixed, ...others]
           .filter(
             (r) =>
               r.y0 >= lastBox.y1 - 0.5 && Math.min(r.x1, span.x1) - Math.max(r.x0, span.x0) > 2,

@@ -37,7 +37,11 @@ export interface SpanIR {
   /** Underlined (a thin rule drawn under the text in the source). */
   underline?: boolean;
   /** Set on a badge (a pill drawn behind it inside the line): its fill and border. */
-  chip?: { fill: [number, number, number]; stroke?: [number, number, number] };
+  chip?: {
+    fill: [number, number, number];
+    stroke?: [number, number, number];
+    box?: { pad: number; above: number; below: number };
+  };
 }
 
 export interface LineIR {

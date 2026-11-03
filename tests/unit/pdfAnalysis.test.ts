@@ -399,8 +399,78 @@ describe('text in a typewriter font', () => {
     );
     const chip = block!.lines[0]!.spans.find((sp) => sp.chip);
     expect(chip?.text).toMatch(/^Web3 Paketi/u);
-    expect(chip?.chip).toEqual({ fill: [0.93, 0.92, 1], stroke: [0.8, 0.78, 0.95] });
+    // Its box in ems of its letters, to be drawn again in the same proportions.
+    expect(chip?.chip).toEqual({
+      fill: [0.93, 0.92, 1],
+      stroke: [0.8, 0.78, 0.95],
+      box: { pad: 0.61, above: 1.2, below: 0.73 },
+    });
     // Its shape goes with the block, taken off and drawn anew with the translation.
     expect(block!.chips).toHaveLength(1);
+  });
+
+  const lineAt = (y: number, x0: number, text: string, size = 8.4): RawLine => ({
+    bbox: { x0, y0: y, x1: x0 + 4.5 * text.length, y1: y + 10 },
+    dir: [1, 0],
+    wmode: 0,
+    chars: [...text].map((c, i) => ({
+      c,
+      x: x0 + 4.5 * i,
+      y: y + 8,
+      bbox: { x0: x0 + 4.5 * i, y0: y, x1: x0 + 4.5 * (i + 1), y1: y + 10 },
+      font: 'Inter-Regular',
+      size,
+      color: [0, 0, 0] as [number, number, number],
+    })),
+  });
+  const pageOf = (lines: RawLine[], vectors: RawPage['vectors'] = []): RawPage => ({
+    index: 0,
+    width: 595,
+    height: 842,
+    rotation: 0,
+    blocks: lines.map((l) => ({ bbox: l.bbox, lines: [l] })),
+    images: [],
+    vectors,
+    links: [],
+    fonts: {},
+  });
+
+  it('keeps a list item’s next lines with it, whatever the line before ends with', () => {
+    const blocks = analyzeDocument([
+      pageOf([
+        lineAt(425, 52, '4. Models: a rule baseline, logistic regression and boosting.'),
+        lineAt(437.7, 62, 'Class imbalance by weighting; the threshold for a low FPR.'),
+        lineAt(454, 52, '5. Evaluation: leave one family out, by time as well.'),
+      ]),
+    ])[0]!.blocks;
+    expect(blocks.map((b) => blockText(b))).toEqual([
+      '4. Models: a rule baseline, logistic regression and boosting. Class imbalance by weighting; the threshold for a low FPR.',
+      '5. Evaluation: leave one family out, by time as well.',
+    ]);
+  });
+
+  it('marks a badge that opens a line where it stands, the line starting at the badge', () => {
+    const above = lineAt(114, 48, 'Acceptance scenarios are the readable form of done. Each');
+    // The badge's letter sits inside its pill, the sentence going on after it.
+    const opening = lineAt(126.5, 53, 'M  requirement is covered by at least one scenario.');
+    const blocks = analyzeDocument([
+      pageOf(
+        [above, opening],
+        [
+          {
+            bbox: { x0: 48.4, y0: 127.4, x1: 60.6, y1: 138.1 },
+            isRectangle: false,
+            isStroked: false,
+            color: [0.88, 0.96, 0.92],
+          },
+        ],
+      ),
+    ])[0]!.blocks;
+    expect(blocks).toHaveLength(1);
+    const second = blocks[0]!.lines[1]!;
+    expect(second.spans[0]!.text).toBe('M');
+    expect(second.spans[0]!.chip?.fill).toEqual([0.88, 0.96, 0.92]);
+    expect(second.bbox.x0).toBeCloseTo(48.4, 0);
+    expect(blocks[0]!.chips).toHaveLength(1);
   });
 });
