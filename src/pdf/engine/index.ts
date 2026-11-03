@@ -2,6 +2,7 @@ export { inspectPdf, type PdfInspection, type Thumbnail } from './inspect';
 export { openPdfForExtraction, STEXT_OPTIONS, type OpenedPdf } from './extract';
 export {
   openRenderer,
+  renderBackgroundsPng,
   renderPagePixels,
   renderPagePng,
   renderRegionsPng,

@@ -21,6 +21,8 @@ export interface EditableRun {
   link?: string;
   /** A line break before the text (code listings, manual breaks). */
   lineBreak?: boolean;
+  /** Type size in points, where the run's own (a slide's label over its heading). */
+  size?: number;
   /** A footnote reference (index into the footnotes); the run's text is not used. */
   footnote?: number;
 }
@@ -78,7 +80,28 @@ export type EditableItem =
       wide?: boolean;
     }
   /** `picture` indexes the PNGs passed to the writer; size in points. */
-  | { kind: 'picture'; picture: number; width: number; height: number; wide?: boolean };
+  | { kind: 'picture'; picture: number; width: number; height: number; wide?: boolean }
+  /**
+   * A slide: a page of its own at the slide's size, its picture without text behind (`background`
+   * indexes the PNGs), its text in frames where the slide sets it.
+   */
+  | { kind: 'slide'; width: number; height: number; background?: number; frames: Frame[] };
+
+/** Text set at a place on a slide (points from the page's top left corner). */
+export interface Frame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  paragraphs: {
+    runs: EditableRun[];
+    align: Align;
+    size: number;
+    font: string;
+    /** Baseline to baseline, at least. */
+    leading?: number;
+  }[];
+}
 
 /** The PDF's page and type, measured from its running text (points). */
 export interface WordLayout {
@@ -150,16 +173,19 @@ export const MONO = 'Consolas';
 /** Consolas's advance, in em. */
 export const MONO_WIDTH = 0.55;
 
-function runXml(r: EditableRun, hyperlink: boolean, size?: number): string {
+function runXml(r: EditableRun, hyperlink: boolean, size?: number, font?: string): string {
   if (r.footnote !== undefined)
     return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${r.footnote + 1}"/></w:r>`;
+  const face = r.mono ? MONO : font;
   const props = [
     hyperlink ? '<w:rStyle w:val="Hyperlink"/>' : '',
-    r.mono ? `<w:rFonts w:ascii="${MONO}" w:hAnsi="${MONO}" w:cs="${MONO}"/>` : '',
+    face ? `<w:rFonts w:ascii="${esc(face)}" w:hAnsi="${esc(face)}" w:cs="${esc(face)}"/>` : '',
     r.bold ? '<w:b/><w:bCs/>' : '',
     r.italic ? '<w:i/><w:iCs/>' : '',
     r.color && !hyperlink ? `<w:color w:val="${r.color}"/>` : '',
-    size ? `<w:sz w:val="${halfPoints(size)}"/><w:szCs w:val="${halfPoints(size)}"/>` : '',
+    (r.size ?? size)
+      ? `<w:sz w:val="${halfPoints(r.size ?? size!)}"/><w:szCs w:val="${halfPoints(r.size ?? size!)}"/>`
+      : '',
     r.underline && !hyperlink ? '<w:u w:val="single"/>' : '',
     r.superscript ? '<w:vertAlign w:val="superscript"/>' : '',
     r.subscript ? '<w:vertAlign w:val="subscript"/>' : '',
@@ -195,20 +221,62 @@ class Package {
       .join('');
   }
 
-  runs(runs: EditableRun[], size?: number): string {
+  runs(runs: EditableRun[], size?: number, font?: string): string {
     let out = '';
     for (let i = 0; i < runs.length;) {
       const link = runs[i]!.link;
       if (!link) {
-        out += runXml(runs[i]!, false, size);
+        out += runXml(runs[i]!, false, size, font);
         i++;
         continue;
       }
       let inner = '';
-      while (i < runs.length && runs[i]!.link === link) inner += runXml(runs[i++]!, true, size);
+      while (i < runs.length && runs[i]!.link === link)
+        inner += runXml(runs[i++]!, true, size, font);
       out += `<w:hyperlink r:id="${this.linkId(link)}">${inner}</w:hyperlink>`;
     }
     return out;
+  }
+
+  /**
+   * A slide's text at its place: paragraphs in a frame anchored to the page, growing downwards
+   * when the translation runs longer. Word 2007 and WPS set frames alike (text boxes need Word
+   * 2010's shapes).
+   */
+  frame(f: Frame): string {
+    const framePr =
+      `<w:framePr w:w="${twips(f.width)}" w:h="${twips(f.height)}" w:hRule="atLeast" w:wrap="around" ` +
+      `w:hAnchor="page" w:vAnchor="page" w:x="${twips(f.x)}" w:y="${twips(f.y)}"/>`;
+    return f.paragraphs
+      .map(
+        (p) =>
+          `<w:p><w:pPr>${framePr}<w:spacing w:before="0" w:after="0" ${
+            p.leading
+              ? `w:line="${twips(p.leading)}" w:lineRule="atLeast"`
+              : 'w:line="240" w:lineRule="auto"'
+          }/><w:jc w:val="${JC[p.align]}"/></w:pPr>${this.runs(p.runs, p.size, p.font)}</w:p>`,
+      )
+      .join('');
+  }
+
+  /** A slide's picture behind its text, over the whole page. */
+  background(index: number, widthPt: number, heightPt: number): string {
+    const n = ++this.pictureCount;
+    const cx = Math.round(widthPt * EMU_PER_PT);
+    const cy = Math.round(heightPt * EMU_PER_PT);
+    const rel = `rId${this.firstImageRel + index}`;
+    return (
+      `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${n}" behindDoc="1" locked="1" layoutInCell="1" allowOverlap="1">` +
+      `<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionH>` +
+      `<wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV>` +
+      `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>` +
+      `<wp:docPr id="${n}" name="Slide ${n}"/><wp:cNvGraphicFramePr/>` +
+      `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>` +
+      `<pic:nvPicPr><pic:cNvPr id="${n}" name="image${index + 1}.png"/><pic:cNvPicPr/></pic:nvPicPr>` +
+      `<pic:blipFill><a:blip r:embed="${rel}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+      `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+      `</pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`
+    );
   }
 
   paragraph(item: Extract<EditableItem, { kind: 'paragraph' }>): string {
@@ -460,11 +528,12 @@ export async function buildEditableDocx(
   const gap = layout?.gap ?? 0;
   const columnWidth = (textWidth - gap * (columns - 1)) / columns;
   const pkg = new Package(10);
-  const wide = (item: EditableItem) => columns > 1 && !!item.wide;
+  const wide = (item: EditableItem) => columns > 1 && item.kind !== 'slide' && !!item.wide;
   const xml = (item: EditableItem) => {
     const width = wide(item) ? textWidth : columnWidth;
     if (item.kind === 'paragraph') return pkg.paragraph(item);
     if (item.kind === 'table') return pkg.table(item, width);
+    if (item.kind === 'slide') return '';
     // Pictures keep their size on the page, shrunk to the text area when larger.
     const fit = Math.min(1, width / item.width, (0.9 * textHeight) / item.height);
     return pkg.picture(item.picture, item.width * fit, item.height * fit);
@@ -479,7 +548,21 @@ export async function buildEditableDocx(
   // section; a section's properties close it, in an empty paragraph or at the body's end.
   let body = '';
   let first = true;
-  for (let i = 0; i < items.length;) {
+  // Slides: each a section of its own, at the slide's size without margins; its frames come
+  // before the paragraph that holds its picture and closes the section, so they stay on its page.
+  const slides = items.filter((i) => i.kind === 'slide');
+  slides.forEach((s, k) => {
+    const sect =
+      `<w:sectPr><w:pgSz w:w="${twips(s.width)}" w:h="${twips(s.height)}"${s.width > s.height ? ' w:orient="landscape"' : ''}/>` +
+      `<w:pgMar w:top="0" w:right="0" w:bottom="0" w:left="0" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>`;
+    const last = k === slides.length - 1;
+    body +=
+      s.frames.map((f) => pkg.frame(f)).join('') +
+      `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/>${last ? '' : sect}</w:pPr>` +
+      `${s.background !== undefined ? pkg.background(s.background, s.width, s.height) : ''}</w:p>` +
+      (last ? sect : '');
+  });
+  for (let i = slides.length ? items.length : 0; i < items.length;) {
     const across = wide(items[i]!);
     let j = i;
     while (j < items.length && wide(items[j]!) === across) body += xml(items[j++]!);

@@ -166,3 +166,59 @@ export async function renderRegionsPng(
   }
   return out;
 }
+
+/**
+ * Whole pages as PNG with the text in `redact` taken off (images and drawings stay): a slide's
+ * picture behind the text Word sets in frames.
+ */
+export async function renderBackgroundsPng(
+  bytes: Uint8Array,
+  pages: { page: number; redact: Rect[] }[],
+  scale: number,
+  maxPixels = 2400,
+): Promise<Thumbnail[]> {
+  const mupdf = await loadMupdf();
+  const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
+  const out: Thumbnail[] = [];
+  try {
+    for (const { page: index, redact } of pages) {
+      const page = doc.loadPage(index);
+      try {
+        if (page instanceof mupdf.PDFPage && redact.length) {
+          for (const r of redact) {
+            const annot = page.createAnnotation('Redact');
+            annot.setRect([r.x0 - 1, r.y0 - 1, r.x1 + 1, r.y1 + 1]);
+          }
+          page.applyRedactions(
+            false,
+            mupdf.PDFPage.REDACT_IMAGE_NONE,
+            mupdf.PDFPage.REDACT_LINE_ART_NONE,
+            mupdf.PDFPage.REDACT_TEXT_REMOVE,
+          );
+        }
+        const [x0, y0, x1, y1] = page.getBounds();
+        const s = Math.min(scale, maxPixels / Math.max(x1 - x0, y1 - y0, 1));
+        const pixmap = page.toPixmap(
+          mupdf.Matrix.scale(s, s),
+          mupdf.ColorSpace.DeviceRGB,
+          false,
+          false,
+        );
+        try {
+          out.push({
+            png: pixmap.asPNG().slice(),
+            width: pixmap.getWidth(),
+            height: pixmap.getHeight(),
+          });
+        } finally {
+          pixmap.destroy();
+        }
+      } finally {
+        page.destroy();
+      }
+    }
+  } finally {
+    doc.destroy();
+  }
+  return out;
+}

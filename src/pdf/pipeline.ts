@@ -14,6 +14,7 @@ import {
   readOutlineAndTitle,
   openPdfForExtraction,
   openRenderer,
+  renderBackgroundsPng,
   renderRegionsPng,
   writePdf,
   type AppendedPage,
@@ -951,10 +952,14 @@ export async function translatePdf(
     };
     const plan = planEditable(
       pages,
-      units.map((unit) => ({ unit, runs: runsOf(unit) })),
+      units.map((unit) => ({ unit, runs: runsOf(unit), scale: reports.get(unit.id)?.scale ?? 1 })),
       inRange,
     );
-    const crops = await renderRegionsPng(written!.mono, plan.pictures, 2);
+    // Slides: each page behind its text, from the PDF the translation was written on.
+    const crops = [
+      ...(await renderRegionsPng(written!.mono, plan.pictures, 2)),
+      ...(plan.backgrounds?.length ? await renderBackgroundsPng(source, plan.backgrounds, 2) : []),
+    ];
     const title = meta.title.trim() && bySource.get(meta.title);
     editable = await buildEditableDocx(
       plan.items,

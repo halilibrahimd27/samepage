@@ -6,6 +6,7 @@ import type {
   Align,
   EditableItem,
   EditableRun,
+  Frame,
   Indent,
   ParagraphKind,
   TableCell,
@@ -24,13 +25,16 @@ import {
 /**
  * Editable Word output of a translated PDF (P9.4), as a reading-order flow: paragraphs with
  * Word styles, tables, and pictures for figures and display formulas. Pure: the pictures are
- * regions the caller renders from the translated PDF.
+ * regions the caller renders from the translated PDF. A deck of slides is laid out slide by
+ * slide instead: each a page, its text in frames over its picture without text.
  */
 
 export interface EditableUnit {
   unit: PdfUnit;
   /** The translation, or the source when it was not translated. */
   runs: DecodedRun<PdfStyle>[];
+  /** The scale the PDF set the translation at to fit its box (1 = the source's size). */
+  scale?: number;
 }
 
 export interface EditablePlan {
@@ -43,6 +47,11 @@ export interface EditablePlan {
   furniture: number;
   /** The PDF's page and type for Word, when it has running text to measure. */
   layout?: WordLayout;
+  /**
+   * Slides: pages to render without the text set in frames (`redact`), behind it, in the order
+   * the slides' `background` index them.
+   */
+  backgrounds?: { page: number; redact: Rect[] }[];
 }
 
 const FURNITURE: Role[] = ['header', 'footer', 'page-number'];
@@ -59,10 +68,11 @@ const RUNNING: Role[] = [
 
 /**
  * A run's colour; near black is Word's default, and so is near white: text set on a coloured
- * bar in the PDF (a white table caption on blue) would vanish on Word's white page.
+ * bar in the PDF (a white table caption on blue) would vanish on Word's white page. On a slide,
+ * over its own picture, every colour is kept (`exact`).
  */
-const hex = (c: [number, number, number]) =>
-  c.every((v) => v < 0.25) || 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.85
+const hex = (c: [number, number, number], exact = false) =>
+  !exact && (c.every((v) => v < 0.25) || 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.85)
     ? undefined
     : c
         .map((v) =>
@@ -81,9 +91,9 @@ const center = (r: Rect) => ({ x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 });
 const inside = (r: Rect, p: { x: number; y: number }) =>
   p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1;
 
-function styledRun(text: string, style: PdfStyle | undefined): EditableRun {
+function styledRun(text: string, style: PdfStyle | undefined, exact = false): EditableRun {
   if (!style) return { text };
-  const color = hex(style.color);
+  const color = hex(style.color, exact);
   return {
     text,
     ...(style.bold ? { bold: true } : {}),
@@ -92,6 +102,8 @@ function styledRun(text: string, style: PdfStyle | undefined): EditableRun {
     ...(style.family === 'mono' ? { mono: true } : {}),
     ...(color ? { color } : {}),
     ...(style.linkUri ? { link: style.linkUri } : {}),
+    // On a slide each run keeps its size (a small label over its heading).
+    ...(exact ? { size: style.size } : {}),
   };
 }
 
@@ -105,12 +117,12 @@ function formulaRuns(ref: string): EditableRun[] {
 }
 
 /** A unit's runs, split where a display formula interrupts the sentence. */
-function unitPieces(runs: DecodedRun<PdfStyle>[]): EditableRun[][] {
+function unitPieces(runs: DecodedRun<PdfStyle>[], exact = false): EditableRun[][] {
   const pieces: EditableRun[][] = [[]];
   for (const r of runs) {
     const piece = pieces[pieces.length - 1]!;
     if (r.type === 'text') {
-      if (r.text) piece.push(styledRun(r.text, r.style));
+      if (r.text) piece.push(styledRun(r.text, r.style, exact));
       continue;
     }
     const ph = r.placeholder;
@@ -126,7 +138,12 @@ function unitPieces(runs: DecodedRun<PdfStyle>[]): EditableRun[][] {
 }
 
 /** Source text of a block outside the units (kept as it is), with its formatting. */
-function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): EditableRun[] {
+function blockRuns(
+  b: BlockIR,
+  code: boolean,
+  evidence?: HyphenEvidence,
+  exact = false,
+): EditableRun[] {
   const runs: EditableRun[] = [];
   // A listing's lines keep their indentation (Python's blocks), in spaces of its own width.
   const left = Math.min(...b.lines.map((l) => l.bbox.x0));
@@ -141,7 +158,7 @@ function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): Editab
     line.spans.forEach((s: SpanIR, k) => {
       const raised = s.baseline !== undefined && s.baseline < line.baseline - s.size * 0.25;
       const lowered = s.baseline !== undefined && s.baseline > line.baseline + s.size * 0.15;
-      const color = hex(s.color);
+      const color = hex(s.color, exact);
       runs.push({
         text: k === 0 ? pad + s.text : s.text,
         ...(i && code && k === 0 ? { lineBreak: true } : {}),
@@ -151,6 +168,7 @@ function blockRuns(b: BlockIR, code: boolean, evidence?: HyphenEvidence): Editab
         ...(raised ? { superscript: true } : lowered ? { subscript: true } : {}),
         ...(color ? { color } : {}),
         ...(s.linkUri ? { link: s.linkUri } : {}),
+        ...(exact ? { size: s.size } : {}),
       });
     });
   });
@@ -919,10 +937,11 @@ export function planEditable(
   units: EditableUnit[],
   include: (page: number) => boolean = () => true,
 ): EditablePlan {
+  const shown = pages.filter((p) => include(p.index));
+  if (slideDeck(shown)) return planSlides(shown, units);
   const items: EditableItem[] = [];
   const pictures: EditablePlan['pictures'] = [];
   let furniture = 0;
-  const shown = pages.filter((p) => include(p.index));
   const evidence = hyphenEvidence(pages);
   const heading = headingLevels(shown);
   const layout = wordLayout(shown, heading);
@@ -1269,4 +1288,365 @@ function authorGrid(page: PageIR, end: number): BlockIR[][][] | null {
     .sort((a, b) => a[0] - b[0])
     .map(([, cells]) => cells)
     .filter((cells) => cells.length >= 2);
+}
+
+/**
+ * A deck of slides: every page much wider than tall (16:9, 4:3), with text of its own (a scanned
+ * deck's recognised text would be set twice over its picture).
+ */
+export function slideDeck(pages: PageIR[]): boolean {
+  return pages.length > 0 && pages.every((p) => p.width >= 1.25 * p.height && !p.ocr);
+}
+
+/** Top of a font's line to its baseline, and baseline to bottom, in em (Windows metrics). */
+const ASCENT: [RegExp, number, number][] = [
+  [/consolas/i, 0.743, 0.257],
+  [/calibri/i, 0.952, 0.269],
+  [/segoe/i, 1.079, 0.251],
+  [/verdana|tahoma/i, 1.005, 0.21],
+  [/georgia/i, 0.917, 0.219],
+  [/arial/i, 0.905, 0.212],
+];
+const metrics = (font: string) => {
+  const hit = ASCENT.find(([re]) => re.test(font));
+  return { ascent: hit?.[1] ?? 0.891, descent: hit?.[2] ?? 0.216 };
+};
+
+/**
+ * Slides for Word: each page a slide, each block of text (translated or kept) a frame where the
+ * slide sets it, in the slide's colours and type — the size the PDF fitted the translation at.
+ * Furniture is text of the slide too. What is not set in a frame (text turned on its side, words
+ * drawn as pictures) stays in the slide's picture.
+ */
+function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
+  const items: EditableItem[] = [];
+  const backgrounds: NonNullable<EditablePlan['backgrounds']> = [];
+  const evidence = hyphenEvidence(shown);
+  const unitOf = new Map<string, EditableUnit>();
+  for (const u of units) for (const b of u.unit.blocks) unitOf.set(b.id, u);
+  for (const page of shown) {
+    const frames: Frame[] = [];
+    const redact: Rect[] = [];
+    const here = new Set(page.blocks.map((b) => b.id));
+    const done = new Set<string>();
+    const order = [...page.blocks].sort((a, b) => a.readingOrder - b.readingOrder);
+    // The slide's usual type, by characters: a block well above it is a title.
+    const bodySize =
+      quantile(
+        page.blocks.flatMap((x) =>
+          x.lines.flatMap((l) =>
+            l.spans.flatMap((s) => Array<number>(Math.min(200, s.text.length)).fill(s.size)),
+          ),
+        ),
+        0.5,
+      ) || 12;
+    for (const b of order) {
+      if (done.has(b.id) || b.direction[1] !== 0 || !b.lines.length) continue;
+      const u = unitOf.get(b.id);
+      // A unit's text goes in one frame over its blocks on this page, when they stand in one
+      // column; on another page or column, the frame of its first block grows down.
+      const blocks = u
+        ? u.unit.blocks.filter(
+            (x) => here.has(x.id) && x.direction[1] === 0 && xOverlap(x.bbox, b.bbox) > 0,
+          )
+        : [b];
+      for (const x of blocks) done.add(x.id);
+      // Its blocks in another column: their text is in this frame, taken off the picture.
+      for (const x of u?.unit.blocks ?? [])
+        if (here.has(x.id) && !blocks.includes(x) && !done.has(x.id)) {
+          done.add(x.id);
+          redact.push(x.bbox);
+        }
+      if (u && u.unit.blocks[0]!.id !== b.id && !here.has(u.unit.blocks[0]!.id)) {
+        // Its text went in the frame on the page where it starts.
+        redact.push(...blocks.map((x) => x.bbox));
+        continue;
+      }
+      const rect = unionAll(blocks.map((x) => x.bbox));
+      const lines = blocks.flatMap((x) => x.lines);
+      const scale = Math.min(1, Math.max(0.5, u?.scale ?? 1));
+      const pieces = (
+        u ? unitPieces(u.runs, true) : [blockRuns(b, b.role === 'code', evidence, true)]
+      )
+        .filter((r) => r.length)
+        .map((runs) =>
+          lineBreaks(runs, lines).map((r) =>
+            r.size ? { ...r, size: Math.max(4, half(r.size * scale)) } : r,
+          ),
+        );
+      if (!pieces.length) continue;
+      const spans = blocks.flatMap((x) => x.lines.flatMap((l) => l.spans));
+      const font = wordFont(spans);
+      const size = Math.max(4, half(mainSize(b) * scale));
+      const gaps = lines
+        .slice(1)
+        .map((l, i) => l.baseline - lines[i]!.baseline)
+        .filter((d) => d > 0.8 * mainSize(b) && d < 3 * mainSize(b));
+      const leading = gaps.length ? half(quantile(gaps, 0.5) * scale) : undefined;
+      const { ascent, descent } = metrics(font);
+      const first = lines[0]!.baseline;
+      // Word sets the first baseline an ascent below the frame's top, or at the leading less
+      // the descent when the line is set at least that high.
+      const drop = Math.max(ascent * size, leading ? leading - descent * size : 0);
+      const align: Align =
+        b.align === 'justify' ? (lines.length >= 3 ? 'justify' : 'left') : b.align;
+      // Room for Word's fonts and a longer translation: a paragraph a little wider; a line of its
+      // own (a title, a label) up to what stands beside it — the next text, the edge of the box
+      // it is drawn in, the page's edge. Centred text widens on both sides, text set right to the
+      // left.
+      const { left, right, below } = room(page, rect);
+      const slack = Math.min(24, 0.04 * (rect.x1 - rect.x0) + 3);
+      const single = lines.length === 1;
+      const span = (wider: boolean): [number, number] => {
+        if (align === 'center') {
+          const c = (rect.x0 + rect.x1) / 2;
+          const halfWidth = wider
+            ? Math.max((rect.x1 - rect.x0) / 2 + 2, Math.min(c - left, right - c))
+            : (rect.x1 - rect.x0 + slack) / 2;
+          return [c - halfWidth, c + halfWidth];
+        }
+        if (align === 'right')
+          return [wider ? Math.min(left, rect.x0 - 2) : rect.x0 - slack, rect.x1];
+        return [rect.x0, wider ? Math.max(right, rect.x1 + 2) : rect.x1 + slack];
+      };
+      const top = Math.max(0, first - drop);
+      // A translation longer in Word's type than the slide's box: its own box first, in type a
+      // little smaller rather than a line more; then it runs down to the text below it; then its
+      // type shrinks to fit. A title widens into the room beside it (as the PDF's box did)
+      // before it runs down, running text the other way round.
+      const own = rect.y1 - top + 0.2 * size;
+      const fits = (s: [number, number], f: number, height: number) =>
+        setHeight(pieces, s[1] - s[0], font, size, leading, f) <= height + 2;
+      const [narrow, wide] = [span(single), span(true)];
+      const title = mainSize(b) >= 1.3 * bodySize;
+      const down = below - top;
+      const widths = title ? [narrow, wide] : [narrow];
+      const tries: [[number, number], number, number][] = [
+        ...[1, 0.95, 0.9, 0.85].flatMap((v) =>
+          widths.map((s): [[number, number], number, number] => [s, own, v]),
+        ),
+        ...(title ? [wide, narrow] : [narrow, wide]).map(
+          (s): [[number, number], number, number] => [s, down, 1],
+        ),
+      ];
+      const chosen = tries.find(([s, h, v]) => fits(s, v, h));
+      const [x0, x1] = chosen?.[0] ?? wide;
+      let f = chosen?.[2] ?? 1;
+      while (f > 0.6 && !fits([x0, x1], f, down)) f -= 0.05;
+      const fit = (v: number) => Math.max(4, half(v * f));
+      frames.push({
+        x: Math.max(0, x0),
+        y: top,
+        width: Math.min(page.width, x1) - Math.max(0, x0),
+        height: Math.max(size, rect.y1 - rect.y0),
+        paragraphs: pieces.map((runs) => ({
+          runs: f < 1 ? runs.map((r) => (r.size ? { ...r, size: fit(r.size) } : r)) : runs,
+          align,
+          size: fit(size),
+          font,
+          ...(leading ? { leading: half(leading * f) } : {}),
+        })),
+      });
+      for (const x of blocks)
+        redact.push(x.bbox, ...(x.underlines ?? []), ...(x.extraRedact ?? []));
+    }
+    backgrounds.push({ page: page.index, redact });
+    items.push({
+      kind: 'slide',
+      width: page.width,
+      height: page.height,
+      background: backgrounds.length - 1,
+      frames,
+    });
+  }
+  return { items, footnotes: [], pictures: [], furniture: 0, backgrounds };
+}
+
+/**
+ * How far a block of a slide may grow: across to the nearest text beside it, the box it is drawn
+ * in, or the page's edge; down to the text under it.
+ */
+function room(page: PageIR, r: Rect): { left: number; right: number; below: number } {
+  // Within the slide's text: no wider than its widest lines reach.
+  const text = page.blocks.filter((b) => b.direction[1] === 0).map((b) => b.bbox);
+  let left = Math.max(Math.min(r.x0, 18), Math.min(...text.map((o) => o.x0)));
+  let right = Math.min(Math.max(r.x1, page.width - 18), Math.max(...text.map((o) => o.x1)));
+  let below = page.height - 12;
+  const beside = (o: Rect) =>
+    Math.min(o.y1, r.y1) - Math.max(o.y0, r.y0) > 0.3 * Math.min(r.y1 - r.y0, o.y1 - o.y0);
+  // The text around it, and the panels and cards drawn beside or under it.
+  const contains = (o: Rect) =>
+    o.x0 <= r.x0 + 1 && o.x1 >= r.x1 - 1 && o.y0 <= r.y0 + 1 && o.y1 >= r.y1 - 1;
+  const obstacles = [
+    ...page.blocks.map((b) => b.bbox),
+    ...page.vectors
+      .filter((v) => v.isRectangle && !contains(v.bbox))
+      .map((v) => v.bbox)
+      .filter((o) => (o.x1 - o.x0) * (o.y1 - o.y0) < 0.9 * page.width * page.height),
+  ];
+  for (const o of obstacles) {
+    if (o === r) continue;
+    if (o.y0 >= r.y1 - 1 && xOverlap(o, r) > 0) below = Math.min(below, o.y0 - 2);
+    if (!beside(o)) continue;
+    if (o.x0 >= r.x1 - 1) right = Math.min(right, o.x0 - 6);
+    else if (o.x1 <= r.x0 + 1) left = Math.max(left, o.x1 + 6);
+  }
+  const box = page.vectors
+    .filter(
+      (v) =>
+        v.isRectangle &&
+        v.bbox.x0 <= r.x0 + 1 &&
+        v.bbox.x1 >= r.x1 - 1 &&
+        v.bbox.y0 <= r.y0 + 1 &&
+        v.bbox.y1 >= r.y1 - 1 &&
+        (v.bbox.x1 - v.bbox.x0) * (v.bbox.y1 - v.bbox.y0) < 0.9 * page.width * page.height,
+    )
+    .sort(
+      (a, b) =>
+        (a.bbox.x1 - a.bbox.x0) * (a.bbox.y1 - a.bbox.y0) -
+        (b.bbox.x1 - b.bbox.x0) * (b.bbox.y1 - b.bbox.y0),
+    )[0];
+  if (box) {
+    left = Math.max(left, box.bbox.x0 + 4);
+    right = Math.min(right, box.bbox.x1 - 4);
+    below = Math.min(below, box.bbox.y1 - 2);
+  }
+  return { left: Math.min(left, r.x0), right: Math.max(right, r.x1), below: Math.max(below, r.y1) };
+}
+
+/** Width of a font's letters against Arial's. */
+const FONT_WIDTH: [RegExp, number][] = [
+  [/verdana/i, 1.15],
+  [/tahoma|georgia/i, 1.05],
+  [/times|garamond/i, 0.9],
+  [/calibri/i, 0.9],
+];
+
+/** Rough width of text as Word sets it (points): capitals, digits, narrow letters, spaces. */
+function textWidth(text: string, size: number, font: string, bold: boolean): number {
+  if (font === MONO) return [...text].length * MONO_WIDTH * size;
+  let em = 0;
+  for (const ch of text)
+    em += /\s/u.test(ch)
+      ? 0.28
+      : /\p{Lu}/u.test(ch)
+        ? 0.68
+        : /\d/u.test(ch)
+          ? 0.56
+          : /[iljtfrI.,:;'’!|]/u.test(ch)
+            ? 0.3
+            : /\p{L}/u.test(ch)
+              ? 0.53
+              : 0.4;
+  const factor = FONT_WIDTH.find(([re]) => re.test(font))?.[1] ?? 1;
+  return em * size * factor * (bold ? 1.07 : 1);
+}
+
+/**
+ * The height a frame's paragraphs take at `width` (points), their type scaled by `f`: words laid
+ * line by line as Word breaks them, each line as high as its largest type or the leading.
+ */
+function setHeight(
+  pieces: EditableRun[][],
+  width: number,
+  font: string,
+  size: number,
+  leading: number | undefined,
+  f: number,
+): number {
+  let height = 0;
+  for (const runs of pieces) {
+    let x = 0;
+    let line = 0;
+    const end = () => {
+      height += Math.max(leading ? leading * f : 0, 1.17 * (line || size * f));
+      x = 0;
+      line = 0;
+    };
+    for (const r of runs) {
+      if (r.lineBreak && (x || line)) end();
+      const s = (r.size ?? size) * f;
+      const face = r.mono ? MONO : font;
+      for (const word of r.text.split(/(?<=\s)/u)) {
+        const w = textWidth(word, s, face, !!r.bold);
+        if (x && x + textWidth(word.trimEnd(), s, face, !!r.bold) > width) end();
+        x += w;
+        line = Math.max(line, s);
+      }
+    }
+    end();
+  }
+  return height;
+}
+
+const lineSize = (l: BlockIR['lines'][number]) => Math.max(0, ...l.spans.map((s) => s.size));
+
+/**
+ * The lines of a slide's text that the translation runs together: list items that each open
+ * with the same sign ("> SCA", "> SAST") and lines of their own size (a small "01" over its
+ * heading) start a line again in the translation.
+ */
+function lineBreaks(runs: EditableRun[], lines: BlockIR['lines']): EditableRun[] {
+  if (lines.length < 2) return runs;
+  const opening = lines.map(
+    (l) => /^\s*([>»•▪►‣◦–→✓✔□■●○*-])\s/u.exec(l.spans.map((s) => s.text).join(''))?.[1],
+  );
+  const mark = opening[0] && opening.every((m) => m === opening[0]) ? opening[0] : null;
+  const sizes = lines.map(lineSize);
+  const stacked = sizes.some(
+    (v, i) => i > 0 && Math.abs(v - sizes[i - 1]!) > 0.25 * Math.max(v, sizes[i - 1]!),
+  );
+  if (!mark && !stacked) return runs;
+  const out: EditableRun[] = [];
+  const add = (r: EditableRun, text: string, br: boolean) => {
+    if (!text) return;
+    if (br && out.length) {
+      const last = out[out.length - 1]!;
+      last.text = last.text.trimEnd();
+    }
+    out.push({
+      ...r,
+      text: br && out.length ? text.trimStart() : text,
+      ...(br && out.length ? { lineBreak: true } : {}),
+    });
+  };
+  for (const r of runs) {
+    const prev = out[out.length - 1];
+    // A run of another size where the source's lines change size.
+    const resized =
+      stacked &&
+      !!prev?.size &&
+      !!r.size &&
+      !r.superscript &&
+      !r.subscript &&
+      Math.abs(prev.size - r.size) > 0.25 * Math.max(prev.size, r.size);
+    if (!mark) {
+      add(r, r.text, resized);
+      continue;
+    }
+    // Before each sign that opens an item, after the first.
+    const parts: string[] = [];
+    let from = 0;
+    // Google may drop the space before it ("SCA> SAST"); not before a dash or star, which also
+    // stand inside words.
+    for (let i = 1; i < r.text.length; i++)
+      if (
+        r.text.startsWith(`${mark} `, i) &&
+        (/\s/u.test(r.text[i - 1]!) || !/[-–*]/u.test(mark))
+      ) {
+        parts.push(r.text.slice(from, i));
+        from = i;
+      }
+    parts.push(r.text.slice(from));
+    parts.forEach((p, i) =>
+      add(
+        r,
+        p,
+        resized && i === 0
+          ? true
+          : p.startsWith(mark) && /\S/u.test(out.map((o) => o.text).join('')),
+      ),
+    );
+  }
+  return out;
 }

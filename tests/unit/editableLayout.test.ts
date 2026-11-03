@@ -262,3 +262,79 @@ describe('editable Word output keeps the layout of the PDF', () => {
     expect(paragraphs(result.items)[0]).toMatchObject({ wide: true });
   });
 });
+
+describe('a deck of slides in Word', () => {
+  const slide = (index: number, blocks: BlockIR[]): PageIR => ({
+    index,
+    width: 960,
+    height: 540,
+    rotation: 0,
+    blocks,
+    images: [],
+    vectors: [],
+    columns: [{ x0: 56, x1: 904, y0: 0, y1: 540 }],
+  });
+  const white = (b: BlockIR): BlockIR => ({
+    ...b,
+    lines: b.lines.map((l) => ({
+      ...l,
+      spans: l.spans.map((s) => ({ ...s, color: [1, 1, 1] as [number, number, number] })),
+    })),
+  });
+
+  it('sets each slide on a page of its own, its text in frames over its picture', async () => {
+    const result = plan([
+      slide(0, [
+        white(
+          block('p0-t', 'heading', 120, ['Pipeline Security'], {
+            x0: 56,
+            x1: 420,
+            size: 40,
+            align: 'left',
+          }),
+        ),
+        block('p0-l', 'body', 300, ['> SCA', '> SAST'], {
+          x0: 72,
+          x1: 140,
+          size: 12,
+          align: 'left',
+        }),
+      ]),
+      slide(1, [
+        block('p1-t', 'heading', 60, ['Second slide'], {
+          x0: 56,
+          x1: 300,
+          size: 24,
+          align: 'left',
+        }),
+      ]),
+    ]);
+    const slides = result.items.flatMap((i) => (i.kind === 'slide' ? [i] : []));
+    expect(slides).toHaveLength(2);
+    expect(result.backgrounds?.map((b) => b.page)).toEqual([0, 1]);
+    // Every block's text is taken off the picture it is set over.
+    expect(result.backgrounds?.[0]?.redact).toHaveLength(2);
+    const [title, list] = slides[0]!.frames;
+    // White text over the slide's dark picture stays white; the title keeps its size.
+    expect(title!.paragraphs[0]!.runs[0]).toMatchObject({ color: 'FFFFFF' });
+    expect(title!.paragraphs[0]!.size).toBe(40);
+    // A list that ran together starts each item on a line again.
+    expect(list!.paragraphs[0]!.runs.filter((r) => r.lineBreak)).toHaveLength(1);
+
+    const docx = await buildEditableDocx(result.items, [new Uint8Array([1]), new Uint8Array([2])], {
+      locale: 'en-US',
+      page: { width: 960, height: 540 },
+    });
+    const xml = await (await JSZip.loadAsync(docx)).file('word/document.xml')!.async('string');
+    expect(xml.match(/<w:sectPr>/g)).toHaveLength(2);
+    expect(xml).toContain('<w:pgSz w:w="19200" w:h="10800" w:orient="landscape"/>');
+    expect(xml).toContain('w:hAnchor="page" w:vAnchor="page"');
+    expect(xml.match(/behindDoc="1"/g)).toHaveLength(2);
+  });
+
+  it('keeps a paper in portrait to its flow', () => {
+    const result = plan([page(0, [block('p0-b', 'body', 100, [words, words])])]);
+    expect(result.items.some((i) => i.kind === 'slide')).toBe(false);
+    expect(result.backgrounds).toBeUndefined();
+  });
+});
