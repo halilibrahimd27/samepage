@@ -8,6 +8,7 @@ import {
   closeBrackets,
   confineTags,
   reattachTags,
+  restoreSigns,
   sentenceCase,
   createBrowserPageEngine,
   piecewise,
@@ -231,6 +232,19 @@ describe('headings with machine engines', () => {
     ).toBe(
       'projeleri <t1>libraries.io</t1> tarafından sağlanan popülerlik bilgilerini kullanmayı amaçlıyoruz.',
     );
+  });
+
+  it('puts back a sign Google moved its span off', () => {
+    // A slide's green list mark: Google dropped it and coloured the first word.
+    expect(
+      restoreSigns('<t1>›</t1> Pipeline neden hedef', '<t1>Why</t1> is the pipeline the target?'),
+    ).toBe('<t1>›</t1> Why is the pipeline the target?');
+    expect(restoreSigns('<t1>></t1> Token hijyeni', '<t1>Token</t1> hygiene')).toBe(
+      '<t1>></t1> Token hygiene',
+    );
+    // Left in the text, it goes back in its span; a span still on its sign is left alone.
+    expect(restoreSigns('<t1>→</t1> Sonuç', '→ <t1>Result</t1>')).toBe('<t1>→</t1> Result');
+    expect(restoreSigns('<t1>•</t1> Bir', '<t1>•</t1> One')).toBe('<t1>•</t1> One');
   });
 
   it('gives a structured abstract its labels in the field’s terms', async () => {

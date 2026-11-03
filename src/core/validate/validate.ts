@@ -344,10 +344,18 @@ export function validateTranslation(input: ValidateInput): ValidationIssue[] {
     return tgtOpen < srcOpen || (srcOpen === count(src, close!) && tgtOpen !== count(tgt, close!));
   });
   const glued = GLUED.filter((re) => re.test(tgtPlain) && !re.test(srcPlain));
+  // A bracket left open or closed twice where the source's pair up ("(EU, 2023)" → "(EU (2023)",
+  // "(cit. 3. 8. 2020)" → "(kaynak 3. 8 (2020)"): Google broke the sentence there inside a big
+  // batch; alone it rarely does.
+  const unpaired = ['()', '[]'].some(([open, close]) => {
+    const [src, tgt] = [suffixes(srcPlain), suffixes(tgtPlain)];
+    return count(src, open!) === count(src, close!) && count(tgt, open!) !== count(tgt, close!);
+  });
   // A sentence the engine broke at a number ("2-3 курса" → "… görülüyor.3 Kurs …"): its meaning
   // went with it, though every number is there.
   if (BROKEN_AT_NUMBER.test(tgtPlain) && !BROKEN_AT_NUMBER.test(srcPlain))
     err('PUNCTUATION_CHANGED', 'a sentence was broken at a number');
+  else if (unpaired) err('PUNCTUATION_CHANGED', 'a bracket is left open or closed twice');
   else if (bracketsLost || glued.length) {
     // Only English terms the source gives again in brackets left out ("registro (log)"): Google
     // drops them as said twice, the meaning is all there.

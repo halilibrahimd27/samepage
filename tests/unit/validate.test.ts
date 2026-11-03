@@ -136,6 +136,14 @@ describe('validateTranslation', () => {
     expect(
       codes(source, 'The difference is significant (p < 0,01). Machine systems are faster.'),
     ).not.toContain('PUNCTUATION_CHANGED');
+    // A bracket left open where the source's pair up: an error, so the paragraph goes again.
+    const open = validateTranslation({
+      source: 'B.2. MAGÁNYOSSÁG PREVALENCIA (EU, 2023)',
+      target: 'B.2. YALNIZLIĞIN YAYGINLIĞI (EU (2023)',
+      sourceLang: 'hu',
+      targetLang: 'tr',
+    }).filter((i) => i.code === 'PUNCTUATION_CHANGED');
+    expect(open.map((i) => i.severity)).toEqual(['error']);
     // A plural in brackets becomes a plain plural.
     expect(
       validateTranslation({

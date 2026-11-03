@@ -221,6 +221,33 @@ export function confineTags(source: string, target: string): string {
 }
 
 /**
+ * A sign set apart in its own span ("<t1>›</t1> Pipeline neden hedef", a list mark in the
+ * slide's green) that Google dropped, moving the span onto a word ("<t1>Why</t1> is the
+ * pipeline the target?"): the sign comes back in its span — where the source has it at the
+ * start, at the start — and the word leaves it.
+ */
+export function restoreSigns(source: string, target: string): string {
+  let out = target;
+  for (const m of source.matchAll(/<t(\d+)>(\s*[^\p{L}\p{N}\s⟦⟧<>]{1,3}\s*|\s*>\s*)<\/t\1>/gu)) {
+    const [whole, id, sign] = m as unknown as [string, string, string];
+    const span = new RegExp(`<t${id}>([^<]*)</t${id}>`, 'u').exec(out);
+    if (!span || span[1]!.trim() === sign.trim() || !/\p{L}/u.test(span[1]!)) continue;
+    const unwrapped = out.replace(span[0], span[1]!);
+    const plain = sign.trim();
+    // The sign where Google left it in the text (outside the tags, whose ">" is no sign).
+    const parts = unwrapped.split(/(<\/?t\d+>)/u);
+    const at = parts.findIndex((p, k) => k % 2 === 0 && p.includes(plain));
+    if (at >= 0) {
+      parts[at] = parts[at]!.replace(plain, `<t${id}>${plain}</t${id}>`);
+      out = parts.join('');
+    } else if (source.trimStart().startsWith(whole.trimStart()))
+      out = `<t${id}>${plain}</t${id}> ${unwrapped.trimStart()}`;
+    else out = unwrapped.replace(span[1]!, `<t${id}>${plain}</t${id}> ${span[1]!.trimStart()}`);
+  }
+  return out;
+}
+
+/**
  * A short span set on its character in the source — a superscript or subscript ("W/m<t3>2</t3>",
  * "CO<t1>2</t1>", "k<t1>p</t1>") — that Google set a space apart ("W/m <t3>2</t3>") goes back on it.
  */
@@ -530,7 +557,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     // Part of the cache key: bumped when results change (2: spaces around placeholders, 3:
     // sentence-level meaning check, 4: identifiers inline, 5: short formulas inline, 6: every
     // inline formula and LaTeX references as text, 7: frozen numbers as text, 8: brackets and full stops, 9: empty brackets, 10: section numbers, 11: research question labels, citations unglued, 12: no space before punctuation, 13: dropped closing brackets, 14: a comma made a bracket, 15: short years spelled out, 16: Latin glosses kept, 17: only a changed number as a span, 18: a number held in place flagged, 19: a note's number pinned, 20: a gloss after its quoted term, 21: decimals found either way, 22: with or without their leading zero, 23: a held number back in its bracket, 24: short formulas as text, 25: signs as themselves, 26: punctuation as itself, 27: no bracket opened twice, 28: chemical formulas whole, 29: text translated piece by piece between spans refused, 30: superscripts on their character, 31: dropped bracketed terms kept, 32: headings in capitals sent in sentence case, 33: only terms ending the text kept as spans).
-    model: 'browser-page-33',
+    model: 'browser-page-34',
     // Each batch must fit on one screen of the translation helper (ADR-021) in tiny type.
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
@@ -646,7 +673,10 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
             unpin(
               dropAddedFullStop(
                 s.text,
-                reattachTags(s.text, confineTags(s.text, fix(out[i]!, s.text))),
+                reattachTags(
+                  s.text,
+                  restoreSigns(s.text, confineTags(s.text, fix(out[i]!, s.text))),
+                ),
               ),
               pinned[i]!,
             ),
