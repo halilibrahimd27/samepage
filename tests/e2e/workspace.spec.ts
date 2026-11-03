@@ -47,7 +47,8 @@ test('polishing flagged sentences with Claude asks for the user’s own key', as
   await page.goto('./');
   await page.getByTestId('file-input').setInputFiles('tests/corpus/pdf/one-column-basic.pdf');
   await expect(page.getByTestId('thumbnail')).toBeVisible({ timeout: 30_000 });
-  // Offered with the default engine (Google), off until chosen.
+  // Offered with the default engine (Google) under "Engine and quality", off until chosen.
+  await page.getByText('Engine and quality').click();
   const toggle = page.getByTestId('polish-toggle');
   await expect(toggle).not.toBeChecked();
   await toggle.check();

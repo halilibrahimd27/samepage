@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ANTHROPIC_MODELS } from '../../engines/anthropicModels';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
@@ -16,6 +17,11 @@ export function EngineConfigPanel({
 }) {
   const { t } = useI18n();
   const sameLanguage = config.source === config.target;
+  // Open when the engine was changed or other engines are shown; then as the user leaves it.
+  const [toggled, setToggled] = useState<boolean | null>(null);
+  const open =
+    toggled ??
+    (settings.showTestEngine || settings.showAdvancedEngines || config.engine !== 'browser');
   return (
     <div className="flex flex-col gap-6">
       <section className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
@@ -49,87 +55,105 @@ export function EngineConfigPanel({
         )}
       </section>
 
-      <EnginePicker
-        value={config.engine}
-        onChange={config.setEngine}
-        showTestEngine={settings.showTestEngine}
-        showAdvanced={settings.showAdvancedEngines}
-      />
+      {/* The best engine (Google) is set; changing it, or adding Claude, is a choice for those who
+          want it. */}
+      <details
+        className="rounded-xl border border-slate-200 bg-white"
+        open={open}
+        onToggle={(e) => setToggled(e.currentTarget.open)}
+        data-testid="engine-options"
+      >
+        <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm">
+          <span className="font-medium">{t('config.engineAndQuality')}</span>
+          <span className="text-slate-600">
+            {t(`engine.${config.engine}.label`)}
+            {config.polishing ? ' + Claude' : ''}
+          </span>
+        </summary>
+        <div className="flex flex-col gap-6 border-t border-slate-200 p-4">
+          <EnginePicker
+            value={config.engine}
+            onChange={config.setEngine}
+            showTestEngine={settings.showTestEngine}
+            showAdvanced={settings.showAdvancedEngines}
+          />
 
-      {config.engine === 'anthropic' && <ClaudeFields config={config} />}
+          {config.engine === 'anthropic' && <ClaudeFields config={config} />}
 
-      {(config.engine === 'browser' || config.engine === 'chrome-builtin') && (
-        <div
-          className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4"
-          data-testid="polish"
-        >
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={config.polish}
-              onChange={(e) => config.setPolish(e.target.checked)}
-              data-testid="polish-toggle"
-            />
-            <span>
-              <span className="font-medium">{t('polish.label')}</span>
-              <span className="block text-slate-600">{t('polish.hint')}</span>
-            </span>
-          </label>
-          {config.polish && <ClaudeFields config={config} />}
+          {(config.engine === 'browser' || config.engine === 'chrome-builtin') && (
+            <div
+              className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4"
+              data-testid="polish"
+            >
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={config.polish}
+                  onChange={(e) => config.setPolish(e.target.checked)}
+                  data-testid="polish-toggle"
+                />
+                <span>
+                  <span className="font-medium">{t('polish.label')}</span>
+                  <span className="block text-slate-600">{t('polish.hint')}</span>
+                </span>
+              </label>
+              {config.polish && <ClaudeFields config={config} />}
+            </div>
+          )}
+
+          {config.target === 'en' && (config.engine === 'anthropic' || config.polishing) && (
+            <div className="flex flex-col gap-1">
+              <label htmlFor="english-spelling" className="text-sm font-medium">
+                {t('spelling.label')}
+              </label>
+              <select
+                id="english-spelling"
+                value={config.englishSpelling}
+                onChange={(e) =>
+                  config.setEnglishSpelling(e.target.value as '' | 'american' | 'british')
+                }
+                className={input}
+              >
+                <option value="">{t('spelling.default')}</option>
+                <option value="american">{t('spelling.american')}</option>
+                <option value="british">{t('spelling.british')}</option>
+              </select>
+            </div>
+          )}
+
+          {config.engine === 'openai-compatible' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="base-url" className="text-sm font-medium">
+                  {t('baseUrl.label')}
+                </label>
+                <input
+                  id="base-url"
+                  type="url"
+                  value={config.baseUrl}
+                  onChange={(e) => config.setBaseUrl(e.target.value)}
+                  className={`${input} font-mono`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="local-model" className="text-sm font-medium">
+                  {t('localModel.label')}
+                </label>
+                <input
+                  id="local-model"
+                  value={config.localModel}
+                  onChange={(e) => config.setLocalModel(e.target.value)}
+                  className={`${input} font-mono`}
+                />
+              </div>
+              <p className="text-sm text-slate-600 sm:col-span-2">
+                {t('baseUrl.hint')} {t('localModel.hint')}
+              </p>
+            </div>
+          )}
         </div>
-      )}
-
-      {config.target === 'en' && (config.engine === 'anthropic' || config.polishing) && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="english-spelling" className="text-sm font-medium">
-            {t('spelling.label')}
-          </label>
-          <select
-            id="english-spelling"
-            value={config.englishSpelling}
-            onChange={(e) =>
-              config.setEnglishSpelling(e.target.value as '' | 'american' | 'british')
-            }
-            className={input}
-          >
-            <option value="">{t('spelling.default')}</option>
-            <option value="american">{t('spelling.american')}</option>
-            <option value="british">{t('spelling.british')}</option>
-          </select>
-        </div>
-      )}
-
-      {config.engine === 'openai-compatible' && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="base-url" className="text-sm font-medium">
-              {t('baseUrl.label')}
-            </label>
-            <input
-              id="base-url"
-              type="url"
-              value={config.baseUrl}
-              onChange={(e) => config.setBaseUrl(e.target.value)}
-              className={`${input} font-mono`}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="local-model" className="text-sm font-medium">
-              {t('localModel.label')}
-            </label>
-            <input
-              id="local-model"
-              value={config.localModel}
-              onChange={(e) => config.setLocalModel(e.target.value)}
-              className={`${input} font-mono`}
-            />
-          </div>
-          <p className="text-sm text-slate-600 sm:col-span-2">
-            {t('baseUrl.hint')} {t('localModel.hint')}
-          </p>
-        </div>
-      )}
+      </details>
     </div>
   );
 }

@@ -64,6 +64,8 @@ test('browser engine (manual): translation sheet is harvested into a translated 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByLabel('Translate automatically with Google').uncheck();
   await page.getByRole('button', { name: 'Close' }).click();
+  // Google is the default engine, under "Engine and quality".
+  await page.getByText('Engine and quality').click();
   await page.getByRole('radio', { name: /Google Translate/ }).check();
   await page.getByTestId('file-input').setInputFiles('tests/corpus/docx/academic.docx');
   await page.getByRole('button', { name: 'Translate', exact: true }).click();
@@ -136,6 +138,7 @@ test.describe('browser engine (automatic)', () => {
       route.fulfill({ contentType: 'text/javascript', body: FAKE_ELEMENT_JS }),
     );
     await page.goto('./');
+    await page.getByText('Engine and quality').click();
     await expect(page.getByRole('radio', { name: /Google Translate/ })).toBeChecked();
     await page.getByTestId('file-input').setInputFiles('tests/corpus/docx/academic.docx');
     await page.getByRole('button', { name: 'Translate', exact: true }).click();

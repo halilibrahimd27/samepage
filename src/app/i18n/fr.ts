@@ -67,6 +67,7 @@ export const fr: Record<MessageKey, string> = {
   'config.target': 'Langue cible',
   'config.swap': 'Inverser la langue source et la langue cible',
   'config.engine': 'Moteur de traduction',
+  'config.engineAndQuality': 'Moteur et qualité',
   'config.sameLanguage': 'La langue source et la langue cible doivent être différentes.',
   'config.translate': 'Traduire',
   'config.translateSoon':

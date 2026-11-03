@@ -67,6 +67,7 @@ export const de: Record<MessageKey, string> = {
   'config.target': 'Zielsprache',
   'config.swap': 'Ausgangs- und Zielsprache tauschen',
   'config.engine': 'Übersetzungs-Engine',
+  'config.engineAndQuality': 'Engine und Qualität',
   'config.sameLanguage': 'Ausgangs- und Zielsprache müssen verschieden sein.',
   'config.translate': 'Übersetzen',
   'config.translateSoon':

@@ -64,6 +64,7 @@ export const tr: Record<MessageKey, string> = {
   'config.target': 'Hedef dil',
   'config.swap': 'Kaynak ve hedef dili değiştir',
   'config.engine': 'Çeviri motoru',
+  'config.engineAndQuality': 'Motor ve kalite',
   'config.sameLanguage': 'Kaynak ve hedef dil farklı olmalı.',
   'config.translate': 'Çevir',
   'config.translateSoon': 'Çeviri geliştiriliyor, yakında gelecek bir sürümde eklenecek.',

@@ -62,6 +62,7 @@ export const en = {
   'config.target': 'Target language',
   'config.swap': 'Swap source and target language',
   'config.engine': 'Translation engine',
+  'config.engineAndQuality': 'Engine and quality',
   'config.sameLanguage': 'Source and target language must be different.',
   'config.translate': 'Translate',
   'config.translateSoon': 'Translation is being built and arrives in an upcoming release.',
