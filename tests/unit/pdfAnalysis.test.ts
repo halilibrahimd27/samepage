@@ -274,4 +274,68 @@ describe('text in a typewriter font', () => {
       /^‘It is with/u,
     );
   });
+
+  it('reads a table row of a picture’s text layer cell by cell, a paragraph whole', () => {
+    // A deck saved as pictures: the layer gives a row as one block of its cells side by side.
+    const line = (
+      y: number,
+      x0: number,
+      text: string,
+      size = 11,
+      font = 'Layer Sans',
+    ): RawLine => ({
+      bbox: { x0, y0: y, x1: x0 + 5 * text.length, y1: y + size },
+      dir: [1, 0],
+      wmode: 0,
+      chars: [...text].map((c, i) => ({
+        c,
+        x: x0 + 5 * i,
+        y: y + 0.8 * size,
+        bbox: { x0: x0 + 5 * i, y0: y, x1: x0 + 5 * (i + 1), y1: y + size },
+        font,
+        size,
+        color: [0, 0, 0] as [number, number, number],
+      })),
+    });
+    const slide = (font: string): RawPage => ({
+      index: 0,
+      width: 960,
+      height: 540,
+      rotation: 0,
+      blocks: [
+        {
+          bbox: { x0: 72, y0: 178, x1: 888, y1: 189 },
+          lines: [
+            line(178, 72, 'Ana sayfa geçersiz ya da yok', font === 'Layer Sans' ? 11 : 12, font),
+            line(178, 504, 'Metadata', 12, font),
+            line(178, 729, '%80', 12, font),
+            line(178, 862, '%27', 12, font),
+          ],
+        },
+        // One paragraph, its lines measured a point apart.
+        {
+          bbox: { x0: 64, y0: 404, x1: 400, y1: 440 },
+          lines: [
+            line(404, 64, 'DT’nin JS precision’ı %100, recall’ı', 14, font),
+            line(425, 64, '%68: tek metrik yanıltır', 15, font),
+          ],
+        },
+      ],
+      images: [],
+      vectors: [],
+      links: [],
+      fonts: {},
+    });
+    const texts = (font: string) =>
+      analyzeDocument([slide(font)])[0]!.blocks.map((b) => blockText(b));
+    expect(texts('Layer Sans')).toEqual([
+      'Ana sayfa geçersiz ya da yok',
+      'Metadata',
+      '%80',
+      '%27',
+      'DT’nin JS precision’ı %100, recall’ı %68: tek metrik yanıltır',
+    ]);
+    // A PDF's own text is read as it was: side by side in one block is one line of it.
+    expect(texts('Helvetica')[0]).toBe('Ana sayfa geçersiz ya da yok Metadata %80 %27');
+  });
 });

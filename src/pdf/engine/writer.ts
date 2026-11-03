@@ -13,7 +13,10 @@ export interface PageWrite {
   /** Underline rules of translated text, removed (the translation draws its own). */
   lineArt?: Rect[];
   lines: LayoutLine[];
-  /** PDF notes (annotation fallback): the original text stays, the translation is in the note. */
+  /**
+   * PDF notes (annotation fallback): the original text stays, the translation is in the note,
+   * its icon at the rect's top left.
+   */
   notes?: { rect: Rect; text: string }[];
   /**
    * Areas painted over before the translation is drawn (scanned pages: the recognised text is
@@ -237,7 +240,7 @@ export async function writePdf(
         }
         for (const note of pw.notes ?? []) {
           const annot = page.createAnnotation('Text');
-          annot.setRect([note.rect.x1 - 2, note.rect.y0, note.rect.x1 + 14, note.rect.y0 + 16]);
+          annot.setRect([note.rect.x0, note.rect.y0, note.rect.x0 + 16, note.rect.y0 + 16]);
           annot.setContents(note.text);
           annot.setIcon('Note');
           annot.update();

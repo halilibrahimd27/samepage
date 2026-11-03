@@ -88,7 +88,7 @@ export type EditableItem =
   | { kind: 'slide'; width: number; height: number; background?: number; frames: Frame[] }
   /**
    * Text turned in the page's margin (arXiv's id and date), kept where the page has it (points
-   * from its top left corner); `upward` reads bottom to top.
+   * from its top left corner) as a picture of it (`picture` indexes the PNGs), `text` its words.
    */
   | {
       kind: 'stamp';
@@ -97,10 +97,7 @@ export type EditableItem =
       y: number;
       width: number;
       height: number;
-      upward: boolean;
-      size: number;
-      font: string;
-      color?: string;
+      picture: number;
     };
 
 /** Text set at a place on a slide (points from the page's top left corner). */
@@ -276,40 +273,41 @@ class Package {
   }
 
   /**
-   * Text turned in the margin: a floating table of one cell at its place, its text turned.
-   * Word 2007 and WPS turn a table cell's text, not a frame's.
+   * Text turned in the margin, as a picture at its place: Word 2007 and WPS turn a table cell's
+   * text, but Pages sets it a letter per line.
    */
   stamp(s: Extract<EditableItem, { kind: 'stamp' }>): string {
-    const none = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
-      .map((side) => `<w:${side} w:val="nil"/>`)
-      .join('');
-    const width = twips(s.width + 2);
     return (
-      `<w:tbl><w:tblPr><w:tblpPr w:leftFromText="0" w:rightFromText="0" w:vertAnchor="page" w:horzAnchor="page" ` +
-      `w:tblpX="${twips(Math.max(0, s.x - 1))}" w:tblpY="${twips(Math.max(0, s.y - 2))}"/><w:tblOverlap w:val="overlap"/>` +
-      `<w:tblW w:w="${width}" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/>` +
-      `<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>` +
-      `<w:tblGrid><w:gridCol w:w="${width}"/></w:tblGrid><w:tr><w:trPr><w:trHeight w:val="${twips(s.height + 4)}" w:hRule="exact"/></w:trPr>` +
-      `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:textDirection w:val="${s.upward ? 'btLr' : 'tbRl'}"/><w:vAlign w:val="center"/></w:tcPr>` +
-      `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>` +
-      `${runXml({ text: s.text, ...(s.color ? { color: s.color } : {}) }, false, s.size, s.font)}</w:p></w:tc></w:tr></w:tbl>`
+      `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr>` +
+      `${this.anchored(s.picture, s, false, s.text)}</w:p>`
     );
   }
 
   /** A slide's picture behind its text, over the whole page. */
   background(index: number, widthPt: number, heightPt: number): string {
+    return this.anchored(index, { x: 0, y: 0, width: widthPt, height: heightPt }, true);
+  }
+
+  /** A picture at its place on the page (points from its top left corner), text not moved. */
+  private anchored(
+    index: number,
+    at: { x: number; y: number; width: number; height: number },
+    behind: boolean,
+    description?: string,
+  ): string {
     const n = ++this.pictureCount;
-    const cx = Math.round(widthPt * EMU_PER_PT);
-    const cy = Math.round(heightPt * EMU_PER_PT);
+    const emu = (v: number) => Math.round(v * EMU_PER_PT);
+    const [cx, cy] = [emu(at.width), emu(at.height)];
     const rel = `rId${this.firstImageRel + index}`;
+    const descr = description ? ` descr="${esc(description)}"` : '';
     return (
-      `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${n}" behindDoc="1" locked="1" layoutInCell="1" allowOverlap="1">` +
-      `<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionH>` +
-      `<wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV>` +
+      `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${n}" behindDoc="${behind ? 1 : 0}" locked="1" layoutInCell="1" allowOverlap="1">` +
+      `<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>${emu(at.x)}</wp:posOffset></wp:positionH>` +
+      `<wp:positionV relativeFrom="page"><wp:posOffset>${emu(at.y)}</wp:posOffset></wp:positionV>` +
       `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>` +
-      `<wp:docPr id="${n}" name="Slide ${n}"/><wp:cNvGraphicFramePr/>` +
+      `<wp:docPr id="${n}" name="${behind ? 'Slide' : 'Picture'} ${n}"${descr}/><wp:cNvGraphicFramePr/>` +
       `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>` +
-      `<pic:nvPicPr><pic:cNvPr id="${n}" name="image${index + 1}.png"/><pic:cNvPicPr/></pic:nvPicPr>` +
+      `<pic:nvPicPr><pic:cNvPr id="${n}" name="image${index + 1}.png"${descr}/><pic:cNvPicPr/></pic:nvPicPr>` +
       `<pic:blipFill><a:blip r:embed="${rel}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
       `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
       `</pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`

@@ -2,6 +2,7 @@ import { iou, union, unionAll } from '../../core/ir/geometry';
 import type { BlockIR, LineIR, Rect, SpanIR } from '../../core/ir/types';
 import { coverage } from '../../core/ir/geometry';
 import type { RawChar, RawFont, RawLine, RawPage, RawTextBlock } from '../extract/raw';
+import { fromPicture } from '../ocr/page';
 import type { TableRegion } from './tables';
 
 /** TeX math fonts (Computer/Latin Modern, AMS, txfonts/pxfonts, newtx/newpx, MathTime) and OpenType math. */
@@ -241,6 +242,47 @@ function mergeBaselines(lines: RawLine[], gapLimit: number): RawLine[] {
   return out;
 }
 
+/** An equation's number beside it ("(3)", "(12a)"): kept with the formula. */
+const EQUATION_TAG = /^\(\s*[\p{N}\p{L}.]{1,5}\s*\)$/u;
+
+/**
+ * Text read off a picture keeps the lines a table's cells give it, but a row comes as one block:
+ * lines left side by side on one baseline after `mergeBaselines`, apart by more than a word gap.
+ * Each run of lines that overlap horizontally is a paragraph group of its own; a block of stacked
+ * lines comes back whole, and so does a formula with its number.
+ */
+function sideBySide(lines: RawLine[], fonts: RawPage['fonts']): RawLine[][] {
+  const text = (l: RawLine) =>
+    l.chars
+      .map((c) => c.c)
+      .join('')
+      .trim();
+  const level = lines.filter((l) => l.dir[1] === 0);
+  const paired = level.some((a, i) =>
+    level.some((b, j) => j > i && Math.abs(baselineOf(a) - baselineOf(b)) < 1),
+  );
+  if (
+    !paired ||
+    !lines.every((l) => l.chars.every((c) => fromPicture(c.font))) ||
+    lines.some((l) => EQUATION_TAG.test(text(l))) ||
+    lines.some((l) => l.chars.some((c) => fontInfo(c.font, fonts[c.font]).isMath))
+  )
+    return [lines];
+  const groups: RawLine[][] = [];
+  const boxes: Rect[] = [];
+  for (const line of lines) {
+    const hit = boxes.findIndex((b) => line.bbox.x0 < b.x1 && line.bbox.x1 > b.x0);
+    if (hit < 0) {
+      groups.push([line]);
+      boxes.push({ ...line.bbox });
+      continue;
+    }
+    groups[hit]!.push(line);
+    boxes[hit] = union(boxes[hit]!, line.bbox);
+  }
+  return groups;
+}
+
 const MARK_ONLY = /^[\d*†‡§¶]{1,3}$/u;
 /** List items start a new paragraph: bullets and numbered items ("1. ", "(2) "). */
 const BULLET = /^(?:[•◦▪▫‣●○■□➢✓]|\(?\d{1,2}[.)]\s)/u;
@@ -308,7 +350,11 @@ function splitParagraphs(
             .trim(),
         );
       const prevIsMark = markOnly(prev) && prevSize < 0.8 * size;
-      const sizeChange = Math.abs(size - prevSize) > 0.5 && !prevIsMark;
+      // Sizes read off a picture are measured, a point either way within one paragraph.
+      const pictured = [line, prev].every((l) => l.chars.every((c) => fromPicture(c.font)));
+      const sizeChange =
+        Math.abs(size - prevSize) > (pictured ? 0.15 * Math.max(size, prevSize) : 0.5) &&
+        !prevIsMark;
       const lead = /^[\d*†‡§¶]{1,3}/u.exec(line.chars.map((c) => c.c).join(''))?.[0] ?? '';
       const marked =
         (lead.length > 0 && line.chars.slice(0, lead.length).every((c) => c.size < 0.8 * size)) ||
@@ -531,17 +577,22 @@ export function buildBlocks(page: RawPage, tables: TableRegion[] = []): BlockIR[
   for (const raw of rejoinSplitLines(page.blocks)) {
     const sizes = raw.lines.map(dominantSize);
     const em = sizes.length ? Math.max(...sizes) : 10;
+    // A picture's text layer keeps a line's words together: lines it sets apart are cells.
+    const gap = raw.lines.every((l) => l.chars.every((c) => fromPicture(c.font))) ? 1.2 : 3;
     const cellLines = raw.lines.filter((l) => inTable(l.bbox)).flatMap((l) => cuts.get(l) ?? [l]);
     const flowLines = raw.lines.filter((l) => !inTable(l.bbox));
     const groups = [
       ...cellLines.map((l) => [l]),
       ...(flowLines.length
-        ? splitParagraphs(
-            mergeBaselines(dropShadowLines(flowLines), 3 * em),
-            raw.bbox,
-            backgroundOf,
-            page.fonts,
-            layout,
+        ? sideBySide(mergeBaselines(dropShadowLines(flowLines), gap * em), page.fonts).flatMap(
+            (side, _, all) =>
+              splitParagraphs(
+                side,
+                all.length > 1 ? unionAll(side.map((l) => l.bbox)) : raw.bbox,
+                backgroundOf,
+                page.fonts,
+                layout,
+              ),
           )
         : []),
     ];

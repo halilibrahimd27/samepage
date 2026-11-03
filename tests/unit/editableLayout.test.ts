@@ -220,6 +220,40 @@ describe('editable Word output keeps the layout of the PDF', () => {
     expect(abstract).toMatchObject({ align: 'justify', indent: { left: 30, right: 30 } });
   });
 
+  it('draws a figure of panels as one picture, with the legends and titles between them', () => {
+    const label = (id: string, y: number, text: string, x0: number) =>
+      block(id, 'label', y, [text], { x0, x1: x0 + 4 * text.length, size: 8, align: 'left' });
+    const result = plan([
+      page(
+        0,
+        [
+          block('p0-t', 'heading', 398, ['npm'], { x0: 174, x1: 190, size: 10, align: 'left' }),
+          label('p0-a', 432, 'Total:', 175),
+          label('p0-b', 443, 'Mono-language (npm) = 1229', 175),
+          label('p0-c', 432, 'Total:', 439),
+          label('p0-d', 443, 'Mono-language (PyPI) = 561', 439),
+          block('p0-f', 'caption', 602, ['Figure 4: Comparison of results for the samples'], {
+            x0: 54,
+            x1: 558,
+          }),
+          block('p0-r', 'body', 640, [words, words], { x0: 54, x1: 296 }),
+        ],
+        {
+          figures: [
+            { bbox: { x0: 64, y0: 413, x1: 170, y1: 498 }, formula: false },
+            { bbox: { x0: 330, y0: 413, x1: 436, y1: 498 }, formula: false },
+          ],
+        },
+      ),
+    ]);
+    expect(result.pictures).toHaveLength(1);
+    expect(result.pictures[0]!.rect).toMatchObject({ y0: 396 });
+    expect(result.pictures[0]!.rect.x1).toBeGreaterThan(540);
+    const text = paragraphs(result.items).map((p) => p.runs.map((r) => r.text).join(''));
+    expect(text.some((t) => /Total|Mono-language|^npm/u.test(t))).toBe(false);
+    expect(text.some((t) => t.startsWith('Figure 4'))).toBe(true);
+  });
+
   it('measures paragraph spacing from baselines: none where paragraphs follow line by line', () => {
     const one = (id: string, y: number) =>
       block(id, 'body', y, [words, words, words], { first: 64 });
@@ -332,6 +366,31 @@ describe('a deck of slides in Word', () => {
     expect(xml.match(/behindDoc="1"/g)).toHaveLength(2);
   });
 
+  it('makes a frame as high as its text runs, and sets a number column’s header right', () => {
+    // A table drawn in the slide's picture: its cells as boxes, the header at its cell's right.
+    const cell = (x0: number, x1: number) => ({
+      bbox: { x0, y0: 145, x1, y1: 170 },
+      isRectangle: true,
+      isStroked: false,
+      picture: true,
+    });
+    const result = plan([
+      {
+        ...slide(0, [
+          block('p0-a', 'body', 151, ['Attribute'], { x0: 72, x1: 122, size: 12, align: 'left' }),
+          block('p0-h', 'body', 151, ['Harmful'], { x0: 704, x1: 755, size: 12, align: 'left' }),
+        ]),
+        vectors: [cell(64, 497), cell(629, 762)],
+      },
+    ]);
+    const [slide0] = result.items.flatMap((i) => (i.kind === 'slide' ? [i] : []));
+    const [label, header] = slide0!.frames;
+    expect(label!.paragraphs[0]!.align).toBe('left');
+    expect(header!.paragraphs[0]!.align).toBe('right');
+    // Pages hides a line its box has no room for: a line's height and one more to spare.
+    for (const f of [label!, header!]) expect(f.height).toBeGreaterThan(2 * 12);
+  });
+
   it('keeps a paper in portrait to its flow', () => {
     const result = plan([page(0, [block('p0-b', 'body', 100, [words, words])])]);
     expect(result.items.some((i) => i.kind === 'slide')).toBe(false);
@@ -340,7 +399,7 @@ describe('a deck of slides in Word', () => {
 });
 
 describe('text turned in the margin', () => {
-  it('keeps arXiv’s stamp where the page has it, turned', async () => {
+  it('keeps arXiv’s stamp where the page has it, as a picture of it', async () => {
     const stamp: BlockIR = {
       ...block('p0-s', 'header', 200, ['arXiv:2412.05259v1 [cs.SE] 6 Dec 2024'], {
         x0: 14,
@@ -353,14 +412,19 @@ describe('text turned in the margin', () => {
     };
     const result = plan([page(0, [stamp, block('p0-b', 'body', 100, [words, words])])]);
     const turned = result.items.find((i) => i.kind === 'stamp');
-    expect(turned).toMatchObject({ text: 'arXiv:2412.05259v1 [cs.SE] 6 Dec 2024', upward: true });
-    const docx = await buildEditableDocx(result.items, [], {
+    // Pages sets turned text a letter per line: the stamp goes in as a picture, its words told.
+    expect(turned).toMatchObject({ text: 'arXiv:2412.05259v1 [cs.SE] 6 Dec 2024', x: 13, y: 199 });
+    expect(result.pictures[(turned as { picture: number }).picture]).toEqual({
+      page: 0,
+      rect: { x0: 13, y0: 199, x1: 35, y1: 561 },
+    });
+    const docx = await buildEditableDocx(result.items, [new Uint8Array([1])], {
       locale: 'tr-TR',
       page: { width: 612, height: 792 },
     });
     const xml = await (await JSZip.loadAsync(docx)).file('word/document.xml')!.async('string');
-    expect(xml).toContain('w:horzAnchor="page"');
-    expect(xml).toContain('<w:textDirection w:val="btLr"/>');
-    expect(xml).toContain('arXiv:2412.05259v1');
+    expect(xml).toContain('<wp:positionH relativeFrom="page"><wp:posOffset>165100</wp:posOffset>');
+    expect(xml).toContain('descr="arXiv:2412.05259v1 [cs.SE] 6 Dec 2024"');
+    expect(xml).not.toContain('w:textDirection');
   });
 });

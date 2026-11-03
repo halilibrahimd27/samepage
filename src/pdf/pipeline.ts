@@ -372,6 +372,39 @@ const grow = (r: Rect, d: number): Rect => ({
   y1: r.y1 + d,
 });
 
+const NOTE_ICON = 16;
+
+/**
+ * Where a note's icon goes (its rect): in the margin beside its text, on the side of the page the
+ * text stands on — a viewer draws the icon over whatever is under it, and after a table's cell
+ * that is the next cell. Icons that would meet move further out, or down where the margin ends.
+ */
+function notePlaces(page: PageIR, notes: { rect: Rect; text: string }[]) {
+  const text = page.blocks
+    .filter((b) => b.direction[1] === 0 && !['header', 'footer', 'page-number'].includes(b.role))
+    .map((b) => b.bbox);
+  if (!text.length) return notes;
+  const left = Math.min(...text.map((r) => r.x0));
+  const right = Math.max(...text.map((r) => r.x1));
+  const placed: Rect[] = [];
+  return notes.map((n) => {
+    const leftSide = (n.rect.x0 + n.rect.x1) / 2 < page.width / 2;
+    const out = leftSide ? -(NOTE_ICON + 1) : NOTE_ICON + 1;
+    const fits = (x: number) => x >= 0 && x + NOTE_ICON <= page.width;
+    let x = leftSide ? left - NOTE_ICON - 2 : right + 2;
+    // No margin to speak of: after its text, as before.
+    if (!fits(x)) x = Math.min(n.rect.x1 - 2, page.width - NOTE_ICON);
+    let rect = { x0: x, y0: n.rect.y0, x1: x + NOTE_ICON, y1: n.rect.y0 + NOTE_ICON };
+    for (let k = 0; k < 40 && placed.some((p) => intersects(p, rect)); k++) {
+      const x0 = fits(rect.x0 + out) ? rect.x0 + out : x;
+      const y0 = x0 === x ? rect.y0 + NOTE_ICON + 1 : rect.y0;
+      rect = { x0, y0, x1: x0 + NOTE_ICON, y1: y0 + NOTE_ICON };
+    }
+    placed.push(rect);
+    return { ...n, rect };
+  });
+}
+
 function ocrSummary(pages: PageIR[]): { ocr?: { pages: number; confidence: number } } {
   // Pages whose own text layer lay over a picture of it were not recognised here.
   const scanned = pages.filter((p) => p.ocr && !p.ocr.layer);
@@ -732,7 +765,10 @@ export async function translatePdf(
       const o = bySource.get(t);
       return o && !o.untranslated ? plainText(o.text) : t;
     };
-    for (const w of writes) coverOf(w);
+    for (const w of writes) {
+      coverOf(w);
+      if (w.notes?.length) w.notes = notePlaces(pages[w.index]!, w.notes);
+    }
     written = await writePdf(source, writes, opts.faces, {
       dual: opts.dual,
       appendix,

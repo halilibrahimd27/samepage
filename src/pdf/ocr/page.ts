@@ -182,6 +182,9 @@ function cardAround(px: PagePixels, box: Rect, paper: Color): Rect | null {
 const layerFont = (serif: boolean, bold: boolean) =>
   `Layer ${serif ? 'Serif' : 'Sans'}${bold ? ' Bold' : ''}`;
 
+/** Text read off a picture of the page: recognised, or a layer unseen over it. */
+export const fromPicture = (font: string) => font === OCR_FONT || font.startsWith('Layer ');
+
 /**
  * A page whose text layer lies unseen over a picture of its text, read like a scan: each line
  * covered with the paper under it and set anew in the ink colour of the picture, bold where its

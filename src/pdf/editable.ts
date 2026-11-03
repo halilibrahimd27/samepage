@@ -638,6 +638,7 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
       }
     }
   }
+  joinPanels(page, blocks, pictures);
   // A group that ends up inside a figure once its labels are in (the little table drawn in a
   // workflow diagram) is part of that figure, not a picture of its own.
   const figures = pictures.filter((p) => !p.formula);
@@ -659,6 +660,67 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
     if (host) host.absorbed.push(...p.absorbed);
     return !host && !decoration(p) && p.rect.x1 - p.rect.x0 > 4 && p.rect.y1 - p.rect.y0 > 4;
   });
+}
+
+const TABLE_CAPTION =
+  /^(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabella|Tabela|Tabel|Tabulka|Tabell|Таблица|Таблиця|Πίνακας)\s*[\dIVX]/iu;
+
+/**
+ * A figure of panels over one caption ("(a)" … "(d)", each with its title and legend) is one
+ * picture with the short text between and over its panels: a legend beside a panel is no
+ * paragraph of the page. Panels with running text between them and the caption are left apart.
+ */
+function joinPanels(page: PageIR, blocks: BlockIR[], pictures: Picture[]): void {
+  const short = (b: BlockIR) => b.lines.length <= 3 && textOfBlock(b).trim().length <= 80;
+  const running = (b: BlockIR) => RUNNING.includes(b.role) && !short(b);
+  for (const c of page.blocks) {
+    if (c.role !== 'caption' || TABLE_CAPTION.test(textOfBlock(c).trim())) continue;
+    const panels = pictures.filter((p) => {
+      if (p.formula || p.rect.y1 > c.bbox.y0 + 2) return false;
+      const { x } = center(p.rect);
+      if (x < c.bbox.x0 - 2 || x > c.bbox.x1 + 2) return false;
+      return !page.blocks.some(
+        (b) =>
+          running(b) &&
+          b.bbox.y0 >= p.rect.y1 - 2 &&
+          b.bbox.y1 <= c.bbox.y0 + 2 &&
+          xOverlap(b.bbox, p.rect) > 0,
+      );
+    });
+    if (!panels.length) continue;
+    const others = pictures.filter((q) => !panels.includes(q));
+    const free = (b: BlockIR) =>
+      b.role !== 'caption' && short(b) && !others.some((q) => q.absorbed.includes(b.id));
+    const band = {
+      x0: c.bbox.x0 - 2,
+      y0: Math.min(...panels.map((p) => p.rect.y0)),
+      x1: c.bbox.x1 + 2,
+      y1: c.bbox.y0 - 1,
+    };
+    const taken = new Set(blocks.filter((b) => free(b) && inside(band, center(b.bbox))));
+    // A panel's title just over it ("npm", "PyPI").
+    for (let more = true; more;) {
+      more = false;
+      for (const b of blocks) {
+        if (taken.has(b) || !free(b) || b.role === 'body' || b.bbox.y1 > band.y0 + 2) continue;
+        if (band.y0 - b.bbox.y1 > 14 || xOverlap(b.bbox, band) <= 0) continue;
+        taken.add(b);
+        band.y0 = Math.min(band.y0, b.bbox.y0);
+        more = true;
+      }
+    }
+    if (panels.length < 2 && !taken.size) continue;
+    const joined: Picture = {
+      rect: expand(unionAll([...panels.map((p) => p.rect), ...[...taken].map((b) => b.bbox)]), 2),
+      formula: false,
+      absorbed: [
+        ...new Set([...panels.flatMap((p) => p.absorbed), ...[...taken].map((b) => b.id)]),
+      ],
+    };
+    const drawn = panels.flatMap((p) => p.drawn ?? []);
+    if (drawn.length) joined.drawn = drawn;
+    pictures.splice(0, pictures.length, ...others, joined);
+  }
 }
 
 function tableItem(
@@ -1022,22 +1084,20 @@ export function planEditable(
       (b) => FURNITURE.includes(b.role) && b.direction[1] !== 0 && textOfBlock(b).trim(),
     );
     for (const b of stamps) {
-      const spans = b.lines.flatMap((l) => l.spans);
-      const color = spans[0] && hex(spans[0].color, true);
+      // As a picture of it: Pages sets turned text a letter per line.
+      const rect = expand(b.bbox, 1);
+      pictures.push({ page: page.index, rect });
       items.push({
         kind: 'stamp',
         text: b.lines
           .map((l) => l.spans.map((s) => s.text).join(''))
           .join(' ')
           .trim(),
-        x: b.bbox.x0,
-        y: b.bbox.y0,
-        width: b.bbox.x1 - b.bbox.x0,
-        height: b.bbox.y1 - b.bbox.y0,
-        upward: b.direction[1] < 0,
-        size: half(mainSize(b)),
-        font: wordFont(spans),
-        ...(color && color !== '000000' ? { color } : {}),
+        x: rect.x0,
+        y: rect.y0,
+        width: rect.x1 - rect.x0,
+        height: rect.y1 - rect.y0,
+        picture: pictures.length - 1,
       });
     }
     furniture += order.filter((b) => FURNITURE.includes(b.role)).length - stamps.length;
@@ -1414,15 +1474,28 @@ function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
       // Word sets the first baseline an ascent below the frame's top, or at the leading less
       // the descent when the line is set at least that high.
       const drop = Math.max(ascent * size, leading ? leading - descent * size : 0);
-      const align: Align =
-        b.align === 'justify' ? (lines.length >= 3 ? 'justify' : 'left') : b.align;
       // Room for Word's fonts and a longer translation: a paragraph a little wider; a line of its
       // own (a title, a label) up to what stands beside it — the next text, the edge of the box
       // it is drawn in, the page's edge. Centred text widens on both sides, text set right to the
       // left.
-      const { left, right, below } = room(page, rect);
+      const { left, right, below, box } = room(page, rect);
       const slack = Math.min(24, 0.04 * (rect.x1 - rect.x0) + 3);
       const single = lines.length === 1;
+      // A line against its box's right edge and far from its left one is set right (the header
+      // of a table's number column).
+      const flushRight =
+        single &&
+        b.align === 'left' &&
+        !!box &&
+        box.x1 - rect.x1 < 12 &&
+        rect.x0 - box.x0 > 3 * Math.max(1, box.x1 - rect.x1);
+      const align: Align = flushRight
+        ? 'right'
+        : b.align === 'justify'
+          ? lines.length >= 3
+            ? 'justify'
+            : 'left'
+          : b.align;
       const span = (wider: boolean): [number, number] => {
         if (align === 'center') {
           const c = (rect.x0 + rect.x1) / 2;
@@ -1460,11 +1533,15 @@ function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
       let f = chosen?.[2] ?? 1;
       while (f > 0.6 && !fits([x0, x1], f, down)) f -= 0.05;
       const fit = (v: number) => Math.max(4, half(v * f));
+      // Pages sets a frame as a box of its height and hides a line that does not fit in it
+      // (Word and WPS grow it): as high as its lines come out here, and a line more for type that
+      // runs wider.
+      const needed = setHeight(pieces, x1 - x0, font, size, leading, f) + descent * size * f;
       frames.push({
         x: Math.max(0, x0),
         y: top,
         width: Math.min(page.width, x1) - Math.max(0, x0),
-        height: Math.max(size, rect.y1 - rect.y0),
+        height: Math.max(rect.y1 - top, needed) + 1.2 * size * f,
         paragraphs: pieces.map((runs) => ({
           runs: f < 1 ? runs.map((r) => (r.size ? { ...r, size: fit(r.size) } : r)) : runs,
           align,
@@ -1502,7 +1579,7 @@ function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
  * How far a block of a slide may grow: across to the nearest text beside it, the box it is drawn
  * in, or the page's edge; down to the text under it.
  */
-function room(page: PageIR, r: Rect): { left: number; right: number; below: number } {
+function room(page: PageIR, r: Rect): { left: number; right: number; below: number; box?: Rect } {
   // Within the slide's text: no wider than its widest lines reach.
   const text = page.blocks.filter((b) => b.direction[1] === 0).map((b) => b.bbox);
   let left = Math.max(Math.min(r.x0, 18), Math.min(...text.map((o) => o.x0)));
@@ -1547,7 +1624,12 @@ function room(page: PageIR, r: Rect): { left: number; right: number; below: numb
     right = Math.min(right, box.bbox.x1 - 4);
     below = Math.min(below, box.bbox.y1 - 2);
   }
-  return { left: Math.min(left, r.x0), right: Math.max(right, r.x1), below: Math.max(below, r.y1) };
+  return {
+    left: Math.min(left, r.x0),
+    right: Math.max(right, r.x1),
+    below: Math.max(below, r.y1),
+    ...(box ? { box: box.bbox } : {}),
+  };
 }
 
 /** Width of a font's letters against Arial's. */
