@@ -520,6 +520,23 @@ describe('translateSegments', () => {
     expect(again[1]!.findings).toHaveLength(1);
   });
 
+  it('sends again only the paragraphs a new glossary term occurs in', async () => {
+    const engine = scripted([(id) => (id === 'a' ? 'The dependency is checked.' : 'All is well.')]);
+    const cache = new MemoryCache();
+    const run = (glossary: { source: string; target: string }[]) =>
+      translateSegments({
+        engine,
+        segments: [seg('a', 'Bağımlılık denetlenir.'), seg('b', 'Her şey yolunda.')],
+        ctx: { ...ctx, glossary },
+        signal: new AbortController().signal,
+        cache,
+      });
+    await run([]);
+    const before = engine.calls.flat().length;
+    await run([{ source: 'bağımlılık', target: 'dependency' }]);
+    expect(engine.calls.flat().slice(before)).toEqual(['a']);
+  });
+
   it('stops the job on fatal engine errors', async () => {
     const engine = scripted([() => 'x']);
     engine.translate = () => Promise.reject(new EngineError('auth', 'bad key'));

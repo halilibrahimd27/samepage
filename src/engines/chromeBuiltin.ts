@@ -41,6 +41,20 @@ export interface ChromeTranslatorBridge {
 }
 
 /** Back-translation meaning check (ADR-022) shared by the machine-translation engines. */
+/** Texts back into the source language through the bridge (empty strings when it cannot). */
+export async function backThrough(
+  bridge: ChromeTranslatorBridge,
+  texts: string[],
+  ctx: TranslateContext,
+  signal: AbortSignal,
+): Promise<string[]> {
+  const back = await bridge
+    .backTranslate?.({ source: ctx.pair.target, target: ctx.pair.source }, texts)
+    .catch(() => null);
+  signal.throwIfAborted();
+  return texts.map((_, i) => back?.[i] ?? '');
+}
+
 export async function checkByBackTranslation(
   bridge: ChromeTranslatorBridge,
   pairs: FidelityPair[],
@@ -135,6 +149,7 @@ function plainEngine(bridge: ChromeTranslatorBridge): TranslationEngine {
     maxBatchChars: 4000,
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
+    translateBack: (texts, ctx, signal) => backThrough(bridge, texts, ctx, signal),
 
     /**
      * First the tagged text as is; segments whose tags or placeholders did not survive are

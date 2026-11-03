@@ -379,6 +379,14 @@ export const en = {
   'review.edit': 'Edit',
   'review.save': 'Save',
   'review.cancel': 'Cancel',
+  'terms.title': 'Terms translated two ways ({count})',
+  'terms.hint':
+    'The engine confirmed both renderings of each term. Pick the one to use everywhere: it goes into the glossary and only the paragraphs with the term are translated again.',
+  'terms.count': 'in {count} paragraphs',
+  'terms.keep': 'Leave as it is',
+  'terms.form': 'Written in the glossary as',
+  'terms.example': 'Where it differs',
+  'terms.apply': 'Use the chosen renderings ({count}) and translate again',
   'review.manual': 'Edited by you',
   'review.hint':
     'Dotted text keeps its formatting; grey boxes are formulas, marks or links and stay in place.',

@@ -398,6 +398,14 @@ export const fr: Record<MessageKey, string> = {
   'review.edit': 'Modifier',
   'review.save': 'Enregistrer',
   'review.cancel': 'Annuler',
+  'terms.title': 'Termes traduits de deux façons ({count})',
+  'terms.hint':
+    'Le moteur a confirmé les deux traductions de chaque terme. Choisissez celle à employer partout\u202F: elle entre dans le glossaire et seuls les paragraphes où figure le terme sont retraduits.',
+  'terms.count': 'dans {count} paragraphes',
+  'terms.keep': 'Laisser tel quel',
+  'terms.form': 'Inscrit au glossaire sous la forme',
+  'terms.example': 'Où cela diffère',
+  'terms.apply': 'Employer les traductions choisies ({count}) et retraduire',
   'review.manual': 'Modifié par vous',
   'review.hint':
     'Le texte en pointillés conserve sa mise en forme\u202F; les cases grises sont des formules, des repères ou des liens et restent en place.',

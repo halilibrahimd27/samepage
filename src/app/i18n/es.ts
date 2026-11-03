@@ -391,6 +391,14 @@ export const es: Record<MessageKey, string> = {
   'review.edit': 'Editar',
   'review.save': 'Guardar',
   'review.cancel': 'Cancelar',
+  'terms.title': 'Términos traducidos de dos maneras ({count})',
+  'terms.hint':
+    'El motor confirmó las dos traducciones de cada término. Elija la que se usará en todo el documento: pasa al glosario y solo se vuelven a traducir los párrafos con el término.',
+  'terms.count': 'en {count} párrafos',
+  'terms.keep': 'Dejar como está',
+  'terms.form': 'En el glosario como',
+  'terms.example': 'Dónde difiere',
+  'terms.apply': 'Usar las traducciones elegidas ({count}) y volver a traducir',
   'review.manual': 'Editado por usted',
   'review.hint':
     'El texto con subrayado punteado conserva su formato; los recuadros grises son fórmulas, marcas o enlaces y permanecen en su sitio.',

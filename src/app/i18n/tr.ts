@@ -378,6 +378,14 @@ export const tr: Record<MessageKey, string> = {
   'review.edit': 'Düzenle',
   'review.save': 'Kaydet',
   'review.cancel': 'Vazgeç',
+  'terms.title': 'İki farklı biçimde çevrilen terimler ({count})',
+  'terms.hint':
+    'Motor her terimin iki karşılığını da doğruladı. Her yerde kullanılacak olanı seçin: sözlüğe eklenir ve yalnızca o terimin geçtiği paragraflar yeniden çevrilir.',
+  'terms.count': '{count} paragrafta',
+  'terms.keep': 'Olduğu gibi bırak',
+  'terms.form': 'Sözlüğe yazılacak biçim',
+  'terms.example': 'Farklı olduğu yer',
+  'terms.apply': 'Seçilen karşılıkları ({count}) kullan ve yeniden çevir',
   'review.manual': 'Sizin düzeltmeniz',
   'review.hint':
     'Noktalı altı çizili metin biçimini korur; gri kutular formül, işaret veya bağlantıdır ve yerinde kalır.',

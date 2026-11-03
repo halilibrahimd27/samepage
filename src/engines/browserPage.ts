@@ -1,4 +1,4 @@
-import { checkByBackTranslation, type ChromeTranslatorBridge } from './chromeBuiltin';
+import { backThrough, checkByBackTranslation, type ChromeTranslatorBridge } from './chromeBuiltin';
 import { functionWords } from '../core/detectLanguage';
 import { droppedGlosses } from '../core/validate/glosses';
 import { restoreInline, type InnerTag } from './plainText';
@@ -565,6 +565,7 @@ export function createBrowserPageEngine(bridge: ChromeTranslatorBridge): Transla
     maxBatchChars: 12_000,
     isAvailable: (pair) => bridge.availability(pair),
     checkFidelity: (pairs, ctx, signal) => checkByBackTranslation(bridge, pairs, ctx, signal),
+    translateBack: (texts, ctx, signal) => backThrough(bridge, texts, ctx, signal),
     async translate(given, ctx, signal): Promise<SegmentResult[]> {
       const caps = given.map((s) =>
         sentenceCase(s.text, ctx.pair.source, ctx.retryFeedback !== undefined),

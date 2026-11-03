@@ -283,23 +283,31 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
   const protecting = !engine.capabilities.glossary;
   const protectedTerms = protecting ? withBuiltInNames(glossary) : glossary;
   // Cached text from before the built-in names or the number spelling must not be reused.
-  const gHash = await glossaryHash(
-    protecting
-      ? [
-          ...ctx.glossary,
-          { source: 'machine-v1', target: '', note: 'built-in names, number spelling' },
-        ]
-      : ctx.glossary,
-  );
+  // A segment's key holds only the glossary entries found in it: a term added to the glossary
+  // (made consistent after a translation) sends again only the paragraphs it occurs in.
+  const lower = (t: string) => t.toLocaleLowerCase(ctx.pair.source);
+  const hashes = new Map<string, Promise<string>>();
+  const gHash = (text: string) => {
+    const low = lower(text);
+    const found = ctx.glossary.filter(
+      (g) => g.source.trim() && low.includes(lower(g.source.trim())),
+    );
+    const entries = protecting
+      ? [...found, { source: 'machine-v1', target: '', note: 'built-in names, number spelling' }]
+      : found;
+    const id = JSON.stringify(entries);
+    if (!hashes.has(id)) hashes.set(id, glossaryHash(entries));
+    return hashes.get(id)!;
+  };
   const keys = await Promise.all(
-    segments.map((s) =>
+    segments.map(async (s) =>
       cacheKey({
         engineId: engine.id,
         model: engine.model ?? '',
         source: ctx.pair.source,
         target: ctx.pair.target,
         promptVersion: promptVersion(engine, ctx),
-        glossaryHash: gHash,
+        glossaryHash: await gHash(s.text),
         numberLocalization: ctx.numberLocalization,
         role: s.role,
         ...(s.budgetChars !== undefined ? { budgetChars: s.budgetChars } : {}),
@@ -910,14 +918,14 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
       .filter(({ o }) => !o.untranslated && o.findings.length > 0);
     if (!flagged.length) return;
     const peKeys = await Promise.all(
-      flagged.map(({ s, o }) =>
+      flagged.map(async ({ s, o }) =>
         cacheKey({
           engineId: `post-edit/${editor.id}`,
           model: editor.model ?? '',
           source: ctx.pair.source,
           target: ctx.pair.target,
           promptVersion: promptVersion(editor, ctx),
-          glossaryHash: gHash,
+          glossaryHash: await gHash(s.text),
           numberLocalization: ctx.numberLocalization,
           role: s.role,
           text: `${s.text}\u2028${o.text}`,

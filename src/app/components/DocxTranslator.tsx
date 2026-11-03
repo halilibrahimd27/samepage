@@ -25,6 +25,8 @@ import { useProject } from '../useProject';
 import { DocxPreview } from './DocxPreview';
 import { AiStatement } from './AiStatement';
 import { DocxReportPanel } from './DocxReportPanel';
+import { TermConsistency } from './TermConsistency';
+import type { GlossaryEntry } from '../../core/validate/validate';
 import { GlossaryPanel } from './GlossaryPanel';
 
 const LONG_JOB_MS = 2 * 60 * 60_000;
@@ -87,13 +89,14 @@ export function DocxTranslator({
     jobId: string,
     reuse: Record<string, StoredOutcome> | null = null,
     options: ProjectOptions = current,
+    terms: GlossaryEntry[] = glossary.usable,
   ): DocxJob => ({
     jobId,
     file,
     engine: config.spec(),
     ...(reuse ? { replay: reuse } : config.extras()),
     pair,
-    glossary: glossary.usable,
+    glossary: terms,
     numberLocalization: false,
     fidelityCheck: options.fidelityCheck,
     localCitations: options.localCitations,
@@ -112,7 +115,7 @@ export function DocxTranslator({
    * `fresh`: translate with the engine. Otherwise (corrections applied, a project reopened) the
    * translations shown are reused and no engine is called.
    */
-  async function run(fresh: boolean) {
+  async function run(fresh: boolean, terms?: GlossaryEntry[]) {
     const reuse = projectFile.reuse(fresh, pair);
     if (!reuse && problem) return setError(problem);
     setError(null);
@@ -130,8 +133,8 @@ export function DocxTranslator({
       const res = await pipelineClient.call<DocxJobResult | LatexJobResult>(
         (api) =>
           format === 'latex'
-            ? api.translateLatex(job(jobId, reuse, options), onProgress, bridge)
-            : api.translateDocx(job(jobId, reuse, options), onProgress, bridge),
+            ? api.translateLatex(job(jobId, reuse, options, terms), onProgress, bridge)
+            : api.translateDocx(job(jobId, reuse, options, terms), onProgress, bridge),
         LONG_JOB_MS,
       );
       if (res.ok) {
@@ -368,6 +371,21 @@ export function DocxTranslator({
               </button>
             </div>
           )}
+          {'terms' in result.report && result.report.terms?.length ? (
+            <TermConsistency
+              terms={result.report.terms}
+              example={(id) => result.report.segments.find((s) => s.id === id)}
+              busy={running !== null}
+              onUse={(entries) => {
+                const next = [...glossary.entries, ...entries];
+                glossary.update(next);
+                void run(
+                  true,
+                  next.filter((g) => g.source.trim() && g.target.trim()),
+                );
+              }}
+            />
+          ) : null}
           <DocxReportPanel
             pair={pair}
             report={result.report}

@@ -1,4 +1,6 @@
 import { REFERENCES_HEADING, referenceProse } from '../core/references';
+import type { TermVariance } from '../core/glossary/consistency';
+import { termsRenderedTwoWays } from '../core/pipeline/terms';
 import { functionWords } from '../core/detectLanguage';
 import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom';
 import type { TranslationCache } from '../core/cache/cache';
@@ -86,6 +88,8 @@ export interface DocxReport {
   };
   segments: DocxSegmentReport[];
   repairs: DocxRepair[];
+  /** Terms rendered two ways (segment ids), for the user to make consistent. */
+  terms?: TermVariance[];
 }
 
 /** Parts that carry translatable text (ARCHITECTURE.md §4.2). */
@@ -518,6 +522,19 @@ export async function translateDocx(
     compressionOptions: { level: 6 },
   });
 
+  // Terms rendered two ways, confirmed by the engine (a replay calls no engine).
+  const terms = opts.replay
+    ? []
+    : await termsRenderedTwoWays(
+        opts.engine,
+        { pair: opts.pair, glossary: opts.glossary, numberLocalization: opts.numberLocalization },
+        segReports
+          .filter((r) => (r.status === 'translated' || r.status === 'warning') && !r.manual)
+          .filter((r) => r.role !== 'reference')
+          .map((r) => ({ id: r.id, source: r.source, target: r.target })),
+        opts.glossary,
+        opts.signal,
+      );
   const count = (s: DocxSegmentReport['status']) => segReports.filter((r) => r.status === s).length;
   const repairCounts: DocxReport['summary']['repairs'] = {};
   for (const r of repairs) repairCounts[r.code] = (repairCounts[r.code] ?? 0) + 1;
@@ -537,6 +554,7 @@ export async function translateDocx(
       },
       segments: segReports,
       repairs,
+      ...(terms.length ? { terms } : {}),
     },
   };
 }

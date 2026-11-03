@@ -10,6 +10,8 @@ import { buildEditableDocx } from '../docx/editable';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { blockText, extractAndAnalyze, type OcrOptions } from './analyze';
 import { TABLE_CAPTION } from './analyze/tables';
+import { termsRenderedTwoWays } from '../core/pipeline/terms';
+import type { TermVariance } from '../core/glossary/consistency';
 import { unionAll, xOverlap } from '../core/ir/geometry';
 import {
   normalizedCopy,
@@ -133,6 +135,8 @@ export interface PdfReport {
   pages: PageScore[];
   units: PdfUnitReport[];
   issues: Issue[];
+  /** Terms rendered two ways (unit ids), for the user to make consistent. */
+  terms?: TermVariance[];
 }
 
 /** "ℒ (U+2112)": invisible and private-use characters stay identifiable in the report. */
@@ -1072,6 +1076,20 @@ export async function translatePdf(
     );
   }
 
+  // Terms rendered two ways, confirmed by the engine (a replay calls no engine).
+  const terms = opts.replay
+    ? []
+    : await termsRenderedTwoWays(
+        opts.engine,
+        { pair: opts.pair, glossary: opts.glossary, numberLocalization: opts.numberLocalization },
+        all
+          .filter((u) => (u.status === 'translated' || u.status === 'warning') && !u.manual)
+          .filter((u) => u.role !== 'reference')
+          .map((u) => ({ id: u.id, source: u.source, target: u.target })),
+        opts.glossary,
+        opts.signal,
+      );
+
   return {
     mono: written!.mono,
     dual: written!.dual,
@@ -1100,6 +1118,7 @@ export async function translatePdf(
       units: all,
       issues,
       sanitization: { removed: written!.sanitized },
+      ...(terms.length ? { terms } : {}),
     },
   };
 }

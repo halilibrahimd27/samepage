@@ -399,6 +399,14 @@ export const de: Record<MessageKey, string> = {
   'review.edit': 'Bearbeiten',
   'review.save': 'Speichern',
   'review.cancel': 'Abbrechen',
+  'terms.title': 'Zweifach übersetzte Begriffe ({count})',
+  'terms.hint':
+    'Die Engine hat beide Wiedergaben jedes Begriffs bestätigt. Wählen Sie die, die überall gelten soll: Sie kommt ins Glossar, und nur die Absätze mit dem Begriff werden neu übersetzt.',
+  'terms.count': 'in {count} Absätzen',
+  'terms.keep': 'So lassen',
+  'terms.form': 'Im Glossar als',
+  'terms.example': 'Wo es abweicht',
+  'terms.apply': 'Gewählte Wiedergaben ({count}) verwenden und neu übersetzen',
   'review.manual': 'Von Ihnen bearbeitet',
   'review.hint':
     'Gepunkteter Text behält seine Formatierung; graue Kästchen sind Formeln, Markierungen oder Links und bleiben an ihrer Stelle.',

@@ -20,6 +20,8 @@ import { GlossaryPanel } from './GlossaryPanel';
 import { PdfPreview } from './PdfPreview';
 import { AiStatement } from './AiStatement';
 import { PdfReportPanel } from './PdfReportPanel';
+import { TermConsistency } from './TermConsistency';
+import type { GlossaryEntry } from '../../core/validate/validate';
 
 const LONG_JOB_MS = 2 * 60 * 60_000;
 
@@ -93,7 +95,7 @@ export function PdfTranslator(props: {
    * `fresh`: translate with the engine. Otherwise (corrections applied, a project reopened) the
    * translations shown are reused and no engine is called.
    */
-  async function run(fresh: boolean) {
+  async function run(fresh: boolean, terms?: GlossaryEntry[]) {
     const reuse = projectFile.reuse(fresh, pair);
     if (!reuse && problem) return setError(problem);
     setError(null);
@@ -120,7 +122,7 @@ export function PdfTranslator(props: {
         engine: spec,
         ...(reuse ? { replay: reuse } : config.extras()),
         pair,
-        glossary: glossary.usable,
+        glossary: terms ?? glossary.usable,
         numberLocalization: false,
         fidelityCheck: options.fidelityCheck,
         localCitations: options.localCitations,
@@ -378,6 +380,21 @@ export function PdfTranslator(props: {
               </button>
             </div>
           )}
+          {result.report.terms?.length ? (
+            <TermConsistency
+              terms={result.report.terms}
+              example={(id) => result.report.units.find((u) => u.id === id)}
+              busy={running !== null}
+              onUse={(entries) => {
+                const next = [...glossary.entries, ...entries];
+                glossary.update(next);
+                void run(
+                  true,
+                  next.filter((g) => g.source.trim() && g.target.trim()),
+                );
+              }}
+            />
+          ) : null}
           <PdfReportPanel
             pair={pair}
             report={result.report}

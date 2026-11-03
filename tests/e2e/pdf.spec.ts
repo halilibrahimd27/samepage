@@ -58,7 +58,9 @@ test('PDF is translated in the browser with report, previews and downloads', asy
     page.getByTestId('download-bilingual').click(),
   ]);
   expect(review.suggestedFilename()).toBe('two-column.tr-en.review.docx');
-  const xml = await (await JSZip.loadAsync(readFileSync(await review.path())))
+  const xml = await (
+    await JSZip.loadAsync(readFileSync(await review.path()))
+  )
     .file('word/document.xml')!
     .async('string');
   expect(xml).toContain('<w:tbl>');

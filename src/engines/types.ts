@@ -121,6 +121,8 @@ export interface TranslationEngine {
     ctx: TranslateContext,
     signal: AbortSignal,
   ): Promise<FidelityResult>;
+  /** Plain texts from the pair's target language back into its source (term checks). */
+  translateBack?(texts: string[], ctx: TranslateContext, signal: AbortSignal): Promise<string[]>;
   extractGlossary?(
     sample: string,
     ctx: TranslateContext,
