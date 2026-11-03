@@ -19,7 +19,7 @@ const letters = (t: string) => t.replace(/[^\p{L}]/gu, '');
 describe('editable Word output of PDFs', () => {
   it.each(CASES)('$name: every translated paragraph, table and figure is there', async ({ file, name, factor }) => {
     const faces = await loadFaces((f) => Promise.resolve(new Uint8Array(readFileSync(`public/fonts/${f}`))));
-    const { editable, report } = await translatePdf(new Uint8Array(readFileSync(file)), {
+    const { editable: asPdf, editableFlow: editable, report } = await translatePdf(new Uint8Array(readFileSync(file)), {
       engine: createPseudoEngine({ factor, substitute: factor > 1 }),
       pair: { source: 'tr', target: 'en' },
       glossary: [],
@@ -35,6 +35,7 @@ describe('editable Word output of PDFs', () => {
     expect(editable).not.toBeNull();
     mkdirSync('tests/golden/__out__', { recursive: true });
     writeFileSync(`tests/golden/__out__/${name}.editable.docx`, editable!);
+    writeFileSync(`tests/golden/__out__/${name}.pages.docx`, asPdf!);
 
     const zip = await JSZip.loadAsync(editable!);
     const xml = await zip.file('word/document.xml')!.async('string');
@@ -55,6 +56,26 @@ describe('editable Word output of PDFs', () => {
     expect(pictures.length).toBeGreaterThan(0);
     for (const p of pictures) expect(xml).toContain(`name="${p.split('/').pop()}"`);
     if (name === 'formulas-tables') expect(xml).toContain('<w:tbl>');
+
+    // Laid out as the PDF: a section per page, every translated word there as text too (a
+    // paragraph on both sides of a table is in two frames). Untranslated, the page's own words
+    // stay in its picture.
+    const pagesXml = await (await JSZip.loadAsync(asPdf!)).file('word/document.xml')!.async('string');
+    expect(pagesXml.match(/<w:sectPr>/g)).toHaveLength(report.summary.pages);
+    if (factor > 1) {
+      const pagesText = letters(
+        [...pagesXml.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]!).join(''),
+      );
+      expect(
+        report.units
+          .filter((u) => u.status !== 'untranslated' && u.status !== 'kept-original' && u.target)
+          // Names read as they are: the PDF leaves them, so does the page's picture.
+          .filter((u) => letters(u.target) !== letters(u.source))
+          .flatMap((u) => u.target.split(/\s+/u).map((w) => [u.id, letters(w)] as const))
+          .filter(([, w]) => w.length > 1 && !pagesText.includes(w))
+          .map(([id, w]) => `${id}: ${w}`),
+      ).toEqual([]);
+    }
     // The demo paper's footnote is a Word footnote, referenced where its mark was.
     if (name === 'demo-paper-identity') {
       expect(xml).toContain('<w:footnoteReference w:id="1"/>');

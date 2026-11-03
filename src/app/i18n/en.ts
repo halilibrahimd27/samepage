@@ -438,9 +438,12 @@ export const en = {
   'bilingual.notes': 'Notes',
   'download.pdf': 'Download translated PDF',
   'download.dual': 'Download side-by-side PDF',
-  'download.word': 'Download as Word (editable)',
+  'download.word': 'Download as Word (as the PDF)',
+  'download.wordFlow': 'Word as flowing text',
+  'download.wordFlowHint':
+    'The translation as running text in Word styles — headings, paragraphs, tables and footnotes — to edit freely or to pour into a journal’s template. Figures and display formulas are pictures.',
   'download.wordHint':
-    'The translation in Word styles: headings, paragraphs, tables and footnotes as text, figures and display formulas as pictures. Running heads and page numbers are left out.',
+    'Every page as in the PDF: its design, figures, formulas and colours as they are, the translation in text boxes where the PDF sets it, line for line — editable in Word, WPS and Pages.',
   'pdfReport.summary':
     '{translated} translated · {warnings} with warnings · {untranslated} untranslated · {keptOriginal} kept in the original language · {scaled} slightly reduced',
   'pdfReport.status.translated': 'Translated',

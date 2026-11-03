@@ -46,8 +46,22 @@ test('PDF is translated in the browser with report, previews and downloads', asy
     page.getByTestId('download-word').click(),
   ]);
   expect(word.suggestedFilename()).toBe('two-column.en.docx');
+  // Laid out as the PDF: a section per page at its size, the text in frames.
+  const pages = await (
+    await JSZip.loadAsync(readFileSync(await word.path()))
+  )
+    .file('word/document.xml')!
+    .async('string');
+  expect(pages.match(/<w:sectPr>/g)).toHaveLength(2);
+  expect(pages).toContain('w:hAnchor="page"');
+  // The same as flowing text, to edit or pour into a template.
+  const [flow] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('download-word-flow').click(),
+  ]);
+  expect(flow.suggestedFilename()).toBe('two-column.en.flow.docx');
   expect(
-    readFileSync(await word.path())
+    readFileSync(await flow.path())
       .subarray(0, 2)
       .toString(),
   ).toBe('PK');

@@ -122,8 +122,10 @@ export type PdfJobResult =
       ok: true;
       mono: Uint8Array;
       dual: Uint8Array | null;
-      /** The translation as an editable Word document (P9.4). */
+      /** The translation as an editable Word document laid out as the PDF (P9.4). */
       editable: Uint8Array | null;
+      /** The same as a reading-order flow, to edit or to pour into a template. */
+      editableFlow: Uint8Array | null;
       report: PdfReport;
       /** Every segment's translation by source text, for the project file (P9.5). */
       translations: Record<string, StoredOutcome>;

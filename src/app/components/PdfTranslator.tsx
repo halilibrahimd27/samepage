@@ -176,6 +176,11 @@ export function PdfTranslator(props: {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       })
     : null;
+  const wordFlow = result?.editableFlow
+    ? new Blob([result.editableFlow.slice()], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -312,6 +317,17 @@ export function PdfTranslator(props: {
                   data-testid="download-word"
                 >
                   {t('download.word')}
+                </button>
+              )}
+              {wordFlow && (
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                  onClick={() => downloadBlob(wordFlow, `${base}.${config.target}.flow.docx`)}
+                  title={t('download.wordFlowHint')}
+                  data-testid="download-word-flow"
+                >
+                  {t('download.wordFlow')}
                 </button>
               )}
               {dual && (

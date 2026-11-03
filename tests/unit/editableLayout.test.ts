@@ -428,3 +428,83 @@ describe('text turned in the margin', () => {
     expect(xml).not.toContain('w:textDirection');
   });
 });
+
+describe('a Word file laid out as the PDF, page by page', () => {
+  const run = (text: string, x: number, size = 9) => ({
+    text,
+    face: 'serif-regular' as const,
+    size,
+    color: [0, 0, 0] as [number, number, number],
+    x,
+    width: 4.2 * text.length,
+    rise: 0,
+  });
+  const body = block('p0-b', 'body', 100, [words, words]);
+  const number = block('p0-n', 'page-number', 760, ['7'], { x0: 300, x1: 306, align: 'center' });
+  const text = (vectors: PageIR['vectors'] = []) => {
+    const pages = [page(0, [body, number], { vectors })];
+    return planEditable(
+      pages,
+      buildPdfUnits(pages).map((unit) => ({
+        unit,
+        runs: decode(unit.encoded.source, unit.encoded),
+      })),
+      () => true,
+      {
+        // The PDF's lines of the translation: each word at its place.
+        layouts: new Map([
+          [
+            'p0-b',
+            {
+              blockId: 'p0-b',
+              unitId: 'u',
+              scale: 1,
+              overflow: false,
+              lines: [
+                {
+                  baseline: 108,
+                  x0: 54,
+                  x1: 296,
+                  wordSpacing: 0,
+                  runs: [run('Bu', 54), run('satır', 66)],
+                },
+                { baseline: 119, x0: 54, x1: 120, wordSpacing: 0, runs: [run('ikinci', 54)] },
+              ],
+            },
+          ],
+        ]),
+        redactions: new Map([[0, [body.bbox]]]),
+        notes: [{ page: 0, text: 'Notta kalan çeviri' }],
+      },
+    );
+  };
+
+  it('sets each page at its size, the PDF’s lines in a frame where the PDF sets them', () => {
+    const result = text();
+    const [slide, note] = result.items;
+    expect(slide).toMatchObject({ kind: 'slide', width: 612, height: 792 });
+    const frames = (slide as Extract<EditableItem, { kind: 'slide' }>).frames;
+    const runs = frames[0]!.paragraphs[0]!.runs;
+    // Words set apart are one run with a space; the next line starts on a new line.
+    expect(runs.map((r) => r.text)).toEqual(['Bu satır', 'ikinci']);
+    expect(runs[1]!.lineBreak).toBe(true);
+    expect(frames[0]!.x).toBeCloseTo(53, 0);
+    // The page number, kept, is text too: a page of nothing but text needs no picture.
+    expect(frames[1]!.paragraphs[0]!.runs[0]!.text).toBe('7');
+    expect(result.backgrounds).toEqual([]);
+    // A translation the PDF could only put in a note follows the pages.
+    expect(note).toMatchObject({
+      kind: 'paragraph',
+      runs: [{ text: '1: ' }, { text: 'Notta kalan çeviri' }],
+    });
+  });
+
+  it('puts the page behind its frames when it draws more than text', () => {
+    const result = text([
+      { bbox: { x0: 54, y0: 300, x1: 296, y1: 301 }, isRectangle: true, isStroked: true },
+    ]);
+    expect(result.backgrounds).toHaveLength(1);
+    // The PDF's own boxes taken out, and the page number's line.
+    expect(result.backgrounds![0]!.redact).toHaveLength(2);
+  });
+});

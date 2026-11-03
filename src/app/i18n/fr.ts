@@ -457,9 +457,12 @@ export const fr: Record<MessageKey, string> = {
   'bilingual.notes': 'Notes',
   'download.pdf': 'Télécharger le PDF traduit',
   'download.dual': 'Télécharger le PDF en vis-à-vis',
-  'download.word': 'Télécharger au format Word (modifiable)',
+  'download.word': 'Télécharger en Word (comme le PDF)',
+  'download.wordFlow': 'Word en texte continu',
+  'download.wordFlowHint':
+    'La traduction en texte continu avec les styles de Word — titres, paragraphes, tableaux et notes — à modifier librement ou à verser dans le modèle d’une revue. Les figures et formules centrées sont des images.',
   'download.wordHint':
-    'La traduction avec les styles Word\u202F: titres, paragraphes, tableaux et notes de bas de page en texte, figures et formules hors texte en images. Les en-têtes courants et les numéros de page sont omis.',
+    'Chaque page comme dans le PDF\u202F: sa mise en page, ses figures, formules et couleurs telles quelles, la traduction dans des zones de texte là où le PDF la place, ligne à ligne — modifiable dans Word, WPS et Pages.',
   'pdfReport.summary':
     '{translated} traduits · {warnings} avec avertissements · {untranslated} non traduits · {keptOriginal} conservés dans la langue d’origine · {scaled} légèrement réduits',
   'pdfReport.status.translated': 'Traduit',

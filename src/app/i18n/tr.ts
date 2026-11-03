@@ -437,9 +437,12 @@ export const tr: Record<MessageKey, string> = {
   'bilingual.notes': 'Notlar',
   'download.pdf': 'Çevrilmiş PDF’i indir',
   'download.dual': 'Yan yana PDF’i indir',
-  'download.word': 'Word olarak indir (düzenlenebilir)',
+  'download.word': 'Word olarak indir (PDF’teki gibi)',
+  'download.wordFlow': 'Akan metin olarak Word',
+  'download.wordFlowHint':
+    'Çeviri Word stilleriyle akan metin olarak — başlıklar, paragraflar, tablolar ve dipnotlar — serbestçe düzenlemek ya da derginin şablonuna aktarmak için. Şekiller ve ayrık formüller resimdir.',
   'download.wordHint':
-    'Çeviri Word stilleriyle: başlıklar, paragraflar, tablolar ve dipnotlar metin; şekiller ve ayrık formüller resim olarak. Sayfa başlıkları ve sayfa numaraları alınmaz.',
+    'Her sayfa PDF’teki gibi: tasarımı, şekilleri, formülleri ve renkleri olduğu gibi; çeviri PDF’teki yerinde, satır satır metin kutularında — Word, WPS ve Pages’te düzenlenebilir.',
   'pdfReport.summary':
     '{translated} çevrildi · {warnings} uyarılı · {untranslated} çevrilemedi · {keptOriginal} orijinal dilde bırakıldı · {scaled} biraz küçültüldü',
   'pdfReport.status.translated': 'Çevrildi',

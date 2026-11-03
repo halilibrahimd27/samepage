@@ -43,8 +43,8 @@ import type {
   RepairCode,
   RepairStep,
 } from '../layout-repair/types';
-import { layoutUnit, sizeFactors, type LayoutLine } from './typeset/layout';
-import { planEditable } from './editable';
+import { layoutUnit, sizeFactors, type BlockLayout, type LayoutLine } from './typeset/layout';
+import { planEditable, slideDeck, type PageText } from './editable';
 import { buildPdfUnits, type PdfUnit } from './typeset/segments';
 
 export interface PdfOptions {
@@ -434,7 +434,10 @@ export async function translatePdf(
 ): Promise<{
   mono: Uint8Array;
   dual: Uint8Array | null;
+  /** The translation in Word, laid out as the PDF page by page. */
   editable: Uint8Array | null;
+  /** The translation in Word as a reading-order flow (none for a deck of slides). */
+  editableFlow: Uint8Array | null;
   report: PdfReport;
   /** Every segment's translation by source text, for the project file (P9.5). */
   translations: Record<string, StoredOutcome>;
@@ -688,9 +691,13 @@ export async function translatePdf(
   let written: Awaited<ReturnType<typeof writePdf>> | null = null;
   /** Blocks the last write took off the page and set anew (covered, on a picture of a page). */
   let rewritten = new Set<string>();
+  /** What the last write set: each block's lines, each page's boxes taken off, the notes. */
+  let setText: PageText = { layouts: new Map(), redactions: new Map(), notes: [] };
 
   for (let attempt = 0; attempt <= policy.postApply.maxRebuilds; attempt++) {
     rewritten = new Set<string>();
+    const layouts = new Map<string, BlockLayout>();
+    const setNotes: PageText['notes'] = [];
     const writes: PageWrite[] = pages.map((p) => ({
       index: p.index,
       redact: [],
@@ -717,17 +724,22 @@ export async function translatePdf(
       if (forcedNote.has(r.unitId)) {
         const first = blockById.get(r.layouts[0]?.blockId ?? '');
         const text = reports.get(r.unitId)!.target;
-        if (first && text) writes[pageOf(first)]!.notes!.push({ rect: first.bbox, text });
+        if (first && text) {
+          writes[pageOf(first)]!.notes!.push({ rect: first.bbox, text });
+          setNotes.push({ page: pageOf(first), text });
+        }
         continue;
       }
       if (r.fallback === 'keep-original') continue;
       if (r.fallback === 'annotation' && r.annotation) {
         writes[r.pageIndex]!.notes!.push(r.annotation);
+        setNotes.push({ page: r.pageIndex, text: r.annotation.text });
         continue;
       }
       for (const l of r.layouts) {
         const block = blockById.get(l.blockId)!;
         rewritten.add(block.id);
+        layouts.set(block.id, l);
         const w = writes[pageOf(block)]!;
         const horizontal = block.direction[1] === 0;
         for (const line of block.lines) w.redact.push(redactRect(line, horizontal));
@@ -811,6 +823,11 @@ export async function translatePdf(
       coverOf(w);
       if (w.notes?.length) w.notes = notePlaces(pages[w.index]!, w.notes);
     }
+    setText = {
+      layouts,
+      redactions: new Map(writes.map((w) => [w.index, w.redact])),
+      notes: setNotes,
+    };
     written = await writePdf(source, writes, opts.faces, {
       dual: opts.dual,
       appendix,
@@ -1042,6 +1059,7 @@ export async function translatePdf(
   // Every translation that passed validation goes in, also those the PDF could not fit; figures
   // and display formulas are cut from the translated PDF.
   let editable: Uint8Array | null = null;
+  let editableFlow: Uint8Array | null = null;
   if (opts.editable) {
     const runsOf = (u: PdfUnit) => {
       const o = bySource.get(u.encoded.source)!;
@@ -1055,49 +1073,54 @@ export async function translatePdf(
       }
       return decode(u.encoded.source, u.encoded);
     };
-    const plan = planEditable(
-      pages,
-      units.map((unit) => ({
-        unit,
-        runs: runsOf(unit),
-        scale: reports.get(unit.id)?.scale ?? 1,
-        // Set anew over the page, not left as it was nor put in a note.
-        written: unit.blocks.some((b) => rewritten.has(b.id)),
-      })),
-      inRange,
-    );
-    // Slides: each page behind its text, from the PDF the translation was written on — or, for
-    // a picture of a page, from the translation, its words covered.
-    const backgrounds = plan.backgrounds ?? [];
-    const fromSource = await renderBackgroundsPng(
-      source,
-      backgrounds.filter((b) => !b.output),
-      2,
-    );
-    const fromOutput = await renderBackgroundsPng(
-      written!.mono,
-      backgrounds.filter((b) => b.output),
-      2,
-    );
-    const crops = [
-      ...(await renderRegionsPng(written!.mono, plan.pictures, 2)),
-      ...backgrounds.map((b) => (b.output ? fromOutput : fromSource).shift()!),
-    ];
+    const editableUnits = units.map((unit) => ({
+      unit,
+      runs: runsOf(unit),
+      scale: reports.get(unit.id)?.scale ?? 1,
+      // Set anew over the page, not left as it was nor put in a note.
+      written: unit.blocks.some((b) => rewritten.has(b.id)),
+    }));
     const title = meta.title.trim() && bySource.get(meta.title);
-    editable = await buildEditableDocx(
-      plan.items,
-      crops.map((c) => c.png),
-      {
-        locale:
-          opts.pair.target === 'en' && opts.englishSpelling === 'british'
-            ? 'en-GB'
-            : localeFor(opts.pair.target),
-        ...(title && !title.untranslated ? { title: plainText(title.text) } : {}),
-        page: { width: pages[0]?.width ?? 595, height: pages[0]?.height ?? 842 },
-        footnotes: plan.footnotes,
-        ...(plan.layout ? { layout: plan.layout } : {}),
-      },
-    );
+    const word = async (plan: ReturnType<typeof planEditable>) => {
+      // Pages and slides: each page behind its text, from the PDF the translation was written
+      // on — or, for a picture of a page, from the translation, its words covered.
+      const backgrounds = plan.backgrounds ?? [];
+      const fromSource = await renderBackgroundsPng(
+        source,
+        backgrounds.filter((b) => !b.output),
+        2,
+      );
+      const fromOutput = await renderBackgroundsPng(
+        written!.mono,
+        backgrounds.filter((b) => b.output),
+        2,
+      );
+      const crops = [
+        ...(await renderRegionsPng(written!.mono, plan.pictures, 2)),
+        ...backgrounds.map((b) => (b.output ? fromOutput : fromSource).shift()!),
+      ];
+      return buildEditableDocx(
+        plan.items,
+        crops.map((c) => c.png),
+        {
+          locale:
+            opts.pair.target === 'en' && opts.englishSpelling === 'british'
+              ? 'en-GB'
+              : localeFor(opts.pair.target),
+          ...(title && !title.untranslated ? { title: plainText(title.text) } : {}),
+          page: { width: pages[0]?.width ?? 595, height: pages[0]?.height ?? 842 },
+          footnotes: plan.footnotes,
+          ...(plan.layout ? { layout: plan.layout } : {}),
+        },
+      );
+    };
+    // As the PDF, page by page: nothing of the page's design moves.
+    const asSet = planEditable(pages, editableUnits, inRange, setText);
+    editable = await word(asSet);
+    // A deck is laid out slide by slide either way; a document also flows, to edit or to pour
+    // into a journal's template.
+    if (!slideDeck(pages.filter((p) => inRange(p.index))))
+      editableFlow = await word(planEditable(pages, editableUnits, inRange));
   }
 
   // Terms rendered two ways, confirmed by the engine (a replay calls no engine).
@@ -1120,6 +1143,7 @@ export async function translatePdf(
     mono: written!.mono,
     dual: written!.dual,
     editable,
+    editableFlow,
     translations: storedTranslations(requests, outcomes),
     report: {
       summary: {

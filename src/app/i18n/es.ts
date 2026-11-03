@@ -450,9 +450,12 @@ export const es: Record<MessageKey, string> = {
   'bilingual.notes': 'Notas',
   'download.pdf': 'Descargar PDF traducido',
   'download.dual': 'Descargar PDF en paralelo',
-  'download.word': 'Descargar como Word (editable)',
+  'download.word': 'Descargar en Word (como el PDF)',
+  'download.wordFlow': 'Word como texto continuo',
+  'download.wordFlowHint':
+    'La traducción como texto continuo con estilos de Word — títulos, párrafos, tablas y notas — para editar libremente o volcar en la plantilla de una revista. Las figuras y fórmulas destacadas son imágenes.',
   'download.wordHint':
-    'La traducción con estilos de Word: títulos, párrafos, tablas y notas al pie como texto; figuras y fórmulas destacadas como imágenes. Se omiten los encabezados de página y la numeración.',
+    'Cada página como en el PDF: su diseño, figuras, fórmulas y colores tal cual, la traducción en cuadros de texto donde el PDF la coloca, línea a línea — editable en Word, WPS y Pages.',
   'pdfReport.summary':
     '{translated} traducidos · {warnings} con avisos · {untranslated} sin traducir · {keptOriginal} conservados en el idioma original · {scaled} ligeramente reducidos',
   'pdfReport.status.translated': 'Traducido',

@@ -14,6 +14,7 @@ import type {
   WordLayout,
 } from '../docx/editable';
 import { MONO, MONO_WIDTH } from '../docx/editable';
+import type { BlockLayout } from './typeset/layout';
 import {
   hyphenEvidence,
   joinHyphen,
@@ -24,11 +25,24 @@ import {
 } from './typeset/segments';
 
 /**
- * Editable Word output of a translated PDF (P9.4), as a reading-order flow: paragraphs with
- * Word styles, tables, and pictures for figures and display formulas. Pure: the pictures are
- * regions the caller renders from the translated PDF. A deck of slides is laid out slide by
- * slide instead: each a page, its text in frames over its picture without text.
+ * Editable Word output of a translated PDF (P9.4). Laid out as the PDF, page by page: each page
+ * its picture without the text the translation replaced, the translation in frames where the PDF
+ * set it, line for line — what was not translated (formulas, figures, rules, kept names) is the
+ * page's own picture. Or as a reading-order flow: paragraphs with Word styles, tables, and
+ * pictures for figures and display formulas. Pure: the pictures are regions and pages the
+ * caller renders. A deck of slides is laid out slide by slide, its text in frames over its
+ * picture without text.
  */
+
+/** What the translated PDF set where: the source of a Word file laid out as the PDF. */
+export interface PageText {
+  /** The lines each rewritten block was set in. */
+  layouts: Map<string, BlockLayout>;
+  /** Each page's boxes the original text was taken out of. */
+  redactions: Map<number, Rect[]>;
+  /** Translations the PDF put in a note, the original kept on the page. */
+  notes: { page: number; text: string }[];
+}
 
 export interface EditableUnit {
   unit: PdfUnit;
@@ -996,9 +1010,11 @@ export function planEditable(
   pages: PageIR[],
   units: EditableUnit[],
   include: (page: number) => boolean = () => true,
+  asSet?: PageText,
 ): EditablePlan {
   const shown = pages.filter((p) => include(p.index));
   if (slideDeck(shown)) return planSlides(shown, units);
+  if (asSet) return planPages(shown, asSet);
   const items: EditableItem[] = [];
   const pictures: EditablePlan['pictures'] = [];
   let furniture = 0;
@@ -1568,6 +1584,194 @@ function planSlides(shown: PageIR[], units: EditableUnit[]): EditablePlan {
     });
   }
   return { items, footnotes: [], pictures: [], furniture: 0, backgrounds };
+}
+
+/**
+ * Pages as the PDF sets them: each page a section at its size, behind it its picture without the
+ * text the translation replaced (none when nothing else is on it), each rewritten block a frame
+ * at its place holding the lines the PDF set, broken where the PDF breaks them, in their sizes,
+ * styles and colours. Text turned on its side stays in the picture as it was. Translations the
+ * PDF could only put in a note follow the pages, each with its page number.
+ */
+function planPages(shown: PageIR[], text: PageText): EditablePlan {
+  const items: EditableItem[] = [];
+  const backgrounds: NonNullable<EditablePlan['backgrounds']> = [];
+  for (const page of shown) {
+    const frames: Frame[] = [];
+    const turned = new Set<string>();
+    const kept: BlockIR[] = [];
+    for (const b of page.blocks) {
+      const layout = text.layouts.get(b.id);
+      if (!layout?.lines.length) {
+        // A running head or a page number kept as it is: text too, so a page of nothing but
+        // text needs no picture (a book of two thousand pages stays small).
+        const plain =
+          FURNITURE.includes(b.role) &&
+          b.direction[1] === 0 &&
+          !page.ocr &&
+          b.lines.every((l) => l.spans.every((s) => !s.font.isMath));
+        if (plain && textOfBlock(b).trim()) {
+          kept.push(b);
+          frames.push(keptFrame(b));
+        }
+        continue;
+      }
+      if (b.direction[1] !== 0 || layout.lines.some((l) => l.dir && l.dir[1] !== 0)) {
+        turned.add(b.id);
+        continue;
+      }
+      frames.push(blockFrame(b, layout));
+    }
+    // A turned block keeps its own words in the picture.
+    const redact = [
+      ...(text.redactions.get(page.index) ?? []).filter(
+        (r) => !page.blocks.some((b) => turned.has(b.id) && coverage(r, b.bbox) > 0.5),
+      ),
+      ...kept.flatMap((b) => b.lines.map((l) => expand(l.bbox, 0.5))),
+    ];
+    const bare =
+      !page.ocr &&
+      !page.images.length &&
+      !page.vectors.length &&
+      page.blocks.every((b) => (text.layouts.has(b.id) && !turned.has(b.id)) || kept.includes(b));
+    if (!bare)
+      backgrounds.push(
+        page.ocr
+          ? {
+              page: page.index,
+              redact: [{ x0: 0, y0: 0, x1: page.width, y1: page.height }],
+              output: true,
+            }
+          : { page: page.index, redact },
+      );
+    items.push({
+      kind: 'slide',
+      width: page.width,
+      height: page.height,
+      ...(bare ? {} : { background: backgrounds.length - 1 }),
+      frames,
+    });
+  }
+  for (const note of text.notes.filter((n) => shown.some((p) => p.index === n.page)))
+    items.push({
+      kind: 'paragraph',
+      style: 'footnote',
+      align: 'left',
+      runs: [{ text: `${note.page + 1}: `, bold: true }, { text: note.text }],
+    });
+  return { items, footnotes: [], pictures: [], furniture: 0, backgrounds };
+}
+
+/** A block kept as it is (a running head, a page number) as a frame of its own text. */
+function keptFrame(b: BlockIR): Frame {
+  const spans = b.lines.flatMap((l) => l.spans);
+  const font = wordFont(spans);
+  const size = half(mainSize(b));
+  const runs: EditableRun[] = b.lines.flatMap((l, i) =>
+    l.spans.map((s, k) => {
+      const color = hex(s.color, true);
+      return {
+        text: s.text,
+        ...(s.font.bold ? { bold: true } : {}),
+        ...(s.font.italic ? { italic: true } : {}),
+        ...(color && color !== '000000' ? { color } : {}),
+        ...(Math.abs(s.size - size) > 0.25 ? { size: half(s.size) } : {}),
+        ...(i > 0 && k === 0 ? { lineBreak: true } : {}),
+      };
+    }),
+  );
+  const { ascent, descent } = metrics(font);
+  return {
+    x: Math.max(0, b.bbox.x0 - 1),
+    y: Math.max(0, b.lines[0]!.baseline - ascent * size),
+    width: (b.bbox.x1 - b.bbox.x0) * 1.1 + 6,
+    height: (b.lines.length + 1) * 1.17 * size + descent * size,
+    paragraphs: [{ runs, align: b.align === 'justify' ? 'left' : b.align, size, font }],
+  };
+}
+
+/** A rewritten block as a frame: the PDF's lines, one per line, at its place. */
+function blockFrame(b: BlockIR, layout: BlockLayout): Frame {
+  const spans = b.lines.flatMap((l) => l.spans);
+  const font = wordFont(spans);
+  const sizes = layout.lines.flatMap((l) => l.runs.map((r) => r.size));
+  const size = half(quantile(sizes, 0.5) || mainSize(b));
+  const lines: EditableRun[][] = [];
+  layout.lines.forEach((line) => {
+    const runs: EditableRun[] = [];
+    lines.push(runs);
+    let last: { run: EditableRun; key: string; end: number } | null = null;
+    for (const r of line.runs) {
+      const [family = 'serif', style = 'regular'] = r.face.split('-');
+      const raised = r.rise > 0.1 * r.size;
+      const lowered = r.rise < -0.1 * r.size;
+      // Word sets a script at two thirds of the size it is given.
+      const own = raised || lowered ? r.size / 0.65 : r.size;
+      const color = hex(r.color, true);
+      const run: EditableRun = {
+        text: r.text,
+        ...(style.includes('bold') ? { bold: true } : {}),
+        ...(style.includes('italic') ? { italic: true } : {}),
+        ...(family === 'mono' ? { mono: true } : {}),
+        ...(raised ? { superscript: true } : {}),
+        ...(lowered ? { subscript: true } : {}),
+        ...(r.underline ? { underline: true } : {}),
+        ...(r.linkUri ? { link: r.linkUri } : {}),
+        ...(color && color !== '000000' ? { color } : {}),
+        ...(Math.abs(own - size) > 0.25 ? { size: half(own) } : {}),
+      };
+      // The PDF sets each word at its place: a gap between two is a space.
+      const gap = last !== null && r.x - last.end > 0.12 * r.size;
+      const key = JSON.stringify({ ...run, text: '' });
+      if (last && last.key === key) last.run.text += (gap ? ' ' : '') + r.text;
+      else {
+        if (gap) run.text = ` ${run.text}`;
+        runs.push(run);
+        last = { run, key, end: 0 };
+      }
+      last.end = r.x + r.width;
+    }
+  });
+  // What the PDF could not fit stays with its block.
+  if (layout.remaining?.trim()) lines.at(-1)!.push({ text: ` ${layout.remaining.trim()}` });
+  const baselines = layout.lines.map((l) => l.baseline);
+  const gaps = baselines.slice(1).map((v, i) => v - baselines[i]!);
+  const leading = gaps.length ? half(quantile(gaps, 0.5)) : undefined;
+  const { ascent, descent } = metrics(font);
+  const x0 = Math.min(...layout.lines.map((l) => l.x0), b.bbox.x0);
+  const x1 = Math.max(...layout.lines.map((l) => l.x1), b.bbox.x1);
+  const top = Math.max(0, baselines[0]! - Math.max(ascent * size, (leading ?? 0) - descent * size));
+  const step = leading ?? 1.17 * size;
+  const paragraph = (runs: EditableRun[], align: Align) => ({
+    runs,
+    align,
+    size,
+    font,
+    ...(leading ? { leading } : {}),
+  });
+  const frame = { x: Math.max(0, x0 - 1), y: top };
+  // Pages keeps a frame at its height and hides a line it has no room for: a line to spare.
+  const height = step * (layout.lines.length + 1) + descent * size;
+  // A justified block keeps its edge: Word spreads each line the PDF broke over the column (WPS
+  // leaves it as it ends; spreading the letters instead reads as letter-spaced). Times and Arial
+  // set narrower than the PDF's type, so a line stays one line at the column's own width; a
+  // wider face gets room and is set left.
+  const justified = b.align === 'justify' && lines.length > 1 && /times|arial/i.test(font);
+  const align: Align = b.align === 'justify' && !justified ? 'left' : b.align;
+  return {
+    ...frame,
+    // Word's type runs a little wider than the PDF's: room so a line is not broken twice.
+    width: justified ? x1 - x0 + 2 : (x1 - x0) * 1.06 + 4,
+    height,
+    paragraphs: [
+      paragraph(
+        lines.flatMap((runs, i) =>
+          runs.map((r, k) => (i > 0 && k === 0 ? { ...r, lineBreak: true } : r)),
+        ),
+        align,
+      ),
+    ],
+  };
 }
 
 /**

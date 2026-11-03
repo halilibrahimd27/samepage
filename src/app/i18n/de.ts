@@ -459,9 +459,12 @@ export const de: Record<MessageKey, string> = {
   'bilingual.notes': 'Anmerkungen',
   'download.pdf': 'Übersetztes PDF herunterladen',
   'download.dual': 'Nebeneinander-PDF herunterladen',
-  'download.word': 'Als Word herunterladen (bearbeitbar)',
+  'download.word': 'Als Word herunterladen (wie das PDF)',
+  'download.wordFlow': 'Word als Fließtext',
+  'download.wordFlowHint':
+    'Die Übersetzung als Fließtext mit Word-Formatvorlagen — Überschriften, Absätze, Tabellen und Fußnoten — frei zu bearbeiten oder in die Vorlage einer Zeitschrift zu übernehmen. Abbildungen und abgesetzte Formeln sind Bilder.',
   'download.wordHint':
-    'Die Übersetzung in Word-Formatvorlagen: Überschriften, Absätze, Tabellen und Fußnoten als Text, Abbildungen und abgesetzte Formeln als Bilder. Kopfzeilen und Seitenzahlen entfallen.',
+    'Jede Seite wie im PDF: Gestaltung, Abbildungen, Formeln und Farben unverändert, die Übersetzung in Textfeldern dort, wo das PDF sie setzt, Zeile für Zeile — bearbeitbar in Word, WPS und Pages.',
   'pdfReport.summary':
     '{translated} übersetzt · {warnings} mit Warnungen · {untranslated} nicht übersetzt · {keptOriginal} in der Originalsprache belassen · {scaled} leicht verkleinert',
   'pdfReport.status.translated': 'Übersetzt',

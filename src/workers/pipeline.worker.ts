@@ -385,7 +385,7 @@ const api: PipelineApi = {
     controllers.set(job.jobId, controller);
     const session = new MemorySession(memory);
     try {
-      const { mono, dual, editable, report, translations } = await translatePdf(
+      const { mono, dual, editable, editableFlow, report, translations } = await translatePdf(
         new Uint8Array(await job.file.arrayBuffer()),
         {
           engine: engineFor(job, chrome),
@@ -425,11 +425,15 @@ const api: PipelineApi = {
           manual: u.manual,
         })),
       );
-      return transfer({ ok: true as const, mono, dual, editable, report, translations }, [
-        mono.buffer,
-        ...(dual ? [dual.buffer] : []),
-        ...(editable ? [editable.buffer] : []),
-      ]);
+      return transfer(
+        { ok: true as const, mono, dual, editable, editableFlow, report, translations },
+        [
+          mono.buffer,
+          ...(dual ? [dual.buffer] : []),
+          ...(editable ? [editable.buffer] : []),
+          ...(editableFlow ? [editableFlow.buffer] : []),
+        ],
+      );
     } catch (error) {
       return toJobError(error, controller.signal);
     } finally {
