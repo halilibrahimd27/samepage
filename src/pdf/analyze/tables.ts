@@ -90,7 +90,7 @@ export function detectTables(page: RawPage): TableRegion[] {
   const captionLines = page.blocks.flatMap((b) =>
     b.lines
       .filter((l) =>
-        CAPTION.test(
+        TABLE_CAPTION.test(
           l.chars
             .map((c) => c.c)
             .join('')
@@ -236,7 +236,7 @@ export function captionTables(page: RawPage, taken: Rect[]): Rect[] {
   const mid = page.width / 2;
   const out: Rect[] = [];
   const free = (l: TextLine) => ![...taken, ...out].some((t) => coverage(l.bbox, t) > 0.3);
-  for (const cap of lines.filter((l) => CAPTION.test(l.text))) {
+  for (const cap of lines.filter((l) => TABLE_CAPTION.test(l.text))) {
     if (!free(cap)) continue;
     // The caption's page column.
     const wide =
@@ -294,7 +294,7 @@ function tableFromRows(
     const limit = rows.length ? Math.max(2.2 * h, 1.6 * (median(heights) || h)) : 2.5 * h + 8;
     if (gap > limit) break;
     if (!row.every(free)) break;
-    if (row.some((l) => CAPTION.test(l.text))) break;
+    if (row.some((l) => TABLE_CAPTION.test(l.text))) break;
     const sizes = rows.flat().map((l) => l.size);
     if (sizes.length && row.some((l) => l.size > 1.2 * median(sizes))) break;
     // A long cell's next line, under a column after the first: part of the table.
@@ -404,7 +404,8 @@ function mergeSideBySide(
   return out;
 }
 
-const CAPTION =
+/** A table's caption: "Table 2", "Tablo 3", "Таблица 1". */
+export const TABLE_CAPTION =
   /^(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabella|Tabela|Tabel|Tabulka|Tabell|Таблица|Таблиця|Πίνακας)\s*[\dIVX]/iu;
 
 /**
@@ -451,7 +452,7 @@ function singleRuleTable(page: RawPage, rule: Rect, tables: TableRegion[]): Rect
     if (gap > (pitch ? 1.7 * pitch : 1.4 * height)) break;
     const inside = row.filter((l) => within(l.bbox));
     // The caption, a paragraph line or text running past the table ends it.
-    if (inside.some((l) => CAPTION.test(l.text))) break;
+    if (inside.some((l) => TABLE_CAPTION.test(l.text))) break;
     if (!inside.length || inside.length < row.filter((l) => xOverlap(l.bbox, rule) > 0).length)
       break;
     if (inside.length === 1 && inside[0]!.bbox.x1 - inside[0]!.bbox.x0 > 0.6 * (rule.x1 - rule.x0))
@@ -472,7 +473,7 @@ function singleRuleTable(page: RawPage, rule: Rect, tables: TableRegion[]): Rect
   // Its caption: above the header (IEEE) or below the data (ACM), over the table's width.
   const caption = lines.some(
     (l) =>
-      CAPTION.test(l.text) &&
+      TABLE_CAPTION.test(l.text) &&
       xOverlap(l.bbox, rect) > 0 &&
       ((l.bbox.y1 <= rect.y0 + 1 && rect.y0 - l.bbox.y1 < 40) ||
         (l.bbox.y0 >= rect.y1 - 1 && l.bbox.y0 - rect.y1 < 120)),

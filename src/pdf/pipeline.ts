@@ -9,6 +9,8 @@ import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import { buildEditableDocx } from '../docx/editable';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
 import { blockText, extractAndAnalyze, type OcrOptions } from './analyze';
+import { TABLE_CAPTION } from './analyze/tables';
+import { unionAll, xOverlap } from '../core/ir/geometry';
 import {
   normalizedCopy,
   readOutlineAndTitle,
@@ -310,9 +312,6 @@ async function pagesDrawnAlike(
   }
 }
 
-const TABLE_CAPTION =
-  /^\s*(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabela|Tabella|Tabel|Tabulka|Tabell|Таблица|Таблиця|Πίνακας)\s*[\dIVX]/iu;
-
 /**
  * A table caption with no table of two or more columns beside it (above or below, over its
  * width): the table was not recognised and its cells went into the text flow. The report says
@@ -321,7 +320,7 @@ const TABLE_CAPTION =
 function tableMissing(blocks: BlockIR[], pages: PageIR[]): boolean {
   const caption = blocks[0];
   const text = caption?.lines.map((l) => l.spans.map((s) => s.text).join('')).join(' ') ?? '';
-  if (!caption || !TABLE_CAPTION.test(text)) return false;
+  if (!caption || !TABLE_CAPTION.test(text.trimStart())) return false;
   const page = pages[pageOf(caption)];
   if (!page) return false;
   const columns = new Map<string, Set<number>>();
@@ -468,6 +467,21 @@ export async function translatePdf(
   const contextUnder = (u: PdfUnit): { context?: string } => {
     const b = u.blocks[0]!;
     if (!ONE_WORD_LABEL.test(plainText(u.encoded.source))) return {};
+    // A table's header ("Tool" over "Malware Checks [35]"): its caption says what the table is
+    // about ("Existing techniques for analysing … packages").
+    const cell = b.tableCell;
+    if (cell && cell.row === 0) {
+      const blocks = pages[pageOf(b)]!.blocks;
+      const table = unionAll(
+        blocks.filter((o) => o.tableCell?.tableId === cell.tableId).map((o) => o.bbox),
+      );
+      const away = (o: BlockIR) => Math.max(o.bbox.y0 - table.y1, table.y0 - o.bbox.y1);
+      const caption = blocks
+        .filter((o) => o.role === 'caption' && TABLE_CAPTION.test(blockText(o).trim()))
+        .filter((o) => away(o) < 40 && xOverlap(o.bbox, table) > 0)
+        .sort((x, y) => away(x) - away(y))[0];
+      if (caption) return { context: blockText(caption).replace(/^\S+\s*[\dIVX]+[.:]?\s*/u, '') };
+    }
     const h = b.bbox.y1 - b.bbox.y0;
     const under = pages[pageOf(b)]!.blocks.filter(
       (o) =>

@@ -2,6 +2,7 @@ import { coverage, expand, union, unionAll } from '../core/ir/geometry';
 import type { BlockIR, PageIR, Rect, Role, SpanIR } from '../core/ir/types';
 import { DISPLAY_FORMULA, type DecodedRun } from '../core/segment/codec';
 import { equationLike, FRONT_END, mathFragments, mathLike } from './analyze/analyze';
+import { TABLE_CAPTION } from './analyze/tables';
 import type {
   Align,
   EditableItem,
@@ -661,9 +662,6 @@ function pagePictures(page: PageIR, unitBlocks: Set<string>): Picture[] {
     return !host && !decoration(p) && p.rect.x1 - p.rect.x0 > 4 && p.rect.y1 - p.rect.y0 > 4;
   });
 }
-
-const TABLE_CAPTION =
-  /^(?:Table|Tab\.|Tablo|Tabelle|Tableau|Tabla|Tabella|Tabela|Tabel|Tabulka|Tabell|Таблица|Таблиця|Πίνακας)\s*[\dIVX]/iu;
 
 /**
  * A figure of panels over one caption ("(a)" … "(d)", each with its title and legend) is one
