@@ -87,6 +87,25 @@ describe('a box of ruled lines', () => {
     const [table] = detectTables(page([...data, ...text], rules));
     expect(table!.rect.y1).toBeLessThan(300);
   });
+
+  it('takes the row over its first rule when each row has a rule only under it', () => {
+    // A web page's key–value table: label and value side by side, a rule under every row.
+    const title: Cell = [48, 175, 227, 190, 'E.1 Company pilot proposal', 12];
+    const rows: Cell[] = [0, 1, 2, 3].flatMap((i) => [
+      [54, 203 + 32 * i, 90, 213 + 32 * i, `Label ${i}`] as Cell,
+      [154, 203 + 32 * i, 530, 213 + 32 * i, `The value of row ${i}, its first line`] as Cell,
+      [154, 215 + 32 * i, 400, 225 + 32 * i, 'and its second line.'] as Cell,
+    ]);
+    const rules: [number, number, number][] = [0, 1, 2, 3].map(
+      (i) => [48, 230 + 32 * i, 547] as [number, number, number],
+    );
+    const [table] = detectTables(page([title, ...rows], rules));
+    // The first row is the table's, its own row; the title above it is not.
+    expect(table!.rect.y0).toBeGreaterThan(190);
+    expect(table!.rect.y0).toBeLessThan(203);
+    expect(table!.rows[0]).toBeLessThan(203);
+    expect(table!.rows[1]).toBeGreaterThan(225);
+  });
 });
 
 describe('tables with a single rule', () => {

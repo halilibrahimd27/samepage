@@ -256,4 +256,26 @@ describe('PDF translation units', () => {
     ]);
     expect(range!.encoded.source).toBe('nell’a.a. 2020-21 sono stati');
   });
+
+  it('draws a checklist’s ballot box with a look-alike the bundled faces have', () => {
+    const item = block('p0-b0', [[span('☐ Proje kaydı açıldı', 50)]]);
+    const [unit] = buildPdfUnits([page([item])]);
+    // No text face has "☐"; the symbols face has a white square.
+    const measurer = {
+      width: (t: string) => t.length * 5,
+      covers: (t: string, face: string) =>
+        !t.includes('☐') && (face === 'math-regular' || !t.includes('□')),
+    } as never;
+    const [layout] = layoutUnit(
+      'u',
+      [item],
+      decode('☐ Project registered', unit!.encoded),
+      unit!.encoded.baseStyle,
+      measurer,
+      { sizeFactor: () => 1 },
+    );
+    const box = layout!.lines[0]!.runs[0]!;
+    expect(box.text).toBe('□');
+    expect(box.face).toBe('math-regular');
+  });
 });

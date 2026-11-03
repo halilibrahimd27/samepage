@@ -1018,11 +1018,31 @@ function mergeSplitParagraphs(
       const leftOk =
         bFirst.bbox.x0 <= a.bbox.x0 + 2 + hanging && bFirst.bbox.x0 >= a.bbox.x0 - 3 * size;
       // In a ruled table's cell the next line goes on whatever its first letter, and so does one
-      // after a separator ("Sigstore (sigstore.dev) ·" | "Open Policy Agent …").
+      // after a separator ("Sigstore (sigstore.dev) ·" | "Open Policy Agent …"), inside an open
+      // bracket ("… İLK KULLANICI (≈ 60" | "SA)") or before one ("… deneme" | "(DDO görevi
+      // kapsamında)"), not an item's mark ("(b) …").
+      const oneCell = cells.has(a) && cells.has(b) && sameCell(a.bbox, b.bbox);
+      // A cell with another beside it (a label and its value): its sentences are one cell's
+      // text. Not the notes under a table, one per line across its width.
+      const besideOther =
+        oneCell &&
+        blocks.some(
+          (o) =>
+            o !== a &&
+            o !== b &&
+            cells.has(o) &&
+            xOverlap(o.bbox, a.bbox) <= 0 &&
+            Math.min(o.bbox.y1, a.bbox.y1) - Math.max(o.bbox.y0, a.bbox.y0) > 0,
+        );
+      const aAll = a.lines.flatMap((l) => l.spans.map((sp) => sp.text)).join('');
+      const openBracket = (aAll.match(/\(/gu)?.length ?? 0) > (aAll.match(/\)/gu)?.length ?? 0);
+      const bracketed = /^\(/u.test(bText) && !/^\(\w{1,4}\)\s/u.test(bText);
       const continuesLeft =
         (/^\p{Ll}/u.test(bText) ||
           /[·•–—→]$/u.test(aText) ||
-          (cells.has(a) && cells.has(b) && sameCell(a.bbox, b.bbox))) &&
+          openBracket ||
+          bracketed ||
+          oneCell) &&
         leftOk;
       // On a justified page a line that runs to the text edge does not end its paragraph, even
       // when the next line starts with a capital ("We can use Network" | "Property Chains to").
@@ -1074,7 +1094,7 @@ function mergeSplitParagraphs(
         (continuesLeft || hangsUnder) && close(closer(aLast).size, opener(bFirst).size);
       const em = sameSize ? size : opener(bFirst).size;
       if (
-        (!endsSentence(aText) || hangsUnder) &&
+        (!endsSentence(aText) || hangsUnder || besideOther) &&
         !opensWithMark &&
         (continuesLeft || continuesFull || continuesCentred || hangsUnder) &&
         step > 0.5 * em &&

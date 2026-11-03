@@ -195,6 +195,40 @@ export function detectTables(page: RawPage): TableRegion[] {
       lastTop = Math.max(...next.map((l) => l.y0));
       rect.y1 = Math.max(rect.y1, ...next.map((l) => l.y1));
     }
+    // A rule under each row and none over the first (a web page's table): the lines right above
+    // the first rule, as far above it as other rows' text stands above their rules and starting
+    // where the table's cells start, are its first row. Not over a grid (its border is drawn),
+    // a booktabs top rule (thicker) or a caption.
+    const even = Math.max(...g.map(thickness)) < 1.5 * Math.min(...g.map(thickness)) + 0.1;
+    const gridded = vrules.some((v) => coverage(v, rect) > 0.8);
+    if (!head.length && g.length >= 4 && even && !gridded) {
+      const within = (l: Rect) => l.x0 >= rect.x0 - 2 && l.x1 <= rect.x1 + 2;
+      const lifts = g.slice(1).flatMap((r, k) => {
+        const above = textLines.filter((l) => within(l) && l.y0 > g[k]!.y1 && l.y1 <= r.y0 + 0.5);
+        return above.length ? [r.y0 - Math.max(...above.map((l) => l.y1))] : [];
+      });
+      const lift = lifts.length >= 3 ? median(lifts) : NaN;
+      const starts = (l: Rect) => inside.some((m) => Math.abs(m.x0 - l.x0) < 2.5);
+      const caption = (l: Rect) => captionLines.some((c) => coverage(c, l) > 0.5);
+      const over = textLines
+        .filter((l) => within(l) && l.y1 <= rect.y0 + 0.5)
+        .sort((p, q) => q.y1 - p.y1);
+      const lowest = over[0];
+      if (lowest && Math.abs(rect.y0 - lowest.y1 - lift) < 2) {
+        // The row's lines: from the lowest up while they follow each other.
+        let top = lowest.y0;
+        const row = over.filter((l) => {
+          if (l.y1 < top - 0.5 * (l.y1 - l.y0)) return false;
+          top = Math.min(top, l.y0);
+          return true;
+        });
+        if (row.every((l) => starts(l) && !caption(l))) {
+          const edge = top - Math.min(lift, 0.5 * (lowest.y1 - lowest.y0));
+          g.unshift({ ...rect, y0: edge, y1: edge });
+          rect.y0 = edge;
+        }
+      }
+    }
     const inner = narrow.filter((r) => coverage(r, rect) > 0.9);
     regions.push({
       id: `p${page.index}-t${regions.length}`,
