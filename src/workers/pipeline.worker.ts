@@ -22,6 +22,7 @@ import { createChromeEngine, type ChromeTranslatorBridge } from '../engines/chro
 import { buildBilingualDocx } from '../docx/bilingual';
 import { crossrefTitles } from '../core/crossref';
 import { createOnDeviceEditor } from '../engines/onDevice';
+import { termsRenderedTwoWays } from '../core/pipeline/terms';
 import { docxParagraphs, docxTermTexts, translateDocx } from '../docx/pipeline';
 import { DocxRejectedError } from '../docx/unzip';
 import { createEngine } from '../engines';
@@ -40,7 +41,7 @@ import { extractAndAnalyze, pdfParagraphs, pdfTermTexts } from '../pdf/analyze';
 import { redactSecrets } from '../security/redact';
 import { LIMITS, TMX_LIMITS } from '../security/limits';
 import type { DocxReport } from '../docx/pipeline';
-import type { DocxJob, JobError, PdfJob, PipelineApi, TextJob } from './api';
+import type { DocxJob, JobError, PdfJob, PipelineApi, TermJob, TextJob } from './api';
 
 const THUMBNAIL_WIDTH = 240;
 /** Pages searched for the title, abstract and keywords. */
@@ -61,7 +62,7 @@ const getFaces = () =>
   }));
 
 function engineFor(
-  job: TextJob | DocxJob | PdfJob,
+  job: TextJob | DocxJob | PdfJob | TermJob,
   chrome?: ChromeTranslatorBridge,
 ): TranslationEngine {
   // A reopened project translates nothing: its translations replace the engine (never called).
@@ -278,6 +279,23 @@ const api: PipelineApi = {
     }
   },
 
+  async termsAcross(job, chrome) {
+    const controller = new AbortController();
+    controllers.set(job.jobId, controller);
+    try {
+      return await termsRenderedTwoWays(
+        engineFor(job, chrome),
+        { pair: job.pair, glossary: job.glossary, numberLocalization: false },
+        job.pairs,
+        job.glossary,
+        controller.signal,
+      );
+    } catch {
+      return [];
+    } finally {
+      controllers.delete(job.jobId);
+    }
+  },
   cancel(jobId) {
     controllers.get(jobId)?.abort();
   },

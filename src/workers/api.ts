@@ -1,3 +1,4 @@
+import type { TermPair, TermVariance } from '../core/glossary/consistency';
 import type { SegmentOutcome, CostEstimate, ProgressPhase } from '../core/pipeline/translate';
 import type { BilingualRow } from '../docx/bilingual';
 import type { DocxReport } from '../docx/pipeline';
@@ -43,6 +44,15 @@ export interface TextJob {
   polishOnDevice?: boolean;
   /** English targets: the spelling LLM engines write. */
   englishSpelling?: 'american' | 'british';
+}
+
+/** Paragraphs of several translated documents, for the terms they render two ways. */
+export interface TermJob {
+  jobId: string;
+  engine: EngineSpec;
+  pair: LangPair;
+  glossary: GlossaryEntry[];
+  pairs: TermPair[];
 }
 
 export interface TextSegment {
@@ -172,6 +182,8 @@ export interface PipelineApi {
     pair: LangPair,
     known: GlossaryEntry[],
   ): Promise<TermSuggestion[]>;
+  /** Terms the paragraphs render two ways, confirmed by the engine (a batch of documents). */
+  termsAcross(job: TermJob, chrome?: ChromeTranslatorBridge): Promise<TermVariance[]>;
   /** Title, abstract and keywords of a paper; null when no abstract was found. */
   paperParts(file: Blob, kind: 'pdf' | 'docx', sourceLang: string): Promise<PaperParts | null>;
   translateText(

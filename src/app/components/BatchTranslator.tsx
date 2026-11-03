@@ -2,7 +2,10 @@ import { proxy } from 'comlink';
 import { useEffect, useRef, useState } from 'react';
 import { detectLanguage } from '../../core/detectLanguage';
 import { LANGUAGES, languageName, type LanguageCode } from '../../core/languages';
+import type { TermPair, TermVariance } from '../../core/glossary/consistency';
+import { mergeGlossaries } from '../../core/glossary/glossary';
 import type { ProgressPhase } from '../../core/pipeline/translate';
+import type { LangPair } from '../../engines/types';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile } from '../../security/fileCheck';
 import { LIMITS } from '../../security/limits';
@@ -25,6 +28,7 @@ import { fromMemory } from '../issues';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 import { ProgressBar } from './ProgressBar';
+import { TermConsistency } from './TermConsistency';
 import { TranslationSheet } from './TranslationSheet';
 
 const LONG_JOB_MS = 2 * 60 * 60_000;
@@ -61,6 +65,28 @@ interface Item {
     /** Paragraphs taken from the translation memory instead of the engine. */
     memory: number;
   };
+  /** The pair it was translated in, and its engine's paragraphs (for the terms across files). */
+  pair?: LangPair;
+  pairs?: TermPair[];
+}
+
+/** Paragraphs the engine translated, ids made unique across the files. */
+function enginePairs(
+  item: string,
+  paragraphs: {
+    id: string;
+    role: string;
+    source: string;
+    target: string;
+    status: string;
+    manual: boolean;
+    issues: { code: string }[];
+  }[],
+): TermPair[] {
+  return paragraphs
+    .filter((p) => (p.status === 'translated' || p.status === 'warning') && !p.manual)
+    .filter((p) => p.role !== 'reference' && !p.issues.some((i) => i.code === 'FROM_MEMORY'))
+    .map((p) => ({ id: `${item}\u0000${p.id}`, source: p.source, target: p.target }));
 }
 
 /**
@@ -88,6 +114,8 @@ export function BatchTranslator({
   const [running, setRunning] = useState(false);
   const [download, setDownload] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Terms rendered two ways across the files of each language pair. */
+  const [terms, setTerms] = useState<{ pair: LangPair; list: TermVariance[] }[]>([]);
   const stopped = useRef(false);
   const jobId = useRef<string | null>(null);
   const update = (id: string, patch: Partial<Item>) =>
@@ -219,6 +247,8 @@ export function BatchTranslator({
           score: s.score,
           memory: res.report.units.filter(fromMemory).length,
         },
+        pair,
+        pairs: enginePairs(it.id, res.report.units),
         outputs: [
           { name: `${base}.${target}.pdf`, blob: new Blob([res.mono.slice()], { type: MIME.pdf }) },
           ...(res.editable
@@ -252,6 +282,8 @@ export function BatchTranslator({
         untranslated: s.untranslated,
         memory: res.report.segments.filter(fromMemory).length,
       },
+      pair,
+      pairs: enginePairs(it.id, res.report.segments),
       outputs: [
         {
           name: `${base}.${target}.${ext}`,
@@ -261,15 +293,19 @@ export function BatchTranslator({
     };
   }
 
-  async function translateAll() {
+  async function translateAll(again?: Item[]) {
     const problem = config.problem(t);
     if (problem) return setError(problem);
     setError(null);
+    setTerms([]);
     stopped.current = false;
     setRunning(true);
-    const todo = items.filter(
-      (it) => it.status === 'ready' || it.status === 'failed' || it.status === 'skipped',
-    );
+    const todo =
+      again ??
+      items.filter(
+        (it) => it.status === 'ready' || it.status === 'failed' || it.status === 'skipped',
+      );
+    const finished = new Map<string, Item>();
     setItems((all) =>
       all.map((it) =>
         todo.some((x) => x.id === it.id) && it.kind ? { ...it, status: 'queued' } : it,
@@ -280,16 +316,63 @@ export function BatchTranslator({
       if (!it.kind) continue;
       update(it.id, { status: 'translating', progress: undefined, message: undefined });
       try {
-        update(it.id, await translate(it));
+        const result = await translate(it);
+        update(it.id, result);
+        if (result.status === 'done') finished.set(it.id, { ...it, ...result });
       } catch (e) {
         update(it.id, { status: 'failed', message: runErrorText(e, t) });
       }
     }
     // What the stop left waiting can go again.
     setItems((all) => all.map((it) => (it.status === 'queued' ? { ...it, status: 'ready' } : it)));
+    if (!stopped.current)
+      await checkTerms([
+        ...items.filter((it) => it.status === 'done' && !finished.has(it.id)),
+        ...finished.values(),
+      ]);
     jobId.current = null;
     setRunning(false);
     setDownload(null);
+  }
+
+  /**
+   * Terms the files of one language pair render two ways, read across all of them and confirmed
+   * by the engine: a thesis's chapters, a series of papers say a term one way.
+   */
+  async function checkTerms(done: Item[]) {
+    const groups = new Map<string, { pair: LangPair; pairs: TermPair[] }>();
+    for (const it of done) {
+      if (!it.pair || !it.pairs?.length) continue;
+      const key = `${it.pair.source}>${it.pair.target}`;
+      const g = groups.get(key) ?? { pair: it.pair, pairs: [] };
+      g.pairs.push(...it.pairs);
+      groups.set(key, g);
+    }
+    const found: { pair: LangPair; list: TermVariance[] }[] = [];
+    for (const { pair, pairs } of groups.values()) {
+      const glossary = await pipelineClient.call((api) => api.loadGlossary(pair)).catch(() => []);
+      const bridge = await engineBridge(config.engine, pair, setDownload).catch(() => undefined);
+      const id = crypto.randomUUID();
+      jobId.current = id;
+      const list = await pipelineClient
+        .call((api) =>
+          api.termsAcross({ jobId: id, engine: config.spec(), pair, glossary, pairs }, bridge),
+        )
+        .catch(() => []);
+      if (list.length) found.push({ pair, list });
+    }
+    setTerms(found);
+  }
+
+  /** The chosen renderings into the pair's glossary, and its files translated again. */
+  async function applyTerms(pair: LangPair, entries: { source: string; target: string }[]) {
+    const stored = await pipelineClient.call((api) => api.loadGlossary(pair)).catch(() => []);
+    await pipelineClient.call((api) => api.saveGlossary(pair, mergeGlossaries(stored, entries)));
+    const again = items.filter(
+      (it) =>
+        it.status === 'done' && it.pair?.source === pair.source && it.pair.target === pair.target,
+    );
+    await translateAll(again);
   }
 
   function stop() {
@@ -485,6 +568,19 @@ export function BatchTranslator({
           {error}
         </p>
       )}
+      {!running &&
+        terms.map(({ pair, list }) => (
+          <TermConsistency
+            key={`${pair.source}>${pair.target}`}
+            terms={list}
+            example={(id) => {
+              const [item] = id.split('\u0000');
+              return items.find((it) => it.id === item)?.pairs?.find((p) => p.id === id);
+            }}
+            busy={running}
+            onUse={(entries) => void applyTerms(pair, entries)}
+          />
+        ))}
       <TranslationSheet />
     </section>
   );
