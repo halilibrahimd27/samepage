@@ -373,7 +373,8 @@ const grow = (r: Rect, d: number): Rect => ({
 });
 
 function ocrSummary(pages: PageIR[]): { ocr?: { pages: number; confidence: number } } {
-  const scanned = pages.filter((p) => p.ocr);
+  // Pages whose own text layer lay over a picture of it were not recognised here.
+  const scanned = pages.filter((p) => p.ocr && !p.ocr.layer);
   if (!scanned.length) return {};
   const confidence = scanned.reduce((n, p) => n + p.ocr!.confidence, 0) / scanned.length;
   return { ocr: { pages: scanned.length, confidence: Math.round(confidence) } };
@@ -593,8 +594,11 @@ export async function translatePdf(
   /** What the translation is written on: the original, or its normalized copy (see below). */
   let source = bytes;
   let written: Awaited<ReturnType<typeof writePdf>> | null = null;
+  /** Blocks the last write took off the page and set anew (covered, on a picture of a page). */
+  let rewritten = new Set<string>();
 
   for (let attempt = 0; attempt <= policy.postApply.maxRebuilds; attempt++) {
+    rewritten = new Set<string>();
     const writes: PageWrite[] = pages.map((p) => ({
       index: p.index,
       redact: [],
@@ -606,9 +610,14 @@ export async function translatePdf(
       const ocr = pages[w.index]!.ocr;
       if (!ocr) return;
       // The recognised text is part of the scan: paint the paper colour over it.
-      // Accents reach above the recognised box: a quarter of the line more on top.
+      // Accents reach above the recognised box: a quarter of the line more on top. A text
+      // layer's boxes leave out the descenders too ("ğ", "p" under a slide's title).
       w.cover = w.redact.map((r) => ({
-        rect: { ...grow(r, 1.8), y0: r.y0 - Math.max(1.8, 0.25 * (r.y1 - r.y0)) },
+        rect: {
+          ...grow(r, 1.8),
+          y0: r.y0 - Math.max(1.8, 0.25 * (r.y1 - r.y0)),
+          ...(ocr.layer ? { y1: r.y1 + Math.max(1.8, 0.25 * (r.y1 - r.y0)) } : {}),
+        },
         color: paperUnder(r, ocr.lines),
       }));
     };
@@ -626,6 +635,7 @@ export async function translatePdf(
       }
       for (const l of r.layouts) {
         const block = blockById.get(l.blockId)!;
+        rewritten.add(block.id);
         const w = writes[pageOf(block)]!;
         const horizontal = block.direction[1] === 0;
         for (const line of block.lines) w.redact.push(redactRect(line, horizontal));
@@ -952,13 +962,31 @@ export async function translatePdf(
     };
     const plan = planEditable(
       pages,
-      units.map((unit) => ({ unit, runs: runsOf(unit), scale: reports.get(unit.id)?.scale ?? 1 })),
+      units.map((unit) => ({
+        unit,
+        runs: runsOf(unit),
+        scale: reports.get(unit.id)?.scale ?? 1,
+        // Set anew over the page, not left as it was nor put in a note.
+        written: unit.blocks.some((b) => rewritten.has(b.id)),
+      })),
       inRange,
     );
-    // Slides: each page behind its text, from the PDF the translation was written on.
+    // Slides: each page behind its text, from the PDF the translation was written on — or, for
+    // a picture of a page, from the translation, its words covered.
+    const backgrounds = plan.backgrounds ?? [];
+    const fromSource = await renderBackgroundsPng(
+      source,
+      backgrounds.filter((b) => !b.output),
+      2,
+    );
+    const fromOutput = await renderBackgroundsPng(
+      written!.mono,
+      backgrounds.filter((b) => b.output),
+      2,
+    );
     const crops = [
       ...(await renderRegionsPng(written!.mono, plan.pictures, 2)),
-      ...(plan.backgrounds?.length ? await renderBackgroundsPng(source, plan.backgrounds, 2) : []),
+      ...backgrounds.map((b) => (b.output ? fromOutput : fromSource).shift()!),
     ];
     const title = meta.title.trim() && bySource.get(meta.title);
     editable = await buildEditableDocx(

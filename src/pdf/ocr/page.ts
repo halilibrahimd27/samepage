@@ -33,20 +33,28 @@ export interface OcrPageInfo {
   /** Mean word confidence of the page, 0–100. */
   confidence: number;
   lines: OcrLine[];
+  /** The PDF's own text layer, unseen over a picture of its text. */
+  layer?: boolean;
 }
 
-/** A page with (almost) no text that is mostly an image: a scan. */
-export function needsOcr(page: RawPage): boolean {
-  let chars = 0;
-  for (const b of page.blocks)
-    for (const l of b.lines) for (const c of l.chars) if (c.c.trim()) chars++;
-  if (chars >= 20) return false;
+const chars = (page: RawPage) =>
+  page.blocks.reduce(
+    (n, b) => n + b.lines.reduce((m, l) => m + l.chars.filter((c) => c.c.trim()).length, 0),
+    0,
+  );
+/** Share of the page under its pictures. */
+const pictureShare = (page: RawPage) => {
   const area = page.width * page.height;
   const covered = page.images.reduce(
     (n, i) => n + Math.max(0, i.bbox.x1 - i.bbox.x0) * Math.max(0, i.bbox.y1 - i.bbox.y0),
     0,
   );
-  return area > 0 && covered >= 0.5 * area;
+  return area > 0 ? covered / area : 0;
+};
+
+/** A page with (almost) no text that is mostly an image: a scan. */
+export function needsOcr(page: RawPage): boolean {
+  return chars(page) < 20 && pictureShare(page) >= 0.5;
 }
 
 const median = (v: number[]) => {
@@ -84,13 +92,129 @@ export function paperColor(px: PagePixels, box: Rect): Color {
   ]);
 }
 
-/** The ink colour: the median of the darkest tenth of the box. */
-export function inkColor(px: PagePixels, box: Rect): Color {
-  const cs = samples(px, box).sort((a, b) => a[0] + a[1] + a[2] - (b[0] + b[1] + b[2]));
-  const dark = cs.slice(0, Math.max(1, Math.floor(cs.length / 10)));
-  const c = channelMedian(dark);
+const distance = (a: Color, b: Color) =>
+  Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+
+/**
+ * The ink colour: the median of the tenth of the box farthest from the paper — the darkest on
+ * white paper, the lightest on a dark slide.
+ */
+export function inkColor(px: PagePixels, box: Rect, paper: Color = [1, 1, 1]): Color {
+  const cs = samples(px, box).sort((a, b) => distance(b, paper) - distance(a, paper));
+  const far = cs.slice(0, Math.max(1, Math.floor(cs.length / 10)));
+  const c = channelMedian(far);
   // Antialiased edges make thin type look grey; near-black is black.
   return c[0] + c[1] + c[2] < 0.45 ? [0, 0, 0] : c;
+}
+
+/** Share of the box nearer the ink than the paper: about a fifth for regular type, more for bold. */
+function inkShare(px: PagePixels, box: Rect, paper: Color, ink: Color): number {
+  const cs = samples(px, box, 1);
+  return cs.length ? cs.filter((c) => distance(c, ink) < distance(c, paper)).length / cs.length : 0;
+}
+
+/** A page with text over a picture that covers most of it: is the text what shows? */
+export function textOverPicture(page: RawPage): boolean {
+  return !needsOcr(page) && pictureShare(page) >= 0.5 && chars(page) >= 20;
+}
+
+/**
+ * Whether the page's text is unseen: taking it off (`without`) leaves the pixels of its lines as
+ * they were (`withText`) — what shows is a picture of the text.
+ */
+export function unseenText(
+  page: RawPage,
+  withText: PagePixels,
+  without: PagePixels,
+  scale: number,
+): boolean {
+  let changed = 0;
+  let all = 0;
+  for (const l of page.blocks.flatMap((b) => b.lines)) {
+    const box = {
+      x0: l.bbox.x0 * scale,
+      y0: l.bbox.y0 * scale,
+      x1: l.bbox.x1 * scale,
+      y1: l.bbox.y1 * scale,
+    };
+    const a = samples(withText, box);
+    const b = samples(without, box);
+    all += a.length;
+    a.forEach((c, i) => {
+      if (distance(c, b[i]!) > 0.1) changed++;
+    });
+  }
+  return all > 0 && changed < 0.01 * all;
+}
+
+/** Names of the type a text layer is set anew in (no font of it shows), read by family. */
+const layerFont = (serif: boolean, bold: boolean) =>
+  `Layer ${serif ? 'Serif' : 'Sans'}${bold ? ' Bold' : ''}`;
+
+/**
+ * A page whose text layer lies unseen over a picture of its text, read like a scan: each line
+ * covered with the paper under it and set anew in the ink colour of the picture, bold where its
+ * strokes are heavier than the page's usual type, in a sans for a slide.
+ */
+export function layerPage(
+  page: RawPage,
+  px: PagePixels,
+  scale: number,
+): { page: RawPage; info: OcrPageInfo } {
+  const toPx = (r: Rect): Rect => ({
+    x0: r.x0 * scale,
+    y0: r.y0 * scale,
+    x1: r.x1 * scale,
+    y1: r.y1 * scale,
+  });
+  const measured = page.blocks.flatMap((b) =>
+    b.lines.map((l) => {
+      const box = toPx(l.bbox);
+      // Most of a line's box is its paper; strips around it may fall on a card's edge.
+      const paper = channelMedian(samples(px, box));
+      const ink = inkColor(px, box, paper);
+      return { line: l, paper, ink, share: inkShare(px, box, paper, ink) };
+    }),
+  );
+  const usual = median(measured.map((m) => m.share));
+  // A slide is set in a sans, a page in a serif.
+  const serif = page.width < 1.25 * page.height;
+  const lines: OcrLine[] = [];
+  const blocks: RawTextBlock[] = page.blocks.map((b) => ({
+    ...b,
+    lines: b.lines.map((l) => {
+      const m = measured.find((x) => x.line === l)!;
+      const bold = m.share > 1.3 * usual && m.share > 0.2;
+      lines.push({ bbox: l.bbox, conf: 100, background: m.paper });
+      return {
+        ...l,
+        chars: l.chars.map((c) => ({
+          ...c,
+          font: layerFont(serif, bold),
+          color: m.ink,
+        })),
+      };
+    }),
+  }));
+  return {
+    page: {
+      ...page,
+      blocks,
+      images: page.images.filter(
+        (i) => (i.bbox.x1 - i.bbox.x0) * (i.bbox.y1 - i.bbox.y0) < 0.5 * page.width * page.height,
+      ),
+      fonts: {
+        ...page.fonts,
+        ...Object.fromEntries(
+          [false, true].map((bold) => [
+            layerFont(serif, bold),
+            { name: layerFont(serif, bold), bold, italic: false, serif, mono: false },
+          ]),
+        ),
+      },
+    },
+    info: { confidence: 100, lines, layer: true },
+  };
 }
 
 const DESCENDER = /[gjpqyçşğţșJQ,;()[\]{}|]/u;
@@ -159,7 +283,8 @@ export function ocrPage(
     const size = Math.round(Math.min(72, Math.max(4, em / scale)) * 10) / 10;
     const flat = ws.filter((w) => !DESCENDER.test(w.text)).map((w) => w.top + w.height);
     const baseline = (flat.length ? median(flat) : box.y1 - 0.2 * em) / scale;
-    const color = inkColor(px, box);
+    const paper = paperColor(px, box);
+    const color = inkColor(px, box, paper);
     const chars: RawChar[] = [];
     ws.forEach((w, k) => {
       const letters = [...w.text];
@@ -219,7 +344,7 @@ export function ocrPage(
       bbox,
       conf: ws.reduce((n, w) => n + w.conf, 0) / ws.length,
       ...(weak.length ? { weak } : {}),
-      background: paperColor(px, box),
+      background: paper,
     });
   }
   const confidence = words.length ? words.reduce((n, w) => n + w.conf, 0) / words.length : 0;

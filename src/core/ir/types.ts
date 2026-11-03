@@ -79,10 +79,14 @@ export interface PageIR {
   columns: Rect[];
   /** Figures (images and drawings, tables excluded); `formula` when made of fraction bars only. */
   figures?: { bbox: Rect; formula: boolean }[];
-  /** The page is a scan and its text was recognised (OCR, P8.4). */
+  /**
+   * The page is a scan and its text was recognised (OCR, P8.4), or its text layer lies unseen
+   * over a picture of the page (`layer`: a deck saved as pictures and recognised elsewhere).
+   */
   ocr?: {
     /** Mean word confidence, 0–100. */
     confidence: number;
+    layer?: boolean;
     /** Recognised lines with their confidence and the paper colour under them. */
     lines: {
       bbox: Rect;

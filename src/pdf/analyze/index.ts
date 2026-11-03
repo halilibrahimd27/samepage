@@ -2,7 +2,15 @@ import type { DocParagraph } from '../../core/abstract';
 import type { TermText } from '../../core/glossary/detect';
 import type { BlockIR, PageIR } from '../../core/ir/types';
 import { openPdfForExtraction } from '../engine';
-import { needsOcr, OCR_SCALE, ocrPage, type OcrPageInfo } from '../ocr/page';
+import {
+  layerPage,
+  needsOcr,
+  OCR_SCALE,
+  ocrPage,
+  textOverPicture,
+  unseenText,
+  type OcrPageInfo,
+} from '../ocr/page';
 import type { OcrEngine } from '../ocr/tesseract';
 import { hyphenEvidence, joinHyphen } from '../typeset/segments';
 import { analyzeDocument, blockText } from './analyze';
@@ -45,6 +53,18 @@ export async function extractAndAnalyze(
       infos.set(p.index, result.info);
     }
     if (scanned.length) ocr!.onPage?.(scanned.length, scanned.length);
+    // A text layer unseen over a picture of the page (a deck saved as pictures and recognised
+    // elsewhere): taken off, it changes no pixel. Read like a scan, it is covered and set anew;
+    // left as text, the translation was written over the picture's own words.
+    for (const p of raw) {
+      if (infos.has(p.index) || !textOverPicture(p)) continue;
+      const scale = 1;
+      const { pixels } = pdf.renderPage(p.index, scale);
+      if (!unseenText(p, pixels, pdf.renderWithoutText(p.index, scale), scale)) continue;
+      const result = layerPage(p, pdf.renderPage(p.index, OCR_SCALE).pixels, OCR_SCALE);
+      raw[p.index] = result.page;
+      infos.set(p.index, result.info);
+    }
     const pages = analyzeDocument(raw);
     for (const page of pages) {
       const info = infos.get(page.index);

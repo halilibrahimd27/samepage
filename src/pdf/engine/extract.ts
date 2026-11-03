@@ -175,6 +175,8 @@ export interface OpenedPdf {
   extractPage(index: number): RawPage;
   /** The page as PNG and as RGB pixels at `scale` (1 = 72 dpi), for text recognition. */
   renderPage(index: number, scale: number): { png: Uint8Array; pixels: PagePixels };
+  /** The page's pixels with its text taken off (is the text what shows?). */
+  renderWithoutText(index: number, scale: number): PagePixels;
   close(): void;
 }
 
@@ -182,9 +184,46 @@ export interface OpenedPdf {
 export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf> {
   const mupdf = await loadMupdf();
   const doc = mupdf.Document.openDocument(bytes, 'application/pdf');
+  /** A second copy to take text off, opened when first needed. */
+  let bare: InstanceType<typeof mupdf.Document> | null = null;
   return {
     pageCount: doc.countPages(),
-    close: () => doc.destroy(),
+    close: () => {
+      doc.destroy();
+      bare?.destroy();
+    },
+    renderWithoutText(index, scale) {
+      bare ??= mupdf.Document.openDocument(bytes, 'application/pdf');
+      const page = bare.loadPage(index);
+      try {
+        if (page instanceof mupdf.PDFPage) {
+          page.createAnnotation('Redact').setRect(page.getBounds());
+          page.applyRedactions(
+            false,
+            mupdf.PDFPage.REDACT_IMAGE_NONE,
+            mupdf.PDFPage.REDACT_LINE_ART_NONE,
+            mupdf.PDFPage.REDACT_TEXT_REMOVE,
+          );
+        }
+        const pixmap = page.toPixmap(
+          mupdf.Matrix.scale(scale, scale),
+          mupdf.ColorSpace.DeviceRGB,
+          false,
+          true,
+        );
+        try {
+          return {
+            data: pixmap.getPixels().slice(),
+            width: pixmap.getWidth(),
+            height: pixmap.getHeight(),
+          };
+        } finally {
+          pixmap.destroy();
+        }
+      } finally {
+        page.destroy();
+      }
+    },
     renderPage(index, scale) {
       const page = doc.loadPage(index);
       try {
