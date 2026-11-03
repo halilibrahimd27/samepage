@@ -102,3 +102,37 @@ describe('a paper in another language than the one given', () => {
     expect(sent).toContain('id: 1 = sangat tidak dikenal; 5 = sangat dikenal');
   });
 });
+
+describe('a label of one word', () => {
+  it('is read in the sense of the sentence after it', async () => {
+    const { translateSegments } = await import('../../src/core/pipeline/translate');
+    const { createPseudoEngine } = await import('../../src/engines/pseudo');
+    const pseudo = createPseudoEngine({ factor: 1, substitute: false });
+    const answers: Record<string, string> = {
+      KUR: 'CURE',
+      'Geliştirici paketi kurar; bağımlılıklar otomatik iner.':
+        'The developer installs the package; dependencies are downloaded automatically.',
+      'Kur: Geliştirici paketi kurar; bağımlılıklar otomatik iner.':
+        'Installation: The developer installs the package; dependencies are downloaded automatically.',
+    };
+    const engine = {
+      ...pseudo,
+      translate: (batch: Parameters<typeof pseudo.translate>[0]) =>
+        Promise.resolve(batch.map((s) => ({ id: s.id, text: answers[s.text] ?? s.text }))),
+    };
+    const outcomes = await translateSegments({
+      engine,
+      segments: [
+        { id: 'label', text: 'KUR', role: 'label' },
+        {
+          id: 'body',
+          text: 'Geliştirici paketi kurar; bağımlılıklar otomatik iner.',
+          role: 'body',
+        },
+      ],
+      ctx: { pair: { source: 'tr', target: 'en' }, glossary: [], numberLocalization: false },
+      signal: new AbortController().signal,
+    });
+    expect(outcomes[0]!.text).toBe('INSTALLATION');
+  });
+});

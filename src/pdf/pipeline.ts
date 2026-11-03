@@ -3,12 +3,12 @@ import { localeFor } from '../core/languages';
 import { storedTranslations, type StoredOutcome } from '../core/project';
 import { bracketedOutcome, titlesToTranslate, type ReferenceTitle } from '../core/referenceTitles';
 import type { BlockIR, LineIR, PageIR, Rect, Role } from '../core/ir/types';
-import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
+import { ONE_WORD_LABEL, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import type { GlossaryEntry, ValidationIssue } from '../core/validate/validate';
 import { buildEditableDocx } from '../docx/editable';
 import type { LangPair, SegmentRequest, TranslationEngine } from '../engines/types';
-import { extractAndAnalyze, type OcrOptions } from './analyze';
+import { blockText, extractAndAnalyze, type OcrOptions } from './analyze';
 import {
   normalizedCopy,
   readOutlineAndTitle,
@@ -430,6 +430,22 @@ export async function translatePdf(
   const meta = opts.translateMetadata
     ? await readOutlineAndTitle(bytes)
     : { outline: [], title: '' };
+  // A label of one word reads its sense from the text under it: a card's step ("2 · KUR") from
+  // the card's sentence, a chapter's title from its first item.
+  const contextUnder = (u: PdfUnit): { context?: string } => {
+    const b = u.blocks[0]!;
+    if (!ONE_WORD_LABEL.test(plainText(u.encoded.source))) return {};
+    const h = b.bbox.y1 - b.bbox.y0;
+    const under = pages[pageOf(b)]!.blocks.filter(
+      (o) =>
+        o !== b &&
+        o.translatable &&
+        o.bbox.y0 >= b.bbox.y1 - 2 &&
+        o.bbox.y0 - b.bbox.y1 < 3 * h + 12 &&
+        Math.min(o.bbox.x1, b.bbox.x1) - Math.max(o.bbox.x0, b.bbox.x0) > 0,
+    ).sort((x, y) => x.bbox.y0 - y.bbox.y0)[0];
+    return under ? { context: blockText(under) } : {};
+  };
   const unique = new Map<string, SegmentRequest>();
   for (const u of units)
     if (!titlesOf.has(u) && !unique.has(u.encoded.source))
@@ -438,6 +454,7 @@ export async function translatePdf(
         text: u.encoded.source,
         role: u.role,
         ...verbatimOf(u.encoded.placeholders, opts.pair),
+        ...contextUnder(u),
       });
   // Bookmarks and the document title are translated as plain segments (no layout).
   for (const t of [...meta.outline, meta.title]) {

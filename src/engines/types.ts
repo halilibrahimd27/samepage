@@ -17,6 +17,8 @@ export interface SegmentRequest {
    * that cannot keep placeholders may send it inline and put the placeholder back.
    */
   verbatim?: Record<string, string>;
+  /** The text that gives a label of one word its sense: the text under it, the next paragraph. */
+  context?: string;
 }
 
 export interface SegmentResult {

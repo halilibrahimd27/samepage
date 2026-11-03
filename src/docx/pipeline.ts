@@ -4,7 +4,7 @@ import type { Document as XDocument, Element as XElement } from '@xmldom/xmldom'
 import type { TranslationCache } from '../core/cache/cache';
 import type { TermText } from '../core/glossary/detect';
 import type { Role } from '../core/ir/types';
-import { translateSegments, type ProgressPhase } from '../core/pipeline/translate';
+import { ONE_WORD_LABEL, translateSegments, type ProgressPhase } from '../core/pipeline/translate';
 import { decode, plainText, readableText, verbatimOf } from '../core/segment/codec';
 import {
   validateTranslation,
@@ -326,16 +326,28 @@ export async function translateDocx(
 
   // Identical sources (e.g. a text box in mc:Choice and mc:Fallback) are translated once.
   const active = units.filter((u) => !u.skipped);
+  // A label of one word reads its sense from the paragraph after it, in its part.
+  const contextAfter = (k: number): { context?: string } => {
+    const u = active[k]!;
+    if (!ONE_WORD_LABEL.test(plainText(u.source))) return {};
+    const next = active
+      .slice(k + 1, k + 4)
+      .find(
+        (x) => x.part === u.part && (plainText(x.source).match(/\p{L}{2,}/gu) ?? []).length >= 3,
+      );
+    return next ? { context: plainText(next.source) } : {};
+  };
   const uniqueBySource = new Map<string, SegmentRequest>();
-  for (const u of active) {
+  active.forEach((u, k) => {
     if (!uniqueBySource.has(u.source))
       uniqueBySource.set(u.source, {
         id: `s${uniqueBySource.size + 1}`,
         text: u.source,
         role: u.role,
         ...(u.p ? verbatimOf(u.p.encoded.placeholders, opts.pair) : {}),
+        ...contextAfter(k),
       });
-  }
+  });
   for (const t of [...titlesOf.values()].flat())
     if (!uniqueBySource.has(t.title))
       uniqueBySource.set(t.title, {

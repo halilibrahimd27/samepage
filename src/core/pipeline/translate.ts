@@ -220,6 +220,9 @@ async function byOwnLanguage(job: TranslateJob): Promise<SegmentOutcome[] | null
   return job.segments.map((s) => outcomes.get(s.id)!);
 }
 
+/** A label of one word, maybe after its number ("KUR", "2 · Süreç"): prefix and word. */
+export const ONE_WORD_LABEL = /^([\p{N}\p{P}\p{S}\s]*?)(\p{L}{3,})\s*$/u;
+
 export async function translateSegments(job: TranslateJob): Promise<SegmentOutcome[]> {
   if (!job.replay && !job.oneLanguage) {
     const split = await byOwnLanguage(job);
@@ -441,11 +444,93 @@ export async function translateSegments(job: TranslateJob): Promise<SegmentOutco
     return i > 0 ? plainText(segments[i - 1]!.text).slice(-600) : undefined;
   };
 
+  /** A label of one word and the sentence that gives its sense: its context, or the next text. */
+  const labelInContext = (s: SegmentRequest) => {
+    const m = ONE_WORD_LABEL.exec(s.text);
+    const next = s.context ?? segments[(indexOf.get(s.id) ?? -2) + 1]?.text;
+    if (!m || !next) return null;
+    const context = plainText(next)
+      .replace(/⟦[^⟧]*⟧/gu, ' ')
+      .replace(/\s+/gu, ' ')
+      .trim();
+    if ((context.match(/\p{L}{2,}/gu) ?? []).length < 3) return null;
+    // Text already in the target language is not sent (kept as written), nor as a context.
+    if (paragraphLanguage(context, ctx.pair.source) === ctx.pair.target) return null;
+    return {
+      prefix: m[1]!,
+      word: m[2]!,
+      context: (splitSentences(context)[0] ?? context).slice(0, 200),
+    };
+  };
+  const inCaps = (w: string, lang: string) =>
+    w === w.toLocaleUpperCase(lang) && w !== w.toLocaleLowerCase(lang);
+
+  /**
+   * A label of one word is a dictionary entry to a machine translator: alone it takes the most
+   * common sense ("KUR" → "CURE", "SÜREÇ" → "PERIOD"). Asked once more ahead of the sentence
+   * after it ("Kur: Geliştirici paketi kurar; …"), the sense comes from that sentence
+   * ("Installation: …"): the part before the colon is the label's, when the answer keeps it.
+   * Measured on labels of one word only — a phrase reads well alone, and in context
+   * "30 dakikada sertleştirme" became "Erection in 30 minutes".
+   */
+  async function inContext(
+    batch: SegmentRequest[],
+    results: Map<string, SegmentResult>,
+    callCtx: TranslateContext,
+  ): Promise<Map<string, SegmentResult>> {
+    const src = ctx.pair.source;
+    const labels = batch.flatMap((s) => {
+      const l = labelInContext(s);
+      return l ? [{ s, ...l }] : [];
+    });
+    if (!labels.length) return results;
+    try {
+      const answers = await engine.translate(
+        labels.map(({ s, word, context }) => ({
+          ...s,
+          id: `${s.id}~context`,
+          text: `${inCaps(word, src) ? word[0] + word.slice(1).toLocaleLowerCase(src) : word}: ${context}`,
+        })),
+        callCtx,
+        signal,
+      );
+      const byId = new Map(answers.map((a) => [a.id, a.text]));
+      for (const { s, prefix, word } of labels) {
+        const m = /^([^:：]{1,60})[:：]\s*\S/u.exec((byId.get(`${s.id}~context`) ?? '').trim());
+        const part = m?.[1]!.trim();
+        if (!part || !/\p{L}/u.test(part) || part.split(/\s+/u).length > 3) continue;
+        const own = results.get(s.id);
+        results.set(s.id, {
+          ...own,
+          id: s.id,
+          text: prefix + (inCaps(word, src) ? part.toLocaleUpperCase(ctx.pair.target) : part),
+          notes: [...(own?.notes ?? []), 'in-context'],
+        });
+      }
+    } catch (error) {
+      // The label alone stands.
+      if (error instanceof EngineError && FATAL.includes(error.code)) throw error;
+    }
+    return results;
+  }
+
   /**
    * One engine call; splits the batch when the output was truncated. Segments in `freeze` get
-   * their numbers frozen as placeholders (a retry after an engine changed a number).
+   * their numbers frozen as placeholders (a retry after an engine changed a number). A first
+   * call to a machine translator also reads its one-word labels in context.
    */
   async function call(
+    batch: SegmentRequest[],
+    feedback?: string,
+    freeze?: Set<string>,
+  ): Promise<Map<string, SegmentResult>> {
+    const results = await callOnce(batch, feedback, freeze);
+    if (feedback || freeze?.size || engine.capabilities.glossary) return results;
+    const prev = previousSource(batch[0]!.id);
+    return inContext(batch, results, { ...ctx, ...(prev ? { previousText: prev } : {}) });
+  }
+
+  async function callOnce(
     batch: SegmentRequest[],
     feedback?: string,
     freeze?: Set<string>,
