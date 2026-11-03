@@ -7,6 +7,7 @@ import type { JobError, PdfJob, PdfJobResult } from '../../workers/api';
 import { sheetStore } from '../bridges/browserTranslator';
 import { engineBridge, runErrorText } from '../engineBridge';
 import { downloadBlob } from '../download';
+import { useWakeLock } from '../wakeLock';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
 import { ProgressBar } from './ProgressBar';
@@ -24,6 +25,11 @@ import { TermConsistency } from './TermConsistency';
 import type { GlossaryEntry } from '../../core/validate/validate';
 
 const LONG_JOB_MS = 2 * 60 * 60_000;
+/**
+ * Pages from which the Word files and the side-by-side PDF are made on request, from the
+ * translation: made at once they double what a phone holds of a thousand-page book.
+ */
+const LONG_DOCUMENT = 150;
 
 export function PdfTranslator(props: {
   file: File;
@@ -55,6 +61,8 @@ export function PdfTranslator(props: {
   const projectFile = useProject(project, file, 'pdf');
   const missingTerms = projectFile.missingTerms(glossary.entries);
   const [applied, setApplied] = useState<Record<string, string>>({});
+  const long = Math.min(props.pageCount, to) - Math.max(1, from) + 1 > LONG_DOCUMENT;
+  useWakeLock(running !== null);
   const base = file.name.replace(/\.pdf$/i, '');
 
   /** Source and translation side by side in Word, unit by unit, with its page and what to check. */
@@ -95,7 +103,11 @@ export function PdfTranslator(props: {
    * `fresh`: translate with the engine. Otherwise (corrections applied, a project reopened) the
    * translations shown are reused and no engine is called.
    */
-  async function run(fresh: boolean, terms?: GlossaryEntry[]) {
+  async function run(
+    fresh: boolean,
+    terms?: GlossaryEntry[],
+    outputs: { dual: boolean; editable: boolean } = { dual: !long, editable: !long },
+  ) {
     const reuse = projectFile.reuse(fresh, pair);
     if (!reuse && problem) return setError(problem);
     setError(null);
@@ -131,7 +143,8 @@ export function PdfTranslator(props: {
         translateReferences: options.translateReferences,
         referenceTitles: options.referenceTitles ?? false,
         officialTitles: settings.officialTitles,
-        dual: true,
+        dual: outputs.dual,
+        editable: outputs.editable,
         translateMetadata: options.translateMetadata,
         ...(options.pageRange ? { pageRange: options.pageRange } : {}),
         ...(Object.keys(edits).length ? { overrides: edits } : {}),
@@ -364,6 +377,30 @@ export function PdfTranslator(props: {
               >
                 {t('download.report')}
               </button>
+              {long && !word && (
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                  disabled={running !== null}
+                  onClick={() => void run(false, undefined, { dual: !!dual, editable: true })}
+                  title={t('long.later')}
+                  data-testid="make-word"
+                >
+                  {t('long.makeWord')}
+                </button>
+              )}
+              {long && !dual && (
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                  disabled={running !== null}
+                  onClick={() => void run(false, undefined, { dual: true, editable: !!word })}
+                  title={t('long.later')}
+                  data-testid="make-dual"
+                >
+                  {t('long.makeDual')}
+                </button>
+              )}
               {projectFile.canSave && (
                 <button
                   type="button"

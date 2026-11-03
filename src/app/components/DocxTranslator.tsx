@@ -13,6 +13,7 @@ import type {
 import { sheetStore } from '../bridges/browserTranslator';
 import { engineBridge, runErrorText } from '../engineBridge';
 import { downloadBlob } from '../download';
+import { useWakeLock } from '../wakeLock';
 import type { EngineConfig } from '../engineConfig';
 import { useI18n } from '../i18n';
 import { ProgressBar } from './ProgressBar';
@@ -60,6 +61,7 @@ export function DocxTranslator({
   const glossary = useGlossary(pair);
   const suggestions = useTermSuggestions(file, 'docx', pair, glossary.entries);
   const [running, setRunning] = useState<string | null>(null);
+  useWakeLock(running !== null);
   const [progress, setProgress] = useState<{
     done: number;
     total: number;

@@ -19,6 +19,7 @@ import type {
 } from '../../workers/api';
 import { sheetStore } from '../bridges/browserTranslator';
 import { downloadBlob } from '../download';
+import { useWakeLock } from '../wakeLock';
 import { engineBridge, runErrorText } from '../engineBridge';
 import type { EngineConfig } from '../engineConfig';
 import { latexSample, rejectionMessage } from '../fileInfo';
@@ -112,6 +113,7 @@ export function BatchTranslator({
       .map((file, k) => ({ id: `${k}-${file.name}`, file, status: 'reading' as const })),
   );
   const [running, setRunning] = useState(false);
+  useWakeLock(running);
   const [download, setDownload] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Terms rendered two ways across the files of each language pair. */
@@ -231,7 +233,9 @@ export function BatchTranslator({
     };
     const base = it.file.name.replace(/\.(pdf|docx|pptx|tex|zip)$/i, '');
     if (it.kind === 'pdf') {
-      const job: PdfJob = { ...common, dual: false };
+      // A long PDF comes without its Word file (opened alone, it is made on request): a phone
+      // holds the batch.
+      const job: PdfJob = { ...common, dual: false, editable: (it.pageCount ?? 0) <= 150 };
       const res = await pipelineClient.call<PdfJobResult>(
         (api) => api.translatePdf(job, onProgress, bridge),
         LONG_JOB_MS,

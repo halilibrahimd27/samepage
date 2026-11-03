@@ -272,6 +272,7 @@ export const fr: Record<MessageKey, string> = {
   'jobError.internal': 'Erreur inattendue.',
   'jobError.rejected': 'Le document a été rejeté par les contrôles de sécurité.',
   'workspace.translating': 'Traduction en cours… {done} / {total} paragraphes',
+  'workspace.reading': 'Lecture du document… page {done} / {total}',
   'workspace.ocr': 'Reconnaissance du texte (OCR)… page {done} / {total}',
   'workspace.checking': 'Vérification du sens… {done} / {total} paragraphes',
   'workspace.polishing': 'Claude révise les phrases signalées… {done} / {total}',
@@ -457,6 +458,10 @@ export const fr: Record<MessageKey, string> = {
   'bilingual.notes': 'Notes',
   'download.pdf': 'Télécharger le PDF traduit',
   'download.dual': 'Télécharger le PDF en vis-à-vis',
+  'long.later':
+    'Un long document\u202F: le PDF traduit vient d’abord. Les fichiers Word et le PDF côte à côte sont faits à la demande, à partir de cette traduction — le moteur n’est pas sollicité à nouveau.',
+  'long.makeWord': 'Créer les fichiers Word',
+  'long.makeDual': 'Créer le PDF côte à côte',
   'download.word': 'Télécharger en Word (comme le PDF)',
   'download.wordFlow': 'Word en texte continu',
   'download.wordFlowHint':

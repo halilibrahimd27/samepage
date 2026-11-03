@@ -87,7 +87,7 @@ export interface TranslateJob {
  * 'check': the meaning check after translation (back-translation or Claude review); 'polish':
  * flagged translations revised by an LLM.
  */
-export type ProgressPhase = 'check' | 'ocr' | 'polish';
+export type ProgressPhase = 'read' | 'check' | 'ocr' | 'polish';
 
 const MAX_SEGMENTS_PER_BATCH = 40;
 const FIDELITY_BATCH_CHARS = 8000;

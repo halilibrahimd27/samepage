@@ -265,6 +265,7 @@ export const tr: Record<MessageKey, string> = {
   'jobError.internal': 'Beklenmeyen hata.',
   'jobError.rejected': 'Belge güvenlik kontrollerinden geçemedi.',
   'workspace.translating': 'Çevriliyor… {done} / {total} paragraf',
+  'workspace.reading': 'Belge okunuyor… sayfa {done} / {total}',
   'workspace.ocr': 'Metin tanınıyor (OCR)… sayfa {done} / {total}',
   'workspace.checking': 'Anlam kontrol ediliyor… {done} / {total} paragraf',
   'workspace.polishing': 'Claude işaretlenen cümleleri düzeltiyor… {done} / {total}',
@@ -437,6 +438,10 @@ export const tr: Record<MessageKey, string> = {
   'bilingual.notes': 'Notlar',
   'download.pdf': 'Çevrilmiş PDF’i indir',
   'download.dual': 'Yan yana PDF’i indir',
+  'long.later':
+    'Uzun bir belge: önce çevrilmiş PDF gelir. Word dosyaları ve yan yana PDF istediğinizde bu çeviriden hazırlanır — motor yeniden kullanılmaz.',
+  'long.makeWord': 'Word dosyalarını hazırla',
+  'long.makeDual': 'Yan yana PDF’i hazırla',
   'download.word': 'Word olarak indir (PDF’teki gibi)',
   'download.wordFlow': 'Akan metin olarak Word',
   'download.wordFlowHint':

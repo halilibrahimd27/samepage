@@ -46,3 +46,24 @@ describe.each(fixtures)('PDF analysis: %s', (file) => {
     }
   });
 });
+
+describe('a long PDF read page by page', () => {
+  it('reads only the pages asked for, telling each, and keeps the others’ size', async () => {
+    const told: [number, number][] = [];
+    const pages = await extractAndAnalyze(
+      new Uint8Array(readFileSync('tests/corpus/pdf/two-column.pdf')),
+      50,
+      undefined,
+      { pages: (i) => i === 1, onPage: (done, total) => told.push([done, total]) },
+    );
+    expect(pages).toHaveLength(2);
+    // The first page is left out: its size only, nothing to translate on it.
+    expect(pages[0]!.blocks).toEqual([]);
+    expect(pages[0]!.width).toBeGreaterThan(500);
+    expect(pages[1]!.blocks.length).toBeGreaterThan(3);
+    expect(told).toEqual([
+      [1, 2],
+      [2, 2],
+    ]);
+  });
+});

@@ -13,7 +13,7 @@ import {
 } from '../ocr/page';
 import type { OcrEngine } from '../ocr/tesseract';
 import { hyphenEvidence, joinHyphen } from '../typeset/segments';
-import { analyzeDocument, blockText } from './analyze';
+import { analyzePage, blockText, finishDocument, type PagePass } from './analyze';
 
 export { analyzeDocument, blockText } from './analyze';
 
@@ -26,46 +26,71 @@ export interface OcrOptions {
   signal?: AbortSignal;
 }
 
+/** How a long PDF is read: which pages, and how far it has got. */
+export interface ReadOptions {
+  /** Pages to read (0-based); the others keep only their size. Default: all. */
+  pages?: (index: number) => boolean;
+  /** Pages read so far, of all. */
+  onPage?: (done: number, total: number) => void;
+  signal?: AbortSignal;
+}
+
+/** Lets the worker answer and tell its progress between pages of a long document. */
+const breathe = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
 /**
- * Extracts and analyses up to `maxPages` pages of a PDF. With `ocr`, scanned pages (no text, a
- * page-size image) get their text from recognition.
+ * Extracts and analyses up to `maxPages` pages of a PDF, page by page: each page's characters are
+ * analysed as soon as it is read and let go (a thousand pages on a phone). With `ocr`, scanned
+ * pages (no text, a page-size image) get their text from recognition. Pages left out of `read`
+ * keep their size only.
  */
 export async function extractAndAnalyze(
   bytes: Uint8Array,
   maxPages: number,
   ocr?: OcrOptions,
+  read: ReadOptions = {},
 ): Promise<PageIR[]> {
   const pdf = await openPdfForExtraction(bytes);
   let engine: OcrEngine | null = null;
   try {
     const count = Math.min(pdf.pageCount, maxPages);
-    const raw = Array.from({ length: count }, (_, i) => pdf.extractPage(i));
-    const scanned = ocr ? raw.filter((p) => needsOcr(p) && (ocr.pages?.(p.index) ?? true)) : [];
+    const passes: PagePass[] = [];
     const infos = new Map<number, OcrPageInfo>();
-    for (const [k, p] of scanned.entries()) {
-      ocr!.signal?.throwIfAborted();
-      ocr!.onPage?.(k, scanned.length);
-      engine ??= await ocr!.engine();
-      const { png, pixels } = pdf.renderPage(p.index, OCR_SCALE);
-      const words = engine.recognize(png);
-      const result = ocrPage(p, words, pixels, OCR_SCALE);
-      raw[p.index] = result.page;
-      infos.set(p.index, result.info);
+    let recognised = 0;
+    for (let i = 0; i < count; i++) {
+      read.signal?.throwIfAborted();
+      ocr?.signal?.throwIfAborted();
+      if (!(read.pages?.(i) ?? true)) {
+        passes.push(analyzePage(pdf.pageShell(i)));
+        continue;
+      }
+      read.onPage?.(i, count);
+      let p = pdf.extractPage(i);
+      if (ocr && needsOcr(p) && (ocr.pages?.(i) ?? true)) {
+        ocr.onPage?.(recognised++, count);
+        engine ??= await ocr.engine();
+        const { png, pixels } = pdf.renderPage(i, OCR_SCALE);
+        const result = ocrPage(p, engine.recognize(png), pixels, OCR_SCALE);
+        p = result.page;
+        infos.set(i, result.info);
+      } else if (textOverPicture(p)) {
+        // A text layer unseen over a picture of the page (a deck saved as pictures and recognised
+        // elsewhere): taken off, it changes no pixel. Read like a scan, it is covered and set anew;
+        // left as text, the translation was written over the picture's own words.
+        const scale = 1;
+        const { pixels } = pdf.renderPage(i, scale);
+        if (unseenText(p, pixels, pdf.renderWithoutText(i, scale), scale)) {
+          const result = layerPage(p, pdf.renderPage(i, OCR_SCALE).pixels, OCR_SCALE);
+          p = result.page;
+          infos.set(i, result.info);
+        }
+      }
+      passes.push(analyzePage(p));
+      if (i % 8 === 7) await breathe();
     }
-    if (scanned.length) ocr!.onPage?.(scanned.length, scanned.length);
-    // A text layer unseen over a picture of the page (a deck saved as pictures and recognised
-    // elsewhere): taken off, it changes no pixel. Read like a scan, it is covered and set anew;
-    // left as text, the translation was written over the picture's own words.
-    for (const p of raw) {
-      if (infos.has(p.index) || !textOverPicture(p)) continue;
-      const scale = 1;
-      const { pixels } = pdf.renderPage(p.index, scale);
-      if (!unseenText(p, pixels, pdf.renderWithoutText(p.index, scale), scale)) continue;
-      const result = layerPage(p, pdf.renderPage(p.index, OCR_SCALE).pixels, OCR_SCALE);
-      raw[p.index] = result.page;
-      infos.set(p.index, result.info);
-    }
-    const pages = analyzeDocument(raw);
+    read.onPage?.(count, count);
+    if (recognised) ocr?.onPage?.(recognised, recognised);
+    const pages = finishDocument(passes);
     for (const page of pages) {
       const info = infos.get(page.index);
       if (!info) continue;

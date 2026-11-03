@@ -19,6 +19,7 @@ export function formatBytes(bytes: number, lang: string): string {
 
 /** What the progress line says in each phase. */
 export function phaseMessage(phase: ProgressPhase | undefined): MessageKey {
+  if (phase === 'read') return 'workspace.reading';
   if (phase === 'check') return 'workspace.checking';
   if (phase === 'ocr') return 'workspace.ocr';
   if (phase === 'polish') return 'workspace.polishing';

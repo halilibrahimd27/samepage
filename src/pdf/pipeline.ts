@@ -445,6 +445,7 @@ export async function translatePdf(
   const policy = DEFAULT_POLICY;
   const inRange = (p: number) =>
     !opts.pageRange || (p >= opts.pageRange.from && p <= opts.pageRange.to);
+  // Page by page, only the pages to translate: a thousand pages are read on a phone too.
   const pages = await extractAndAnalyze(
     bytes,
     opts.maxPages,
@@ -453,6 +454,11 @@ export async function translatePdf(
       pages: inRange,
       signal: opts.signal,
       onPage: (done, total) => opts.onProgress?.(done, total, 'ocr'),
+    },
+    {
+      pages: inRange,
+      signal: opts.signal,
+      onPage: (done, total) => opts.onProgress?.(done, total, 'read'),
     },
   );
   const titlesOnly = !opts.translateReferences && !!opts.referenceTitles;

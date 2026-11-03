@@ -272,6 +272,7 @@ export const de: Record<MessageKey, string> = {
   'jobError.internal': 'Unerwarteter Fehler.',
   'jobError.rejected': 'Das Dokument wurde von den Sicherheitsprüfungen abgelehnt.',
   'workspace.translating': 'Übersetzung läuft… {done} / {total} Absätze',
+  'workspace.reading': 'Dokument wird gelesen… Seite {done} / {total}',
   'workspace.ocr': 'Text wird erkannt (OCR)… Seite {done} / {total}',
   'workspace.checking': 'Bedeutung wird geprüft… {done} / {total} Absätze',
   'workspace.polishing': 'Claude überarbeitet markierte Sätze… {done} / {total}',
@@ -459,6 +460,10 @@ export const de: Record<MessageKey, string> = {
   'bilingual.notes': 'Anmerkungen',
   'download.pdf': 'Übersetztes PDF herunterladen',
   'download.dual': 'Nebeneinander-PDF herunterladen',
+  'long.later':
+    'Ein langes Dokument: Zuerst kommt das übersetzte PDF. Die Word-Dateien und das Gegenüberstellungs-PDF entstehen auf Wunsch aus dieser Übersetzung — die Engine wird nicht erneut gefragt.',
+  'long.makeWord': 'Word-Dateien erstellen',
+  'long.makeDual': 'Gegenüberstellungs-PDF erstellen',
   'download.word': 'Als Word herunterladen (wie das PDF)',
   'download.wordFlow': 'Word als Fließtext',
   'download.wordFlowHint':

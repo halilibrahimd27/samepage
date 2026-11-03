@@ -1576,11 +1576,34 @@ function joinScripts(blocks: BlockIR[]): BlockIR[] {
 }
 
 /** Full analysis: raw MuPDF pages → IR pages with roles, columns, reading order, chains and tables. */
+/** A page after its own pass: its blocks, tables and figures; its characters let go. */
+export interface PagePass {
+  raw: RawPage;
+  tables: TableRegion[];
+  blocks: BlockIR[];
+  figures: FigureRegion[];
+}
+
+/**
+ * The pass of one page: tables, blocks and figures from its characters. The page kept holds no
+ * characters any more (a long book is read page by page without keeping them all).
+ */
+export function analyzePage(r: RawPage): PagePass {
+  const tables = detectTables(r);
+  return {
+    raw: { ...r, blocks: [] },
+    tables,
+    blocks: buildBlocks(r, tables),
+    figures: figureRegions(r, tables),
+  };
+}
+
 export function analyzeDocument(raw: RawPage[]): PageIR[] {
-  const pages = raw.map((r) => {
-    const tables = detectTables(r);
-    return { raw: r, tables, blocks: buildBlocks(r, tables), figures: figureRegions(r, tables) };
-  });
+  return finishDocument(raw.map(analyzePage));
+}
+
+/** The passes across the document: roles, reading order, references, chains. */
+export function finishDocument(pages: PagePass[]): PageIR[] {
   const stats = documentStats(pages.map((p) => p.blocks));
   const words = new Set(
     pages.flatMap((p) =>

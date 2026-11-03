@@ -173,6 +173,8 @@ export function restoreChar(c: string, fontName: string): string {
 export interface OpenedPdf {
   pageCount: number;
   extractPage(index: number): RawPage;
+  /** The page's size and rotation, nothing on it: a page left out of the translation. */
+  pageShell(index: number): RawPage;
   /** The page as PNG and as RGB pixels at `scale` (1 = 72 dpi), for text recognition. */
   renderPage(index: number, scale: number): { png: Uint8Array; pixels: PagePixels };
   /** The page's pixels with its text taken off (is the text what shows?). */
@@ -245,6 +247,32 @@ export async function openPdfForExtraction(bytes: Uint8Array): Promise<OpenedPdf
         } finally {
           pixmap.destroy();
         }
+      } finally {
+        page.destroy();
+      }
+    },
+    pageShell(index) {
+      const page = doc.loadPage(index);
+      try {
+        const [x0, y0, x1, y1] = page.getBounds();
+        let rotation: RawPage['rotation'] = 0;
+        if (page instanceof mupdf.PDFPage) {
+          const rot = page.getObject().getInheritable('Rotate');
+          if (rot.isNumber())
+            rotation = (((rot.asNumber() % 360) + 360) % 360) as RawPage['rotation'];
+        }
+        const shell: RawPage = {
+          index,
+          width: x1 - x0,
+          height: y1 - y0,
+          rotation,
+          blocks: [],
+          images: [],
+          vectors: [],
+          links: [],
+          fonts: {},
+        };
+        return shell;
       } finally {
         page.destroy();
       }

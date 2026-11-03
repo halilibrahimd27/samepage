@@ -407,7 +407,7 @@ const api: PipelineApi = {
           ocr: { engine: () => createOcr([job.pair.source, 'en'], browserOcrLoader) },
           maxPages: LIMITS.pdfMaxPages,
           dual: job.dual,
-          editable: true,
+          editable: job.editable ?? true,
           cache,
           memory: session,
           signal: controller.signal,

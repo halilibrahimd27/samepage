@@ -270,6 +270,7 @@ export const es: Record<MessageKey, string> = {
   'jobError.internal': 'Error inesperado.',
   'jobError.rejected': 'El documento fue rechazado por las comprobaciones de seguridad.',
   'workspace.translating': 'Traduciendo… {done} / {total} párrafos',
+  'workspace.reading': 'Leyendo el documento… página {done} / {total}',
   'workspace.ocr': 'Reconociendo texto (OCR)… página {done} / {total}',
   'workspace.checking': 'Comprobando el significado… {done} / {total} párrafos',
   'workspace.polishing': 'Claude está revisando las frases marcadas… {done} / {total}',
@@ -450,6 +451,10 @@ export const es: Record<MessageKey, string> = {
   'bilingual.notes': 'Notas',
   'download.pdf': 'Descargar PDF traducido',
   'download.dual': 'Descargar PDF en paralelo',
+  'long.later':
+    'Un documento largo: primero llega el PDF traducido. Los archivos de Word y el PDF lado a lado se hacen cuando los pida, a partir de esta traducción — no se vuelve a usar el motor.',
+  'long.makeWord': 'Crear los archivos de Word',
+  'long.makeDual': 'Crear el PDF lado a lado',
   'download.word': 'Descargar en Word (como el PDF)',
   'download.wordFlow': 'Word como texto continuo',
   'download.wordFlowHint':

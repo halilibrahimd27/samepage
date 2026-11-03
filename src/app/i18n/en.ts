@@ -264,6 +264,7 @@ export const en = {
   'jobError.internal': 'Unexpected error.',
   'jobError.rejected': 'The document was rejected by the safety checks.',
   'workspace.translating': 'Translating… {done} / {total} paragraphs',
+  'workspace.reading': 'Reading the document… page {done} / {total}',
   'workspace.ocr': 'Recognising text (OCR)… page {done} / {total}',
   'workspace.checking': 'Checking meaning… {done} / {total} paragraphs',
   'workspace.polishing': 'Claude is revising flagged sentences… {done} / {total}',
@@ -438,6 +439,10 @@ export const en = {
   'bilingual.notes': 'Notes',
   'download.pdf': 'Download translated PDF',
   'download.dual': 'Download side-by-side PDF',
+  'long.later':
+    'A long document: the translated PDF comes first. The Word files and the side-by-side PDF are made when you ask, from this translation — the engine is not asked again.',
+  'long.makeWord': 'Make the Word files',
+  'long.makeDual': 'Make the side-by-side PDF',
   'download.word': 'Download as Word (as the PDF)',
   'download.wordFlow': 'Word as flowing text',
   'download.wordFlowHint':
