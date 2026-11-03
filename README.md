@@ -37,15 +37,13 @@ the paper says.
   Source): the prose is translated and every command, formula, citation, reference and label is
   kept, the document language switched in babel/polyglossia. The project comes back as a `.zip`
   you can upload to Overleaf again.
-- **Editable Word file of a PDF.** Every translated PDF also downloads as a Word document laid
-  out like the PDF — its margins, one or two columns, type sizes, leading, indents and
-  justification, the title block and wide tables across both columns, an author grid as on the
-  page — in Word's own styles, so it also takes a journal's template. Headings, paragraphs,
-  tables and footnotes are text you can edit, figures and display formulas pictures. Tables are
-  found with full, booktabs or single rules and also without any rule, from their caption, and
-  keep their rules and column alignment; footnote marks become Word footnotes and every
-  reference entry its own paragraph. A slide deck comes out slide by slide: each slide a page,
-  its picture behind it and its text in frames where the slide sets it.
+- **Editable Word file of a PDF, as the PDF.** Every translated PDF also downloads as a Word
+  document laid out page by page as the PDF: its design, figures, formulas, rules and colours as
+  they are, the translation in text boxes where the PDF sets it, line for line — in Word, WPS and
+  Pages, with fonts every Windows and Mac computer has. A second Word file holds the same as
+  flowing text in Word's own styles — the PDF's margins, columns, type sizes, leading, indents,
+  tables, footnotes and every reference entry its own paragraph — to edit freely or pour into a
+  journal's template. A slide deck comes out slide by slide either way.
 - **Meaning first.** Numbers, units, citations, formulas and identifiers are locked. Each
   paragraph is translated from its own language — an English abstract in a Turkish paper, a German
   quotation, the Arabic body of a paper with an English abstract — and one already in the target

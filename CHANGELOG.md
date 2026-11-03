@@ -4,6 +4,21 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] — 2026-11-03
+
+### Changed
+
+- The Word file of a PDF is laid out as the PDF, page by page: each page its picture without the
+  text the translation replaced, the translation in text boxes where the PDF sets it, broken
+  where the PDF breaks its lines, in its sizes, styles and colours. What is not translated —
+  figures, formulas, rules, a page's design and colours, an arXiv stamp — is the page's own
+  picture, so nothing of it moves. A page of nothing but text gets no picture: a book of 2000
+  pages comes out at a few megabytes. The flowing Word file (styles, sections, Word tables and
+  footnotes) is a second download, "Word as flowing text".
+- PDFs of up to 2000 pages (500 before).
+- The Word file of a PDF uses only fonts both Windows and Mac have (Courier New for code,
+  Georgia for a book face, Arial for a sans): Pages said a font was missing.
+
 ## [1.4.0] — 2026-11-03
 
 ### Added
