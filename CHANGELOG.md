@@ -4,6 +4,21 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.4] — 2026-11-03
+
+### Fixed
+
+- A table of a web page draws a rule under each row and none over the first: that first row
+  was left out of the table, its label and value read as one paragraph and set over each other.
+  It is now the table's first row.
+- A cell's second sentence was a cell of its own, its first line shrunk to fit alone ("… (1–2 web
+  varlığı)." | "Dinamik testler …"). Beside a label, a cell's lines are one text; the notes
+  under a table, one per line, stay apart.
+- A heading broken inside a bracket ("… İLK KULLANICI (≈ 60" | "SA)") and a line going on with
+  a bracket ("… deneme" | "(DDO görevi kapsamında)") are one paragraph.
+- Checklist boxes (☐ ☑ ☒) were dropped from the translation: no bundled face has them. They are
+  drawn with the look-alikes the faces have (□ ▣ ⊠).
+
 ## [1.5.3] — 2026-11-03
 
 ### Fixed
