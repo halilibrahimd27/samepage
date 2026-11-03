@@ -23,7 +23,7 @@ export const de: Record<MessageKey, string> = {
   'drop.choose': 'Dateien auswählen',
   'batch.title': '{count} Dateien',
   'batch.hint':
-    'Jede Datei wird aus ihrer eigenen Sprache in die gewählte übersetzt, eine nach der anderen, mit der Engine und den Einstellungen oben. Laden Sie jede Datei herunter, sobald sie fertig ist, oder alle am Ende.',
+    'Jede Datei wird aus ihrer eigenen Sprache in die gewählte übersetzt, eine nach der anderen, mit der Engine und den Einstellungen oben; eine Datei, die schon in dieser Sprache ist, geht in die andere. Die Sprache jeder Datei lässt sich ändern. Laden Sie jede Datei herunter, sobald sie fertig ist, oder alle am Ende.',
   'batch.clear': 'Andere Dateien auswählen',
   'batch.tooMany': 'Höchstens {limit} Dateien auf einmal: die ersten {limit} sind aufgeführt.',
   'batch.project': 'Ein .samepage-Projekt wird für sich geöffnet, nicht mit anderen Dateien.',
@@ -38,6 +38,7 @@ export const de: Record<MessageKey, string> = {
     '{translated} übersetzt · {warnings} zu prüfen · {untranslated} im Original belassen',
   'batch.score': 'Layout {score}/100',
   'batch.download': '{name} herunterladen',
+  'batch.targetFor': 'Sprache, in die {name} übersetzt wird',
   'batch.translateAll': 'Alle übersetzen',
   'batch.downloadAll': 'Alle herunterladen (.zip)',
   'batch.progress': 'Datei {n} von {total}: {name}',

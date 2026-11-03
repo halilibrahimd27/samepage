@@ -22,7 +22,7 @@ export const tr: Record<MessageKey, string> = {
   'drop.choose': 'Dosya seç',
   'batch.title': '{count} dosya',
   'batch.hint':
-    'Her dosya kendi dilinden seçtiğiniz dile, yukarıdaki motor ve ayarlarla sırayla çevrilir. Her dosyayı bittiğinde ya da hepsini sonunda indirebilirsiniz.',
+    'Her dosya kendi dilinden seçtiğiniz dile, yukarıdaki motor ve ayarlarla sırayla çevrilir; zaten o dilde olan dosya öbür dile çevrilir. Her dosyanın dilini ayrıca değiştirebilirsiniz. Her dosyayı bittiğinde ya da hepsini sonunda indirebilirsiniz.',
   'batch.clear': 'Başka dosyalar seç',
   'batch.tooMany': 'Tek seferde en çok {limit} dosya: ilk {limit} dosya listelendi.',
   'batch.project': 'Bir .samepage projesi tek başına açılır, başka dosyalarla değil.',
@@ -37,6 +37,7 @@ export const tr: Record<MessageKey, string> = {
     '{translated} çevrildi · {warnings} gözden geçirilecek · {untranslated} özgün dilde kaldı',
   'batch.score': 'düzen {score}/100',
   'batch.download': '{name} indir',
+  'batch.targetFor': '{name} dosyasının çevrileceği dil',
   'batch.translateAll': 'Hepsini çevir',
   'batch.downloadAll': 'Hepsini indir (.zip)',
   'batch.progress': 'Dosya {n} / {total}: {name}',

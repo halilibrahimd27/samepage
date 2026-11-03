@@ -22,7 +22,7 @@ export const fr: Record<MessageKey, string> = {
   'drop.choose': 'Choisir des fichiers',
   'batch.title': '{count} fichiers',
   'batch.hint':
-    'Chaque fichier est traduit depuis sa propre langue vers celle choisie, l’un après l’autre, avec le moteur et les réglages ci-dessus. Téléchargez chaque fichier une fois terminé, ou tous à la fin.',
+    'Chaque fichier est traduit depuis sa propre langue vers celle choisie, l’un après l’autre, avec le moteur et les réglages ci-dessus\u202F; un fichier déjà dans cette langue passe dans l’autre. La langue de chaque fichier peut être changée. Téléchargez chaque fichier une fois terminé, ou tous à la fin.',
   'batch.clear': 'Choisir d’autres fichiers',
   'batch.tooMany': 'Jusqu’à {limit} fichiers à la fois\u202F: les {limit} premiers sont listés.',
   'batch.project': 'Un projet .samepage s’ouvre seul, pas avec d’autres fichiers.',
@@ -37,6 +37,7 @@ export const fr: Record<MessageKey, string> = {
     '{translated} traduits · {warnings} à revoir · {untranslated} laissés en original',
   'batch.score': 'mise en page {score}/100',
   'batch.download': 'Télécharger {name}',
+  'batch.targetFor': 'Langue dans laquelle {name} est traduit',
   'batch.translateAll': 'Tout traduire',
   'batch.downloadAll': 'Tout télécharger (.zip)',
   'batch.progress': 'Fichier {n} sur {total}\u202F: {name}',

@@ -20,7 +20,7 @@ export const en = {
   'drop.choose': 'Choose files',
   'batch.title': '{count} files',
   'batch.hint':
-    'Each file is translated from its own language into the language you chose, one after another, with the engine and settings above. Download each file when it is done, or all of them at the end.',
+    'Each file is translated from its own language into the language you chose, one after another, with the engine and settings above; a file already in that language goes into the other one. You can change the language of each file. Download each file when it is done, or all of them at the end.',
   'batch.clear': 'Choose other files',
   'batch.tooMany': 'Up to {limit} files at a time: the first {limit} are listed.',
   'batch.project': 'A .samepage project opens on its own, not with other files.',
@@ -35,6 +35,7 @@ export const en = {
     '{translated} translated · {warnings} to review · {untranslated} left in the original',
   'batch.score': 'layout {score}/100',
   'batch.download': 'Download {name}',
+  'batch.targetFor': 'Language {name} is translated into',
   'batch.translateAll': 'Translate all',
   'batch.downloadAll': 'Download all (.zip)',
   'batch.progress': 'File {n} of {total}: {name}',

@@ -22,7 +22,7 @@ export const es: Record<MessageKey, string> = {
   'drop.choose': 'Elegir archivos',
   'batch.title': '{count} archivos',
   'batch.hint':
-    'Cada archivo se traduce desde su propio idioma al elegido, uno tras otro, con el motor y los ajustes de arriba. Descargue cada archivo al terminar o todos al final.',
+    'Cada archivo se traduce desde su propio idioma al elegido, uno tras otro, con el motor y los ajustes de arriba; un archivo que ya está en ese idioma pasa al otro. Puede cambiar el idioma de cada archivo. Descargue cada archivo al terminar o todos al final.',
   'batch.clear': 'Elegir otros archivos',
   'batch.tooMany': 'Hasta {limit} archivos a la vez: se muestran los primeros {limit}.',
   'batch.project': 'Un proyecto .samepage se abre solo, no con otros archivos.',
@@ -37,6 +37,7 @@ export const es: Record<MessageKey, string> = {
     '{translated} traducidos · {warnings} para revisar · {untranslated} en el original',
   'batch.score': 'maquetación {score}/100',
   'batch.download': 'Descargar {name}',
+  'batch.targetFor': 'Idioma al que se traduce {name}',
   'batch.translateAll': 'Traducir todo',
   'batch.downloadAll': 'Descargar todo (.zip)',
   'batch.progress': 'Archivo {n} de {total}: {name}',

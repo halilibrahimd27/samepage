@@ -1,7 +1,7 @@
 import { proxy } from 'comlink';
 import { useEffect, useRef, useState } from 'react';
 import { detectLanguage } from '../../core/detectLanguage';
-import { languageName, type LanguageCode } from '../../core/languages';
+import { LANGUAGES, languageName, type LanguageCode } from '../../core/languages';
 import type { ProgressPhase } from '../../core/pipeline/translate';
 import type { PdfInspection } from '../../pdf/engine';
 import { checkFile } from '../../security/fileCheck';
@@ -47,6 +47,8 @@ interface Item {
   kind?: Kind;
   pageCount?: number;
   detected?: LanguageCode;
+  /** The language this file goes into, when chosen for it alone. */
+  target?: LanguageCode;
   message?: string;
   progress?: { done: number; total: number; phase?: ProgressPhase | undefined };
   outputs?: { name: string; blob: Blob }[];
@@ -82,6 +84,17 @@ export function BatchTranslator({
   const jobId = useRef<string | null>(null);
   const update = (id: string, patch: Partial<Item>) =>
     setItems((all) => all.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  /**
+   * The language a file goes into: its own choice, or the one chosen for all — and for a file
+   * already in that language, the other one of the pair, as one file alone does ("Türkçe →
+   * İngilizce" chosen, an English paper goes into Turkish).
+   */
+  const targetOf = (it: Item): LanguageCode => {
+    if (it.target) return it.target;
+    if (it.detected !== config.target) return config.target;
+    if (config.source !== config.target) return config.source;
+    return config.target === 'en' ? 'tr' : 'en';
+  };
   const jobErrorText = (e: JobError) =>
     e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
 
@@ -151,8 +164,9 @@ export function BatchTranslator({
 
   async function translate(it: Item): Promise<Partial<Item>> {
     const source = it.detected ?? config.source;
-    if (source === config.target) return { status: 'skipped' };
-    const pair = { source, target: config.target };
+    const target = targetOf(it);
+    if (source === target) return { status: 'skipped' };
+    const pair = { source, target };
     const id = crypto.randomUUID();
     jobId.current = id;
     const glossary = await pipelineClient
@@ -179,7 +193,6 @@ export function BatchTranslator({
       translateMetadata: settings.translateMetadata,
     };
     const base = it.file.name.replace(/\.(pdf|docx|pptx|tex|zip)$/i, '');
-    const target = config.target;
     if (it.kind === 'pdf') {
       const job: PdfJob = { ...common, dual: false };
       const res = await pipelineClient.call<PdfJobResult>(
@@ -239,7 +252,9 @@ export function BatchTranslator({
     setError(null);
     stopped.current = false;
     setRunning(true);
-    const todo = items.filter((it) => it.status === 'ready' || it.status === 'failed');
+    const todo = items.filter(
+      (it) => it.status === 'ready' || it.status === 'failed' || it.status === 'skipped',
+    );
     setItems((all) =>
       all.map((it) =>
         todo.some((x) => x.id === it.id) && it.kind ? { ...it, status: 'queued' } : it,
@@ -317,7 +332,6 @@ export function BatchTranslator({
                   {it.pageCount !== undefined
                     ? ` · ${t('file.pages', { count: it.pageCount })}`
                     : ''}
-                  {it.detected ? ` · ${languageName(it.detected, lang)}` : ''}
                 </span>
               </div>
               <span
@@ -335,6 +349,32 @@ export function BatchTranslator({
                 {statusText(it)}
               </span>
             </div>
+            {it.kind && it.status !== 'failed' && (
+              <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                <span>{languageName(it.detected ?? config.source, lang)} →</span>
+                <select
+                  value={targetOf(it)}
+                  disabled={running}
+                  aria-label={t('batch.targetFor', { name: it.file.name })}
+                  onChange={(e) =>
+                    update(it.id, {
+                      target: e.target.value as LanguageCode,
+                      ...(it.status === 'skipped' ? { status: 'ready' as const } : {}),
+                    })
+                  }
+                  className="rounded-md border border-slate-300 bg-white px-2 py-1"
+                  data-testid="batch-target"
+                >
+                  {LANGUAGES.map((code) => ({ code, name: languageName(code, lang) }))
+                    .sort((a, b) => a.name.localeCompare(b.name, lang))
+                    .map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
             {it.status === 'translating' && it.progress && (
               <>
                 <span className="text-sm text-slate-600">
@@ -388,7 +428,7 @@ export function BatchTranslator({
           disabled={
             running ||
             reading ||
-            !items.some((it) => it.status === 'ready' || it.status === 'failed')
+            !items.some((it) => ['ready', 'failed', 'skipped'].includes(it.status))
           }
           className="w-full rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white shadow-sm shadow-blue-900/20 transition-colors sm:w-auto hover:bg-blue-800 disabled:opacity-50"
           data-testid="batch-translate"
