@@ -18,6 +18,8 @@ export const en = {
   'drop.hint':
     'or choose one file, or several to translate together (or a .samepage project to reopen). They are processed in your browser and never uploaded.',
   'drop.choose': 'Choose files',
+  'incoming.lost':
+    'A file sent to samepage could not be received. Please send it again, or choose it here.',
   'batch.title': '{count} files',
   'batch.hint':
     'Each file is translated from its own language into the language you chose, one after another, with the engine and settings above; a file already in that language goes into the other one. You can change the language of each file. Download each file when it is done, or all of them at the end.',

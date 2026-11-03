@@ -18,5 +18,44 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "share_target": {
+    "action": "share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            ".pdf",
+            "application/pdf",
+            ".docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".pptx",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ".tex",
+            "text/x-tex",
+            "application/x-tex",
+            ".zip",
+            "application/zip",
+            "application/x-zip-compressed",
+            ".samepage"
+          ]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/pdf": [".pdf"],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+        "text/x-tex": [".tex"],
+        "application/zip": [".zip", ".samepage"]
+      }
+    }
   ]
 }

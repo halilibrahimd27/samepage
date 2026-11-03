@@ -20,6 +20,8 @@ export const tr: Record<MessageKey, string> = {
   'drop.hint':
     'ya da bir dosya, birlikte çevirmek için birkaç dosya (veya yeniden açmak için bir .samepage projesi) seçin. Dosyalar tarayıcınızda işlenir, hiçbir yere yüklenmez.',
   'drop.choose': 'Dosya seç',
+  'incoming.lost':
+    'samepage’e gönderilen bir dosya alınamadı. Lütfen yeniden gönderin ya da buradan seçin.',
   'batch.title': '{count} dosya',
   'batch.hint':
     'Her dosya kendi dilinden seçtiğiniz dile, yukarıdaki motor ve ayarlarla sırayla çevrilir; zaten o dilde olan dosya öbür dile çevrilir. Her dosyanın dilini ayrıca değiştirebilirsiniz. Her dosyayı bittiğinde ya da hepsini sonunda indirebilirsiniz.',

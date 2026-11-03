@@ -18,6 +18,7 @@ import { extensionFile } from '../extension';
 import { latexSample, rejectionMessage } from '../fileInfo';
 import { formatBytes } from '../format';
 import { useI18n } from '../i18n';
+import { useIncomingFiles } from '../incomingFiles';
 import { pipelineClient } from '../pipelineClient';
 import type { Settings } from '../settings';
 
@@ -48,6 +49,8 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
   const [project, setProject] = useState<ProjectManifest | null>(null);
   /** Several files chosen at once: translated one after another. */
   const [batch, setBatch] = useState<File[] | null>(null);
+  /** A file shared to samepage or opened with it could not be read. */
+  const [lost, setLost] = useState(false);
   const request = useRef(0);
 
   // The samepage browser extension (P9.12) hands over the PDF the user chose: a message from this
@@ -67,6 +70,12 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  // Files shared from another app or opened with the installed app open as dropped ones do.
+  useIncomingFiles((files, missing) => {
+    setLost(missing);
+    if (files.length) openFiles(files);
+  });
+
   const thumbUrl = doc?.status === 'ready' ? doc.thumb?.url : undefined;
   useEffect(() => {
     return () => {
@@ -85,6 +94,16 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     }
     config.setSource(found.lang);
     return found.lang;
+  }
+
+  /** One file opens on its own; several go to the batch. */
+  function openFiles(files: File[]) {
+    if (files.length > 1) {
+      setBatch(files);
+      return;
+    }
+    setBatch(null);
+    void openFile(files[0]!);
   }
 
   async function openFile(file: File, from?: ProjectManifest) {
@@ -181,9 +200,20 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
     }
   }
 
+  const lostNotice = lost && (
+    <p
+      role="alert"
+      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+      data-testid="incoming-lost"
+    >
+      {t('incoming.lost')}
+    </p>
+  );
+
   if (batch)
     return (
       <div className="flex flex-col gap-6">
+        {lostNotice}
         <EngineConfigPanel config={config} settings={settings} />
         <BatchTranslator
           files={batch}
@@ -196,11 +226,12 @@ export function Workspace({ settings, config }: { settings: Settings; config: En
 
   return (
     <div className="flex flex-col gap-6">
+      {lostNotice}
       {doc === null ? (
         <DropZone
           onFiles={(files) => {
-            if (files.length > 1) setBatch(files);
-            else void openFile(files[0]!);
+            setLost(false);
+            openFiles(files);
           }}
         />
       ) : (
