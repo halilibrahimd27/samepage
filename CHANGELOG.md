@@ -4,6 +4,14 @@ All notable changes to samepage are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] — 2026-11-03
+
+### Fixed
+
+- Several files: a file already in the target language was left out ("Türkçe → İngilizce" chosen,
+  two English papers stayed as they were). It now goes into the other language of the pair, as
+  one file alone does, and the language each file goes into can be changed beside it.
+
 ## [1.3.0] — 2026-11-03
 
 ### Added
