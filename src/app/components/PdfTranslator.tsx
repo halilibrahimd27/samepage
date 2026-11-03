@@ -1,5 +1,6 @@
 import { proxy } from 'comlink';
 import { useEffect, useRef, useState } from 'react';
+import { languageName } from '../../core/languages';
 import type { ProjectManifest, ProjectOptions } from '../../core/project';
 import type { ProgressPhase } from '../../core/pipeline/translate';
 import type { JobError, PdfJob, PdfJobResult } from '../../workers/api';
@@ -31,7 +32,7 @@ export function PdfTranslator(props: {
   project?: ProjectManifest;
 }) {
   const { file, config, settings, project } = props;
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pair = { source: config.source, target: config.target };
   const glossary = useGlossary(pair);
   const suggestions = useTermSuggestions(file, 'pdf', pair, glossary.entries);
@@ -53,6 +54,37 @@ export function PdfTranslator(props: {
   const missingTerms = projectFile.missingTerms(glossary.entries);
   const [applied, setApplied] = useState<Record<string, string>>({});
   const base = file.name.replace(/\.pdf$/i, '');
+
+  /** Source and translation side by side in Word, unit by unit, with its page and what to check. */
+  async function downloadBilingual() {
+    if (!result) return;
+    const rows = result.report.units.map((u) => ({
+      source: u.source,
+      target: u.target,
+      notes: [
+        t('pdfReport.pages', { pages: u.pages.map((p) => p + 1).join(', ') }),
+        u.status === 'translated' ? '' : t(`pdfReport.status.${u.status}`),
+        u.manual ? t('review.manual') : '',
+        ...u.issues.map((i) => `${i.code}: ${i.detail}`),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    }));
+    const bytes = await pipelineClient.call((api) =>
+      api.bilingualDocx(rows, {
+        title: t('bilingual.title', { name: file.name }),
+        source: languageName(config.source, lang),
+        target: languageName(config.target, lang),
+        notes: t('bilingual.notes'),
+      }),
+    );
+    downloadBlob(
+      new Blob([bytes.slice()], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }),
+      `${base}.${config.source}-${config.target}.review.docx`,
+    );
+  }
   const problem = config.problem(t);
   const jobErrorText = (e: JobError) =>
     e.code === 'cancelled' ? t('jobError.cancelled') : `${t(`jobError.${e.code}`)} ${e.message}`;
@@ -289,6 +321,14 @@ export function PdfTranslator(props: {
                   {t('download.dual')}
                 </button>
               )}
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                onClick={() => void downloadBilingual()}
+                data-testid="download-bilingual"
+              >
+                {t('download.bilingual')}
+              </button>
               <button
                 type="button"
                 className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 shadow-sm hover:bg-slate-50"

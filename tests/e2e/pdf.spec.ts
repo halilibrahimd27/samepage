@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import JSZip from 'jszip';
 import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
 
@@ -50,6 +51,18 @@ test('PDF is translated in the browser with report, previews and downloads', asy
       .subarray(0, 2)
       .toString(),
   ).toBe('PK');
+
+  // Source and translation side by side for a reviewer, with each paragraph's page.
+  const [review] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('download-bilingual').click(),
+  ]);
+  expect(review.suggestedFilename()).toBe('two-column.tr-en.review.docx');
+  const xml = await (await JSZip.loadAsync(readFileSync(await review.path())))
+    .file('word/document.xml')!
+    .async('string');
+  expect(xml).toContain('<w:tbl>');
+  expect(xml).toContain('page 1');
 });
 
 test('PDF review step: a manual edit is laid out again from the cache', async ({ page }) => {
